@@ -1,8 +1,10 @@
-import { forwardRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { forwardRef, useImperativeHandle, useState } from 'react';
+import { View } from 'react-native';
+import { Chessboard } from 'react-chessboard';
 import type { Square, PieceSymbol, Move } from 'chess.js';
 
-// Minimal ref interface matching the native ChessboardRef — methods are no-ops on web.
+import { getSideToMove, applyMove } from '@/services/chess';
+
 export interface ChessboardRef {
   move: (p: { from: Square; to: Square; promotion?: PieceSymbol }) => Promise<Move | undefined>;
   undo: () => Move | null;
@@ -22,42 +24,48 @@ interface ChessBoardProps {
   enabled?: boolean;
 }
 
-const noop = () => undefined as never;
-
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
-  (_props, ref) => {
-    // Expose a no-op ref so usePuzzleSolver calls don't throw.
-    if (ref && typeof ref === 'object') {
-      ref.current = {
-        move:                     () => Promise.resolve(undefined),
-        undo:                     () => null,
-        highlight:                noop,
-        resetAllHighlightedSquares: noop,
-        resetBoard:               noop,
-        getState:                 () => ({}),
-      };
+  ({ fen, orientation = 'auto', onMove, enabled = true }, ref) => {
+    const [squareStyles, setSquareStyles] = useState<Record<string, Record<string, string>>>({});
+
+    const side = orientation === 'auto' ? getSideToMove(fen) : orientation;
+    const boardOrientation = side === 'b' ? 'black' : 'white';
+
+    useImperativeHandle(ref, () => ({
+      move:  () => Promise.resolve(undefined),
+      undo:  () => null,
+      highlight: ({ square, color }) =>
+        setSquareStyles(s => ({ ...s, [square]: { backgroundColor: color ?? 'rgba(255,255,0,0.5)' } })),
+      resetAllHighlightedSquares: () => setSquareStyles({}),
+      resetBoard: () => setSquareStyles({}),
+      getState: () => ({}),
+    }), []);
+
+    function handleDrop(from: string, to: string): boolean {
+      if (!enabled) return false;
+      let uci = `${from}${to}`;
+      let newFen = applyMove(fen, uci);
+      if (!newFen) {
+        uci = `${uci}q`; // auto-promote to queen
+        newFen = applyMove(fen, uci);
+      }
+      if (!newFen) return false;
+      onMove?.(uci, newFen);
+      return true;
     }
+
     return (
-      <View style={styles.board}>
-        <Text style={styles.label}>Tablero disponible en app móvil</Text>
+      <View style={{ width: 350, height: 350 }}>
+        <Chessboard
+          position={fen}
+          boardOrientation={boardOrientation}
+          arePiecesDraggable={enabled}
+          onPieceDrop={handleDrop}
+          customSquareStyles={squareStyles as never}
+          animationDuration={200}
+          boardWidth={350}
+        />
       </View>
     );
   },
 );
-
-const styles = StyleSheet.create({
-  board: {
-    width: 350,
-    height: 350,
-    backgroundColor: '#B58863',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 4,
-  },
-  label: {
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
-});
