@@ -5,10 +5,13 @@ import type { Puzzle, UserPuzzleProgress } from '@/types';
 import { applyMove } from '@/services/chess';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { deriveFsrsRating, createProgress, reviewProgress } from '@/services/fsrs';
 import { getOrCreateGuestId } from '@/services/identity';
 import { loadProgress, saveProgress } from '@/services/puzzleProgress';
 import { recordViralityEvent } from '@/services/virality';
+import { recordSolveEvent } from '@/services/solveHistory';
+import { trackReferralPuzzle } from '@/services/referral';
 
 export type SolverStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'complete';
 
@@ -48,10 +51,11 @@ export function usePuzzleSolverLocal(
   const progressRef   = useRef<UserPuzzleProgress | null>(null);
   const userIdRef     = useRef<string | null>(null);
 
-  const updateElo            = useUserStore((s) => s.updateElo);
-  const incrementCalibration = useUserStore((s) => s.incrementCalibration);
-  const isCalibrated         = useUserStore((s) => s.isCalibrated);
-  const calibrationCount     = useUserStore((s) => s.calibrationCount);
+  const updateElo             = useUserStore((s) => s.updateElo);
+  const incrementCalibration  = useUserStore((s) => s.incrementCalibration);
+  const incrementPuzzleStats  = useUserStore((s) => s.incrementPuzzleStats);
+  const isCalibrated          = useUserStore((s) => s.isCalibrated);
+  const calibrationCount      = useUserStore((s) => s.calibrationCount);
   const addToHistory         = usePuzzleStore((s) => s.addToHistory);
   const setLastFsrsRating    = usePuzzleStore((s) => s.setLastFsrsRating);
 
@@ -148,6 +152,17 @@ export function usePuzzleSolverLocal(
     updateElo(puzzleRating, solved);
     incrementCalibration();
     addToHistory(puzzleId);
+    incrementPuzzleStats(solved, puzzle?.themes ?? []);
+
+    const userId = userIdRef.current ?? '';
+    recordSolveEvent(userId, {
+      puzzleId,
+      date:     new Date().toISOString(),
+      solved,
+      tactic:   puzzle?.themes[0] ?? 'other',
+      rating:   puzzleRating,
+      eloAfter: useUserStore.getState().elo,
+    }).catch(console.error);
 
     if (progressRef.current) {
       const updated = reviewProgress(progressRef.current, fsrsRating);
@@ -156,6 +171,11 @@ export function usePuzzleSolverLocal(
     }
 
     recordViralityEvent(puzzleId, solved, elapsedMs).catch(console.error);
+
+    // Track referral puzzle for authenticated users (fire-and-forget)
+    if (!useAuthStore.getState().isGuest && userId) {
+      trackReferralPuzzle(userId).catch(console.error);
+    }
   }
 
   const onUserMove = useCallback((uciMove: string) => {

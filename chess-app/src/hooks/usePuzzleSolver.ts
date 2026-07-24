@@ -6,6 +6,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { deriveFsrsRating, createProgress, reviewProgress } from '@/services/fsrs';
 import { getOrCreateGuestId } from '@/services/identity';
 import { loadProgress, saveProgress } from '@/services/puzzleProgress';
+import { recordSolveEvent } from '@/services/solveHistory';
 import type { UserPuzzleProgress } from '@/types';
 
 function uciToMove(uci: string) {
@@ -33,6 +34,7 @@ export function usePuzzleSolver(boardRef: RefObject<ChessboardRef | null>) {
   const advanceReview    = usePuzzleStore((s) => s.advanceReview);
   const updateElo             = useUserStore((s) => s.updateElo);
   const incrementCalibration  = useUserStore((s) => s.incrementCalibration);
+  const incrementPuzzleStats  = useUserStore((s) => s.incrementPuzzleStats);
   const isCalibrated          = useUserStore((s) => s.isCalibrated);
   const calibrationCount      = useUserStore((s) => s.calibrationCount);
   const setLastFsrsRating     = usePuzzleStore((s) => s.setLastFsrsRating);
@@ -127,6 +129,17 @@ export function usePuzzleSolver(boardRef: RefObject<ChessboardRef | null>) {
     setLastFsrsRating(fsrsRating);
     updateElo(puzzleRating, solved);
     incrementCalibration();
+    incrementPuzzleStats(solved, usePuzzleStore.getState().currentPuzzle?.themes ?? []);
+
+    const userId = userIdRef.current ?? '';
+    recordSolveEvent(userId, {
+      puzzleId,
+      date:     new Date().toISOString(),
+      solved,
+      tactic:   usePuzzleStore.getState().currentPuzzle?.themes[0] ?? 'other',
+      rating:   puzzleRating,
+      eloAfter: useUserStore.getState().elo,
+    }).catch(console.error);
 
     // Update and persist FSRS state (fire-and-forget)
     if (progressRef.current) {

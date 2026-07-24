@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ChessBoard } from '@/components/chess/ChessBoard';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleSolverLocal, type SolverStatus } from '@/hooks/usePuzzleSolverLocal';
+import { useShareCard } from '@/hooks/useShareCard';
 import { RangeBadge } from '@/components/ui/RangeBadge';
+import { ShareCard } from '@/components/ui/ShareCard';
 import { CALIBRATION_PUZZLES } from '@/constants';
 import type { Puzzle } from '@/types';
 
@@ -36,7 +38,11 @@ interface Props {
 export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChange }: Props) {
   const { colors, typography, spacing } = useTheme();
   const boardRef = useRef<ChessboardRef>(null);
-  const elo = useUserStore((s) => s.elo);
+  const elo             = useUserStore((s) => s.elo);
+  const streakDays      = useUserStore((s) => s.streakDays);
+  const puzzlesCompleted = useUserStore((s) => s.puzzlesCompleted);
+
+  const { cardRef, isSharing, captureAndShare } = useShareCard();
 
   const {
     puzzleStatus,
@@ -127,14 +133,39 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
       )}
 
       {puzzleStatus === 'complete' && (
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.success, borderRadius: 8 }]}
-          onPress={onComplete}
-        >
-          <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-            Siguiente puzzle
-          </Text>
-        </TouchableOpacity>
+        <View style={[styles.row, { gap: spacing[2] }]}>
+          {Platform.OS !== 'web' && (
+            <TouchableOpacity
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, borderRadius: 8, opacity: isSharing ? 0.5 : 1 }]}
+              onPress={captureAndShare}
+              disabled={isSharing}
+            >
+              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                {isSharing ? '…' : 'Compartir'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: colors.success, borderRadius: 8 }]}
+            onPress={onComplete}
+          >
+            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
+              Siguiente puzzle
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Off-screen card captured by useShareCard */}
+      {puzzleStatus === 'complete' && Platform.OS !== 'web' && (
+        <ShareCard
+          ref={cardRef}
+          tactic={puzzle.themes[0] ?? 'other'}
+          puzzleRating={puzzle.rating}
+          elo={elo}
+          streakDays={streakDays}
+          puzzlesCompleted={puzzlesCompleted}
+        />
       )}
     </View>
   );

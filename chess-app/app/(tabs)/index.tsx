@@ -7,7 +7,9 @@ import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
 import { buildReviewQueue } from '@/services/reviewQueue';
 import { getOrCreateGuestId } from '@/services/identity';
+import { cachePuzzles, getCachedPuzzles } from '@/services/puzzleCache';
 import { PuzzleCard } from '@/components/feed/PuzzleCard';
+import { showInterstitialIfDue } from '@/services/ads';
 import type { Puzzle } from '@/types';
 import type { SolverStatus } from '@/hooks/usePuzzleSolverLocal';
 
@@ -54,10 +56,19 @@ export default function FeedScreen() {
         userIdRef.current = userId;
         const puzzles = await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, sessionHistoryRef.current);
         if (!cancelled) {
-          puzzles.length ? setFeed(puzzles) : setHasError(true);
+          if (puzzles.length) {
+            cachePuzzles(puzzles); // fire-and-forget cache update
+            setFeed(puzzles);
+          } else {
+            setHasError(true);
+          }
         }
       } catch {
-        if (!cancelled) setHasError(true);
+        // Network unavailable — serve from local cache
+        if (!cancelled) {
+          const cached = await getCachedPuzzles();
+          cached.length ? setFeed(cached) : setHasError(true);
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -76,7 +87,12 @@ export default function FeedScreen() {
       try {
         const userId = userIdRef.current ?? await getOrCreateGuestId();
         const more   = await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, sessionHistoryRef.current);
-        appendToFeed(more);
+        if (more.length) {
+          cachePuzzles(more);
+          appendToFeed(more);
+        }
+      } catch {
+        // Offline during prefetch — silently skip; current feed keeps playing
       } finally {
         prefetching.current = false;
       }
@@ -124,6 +140,7 @@ export default function FeedScreen() {
 
   // Advance to the next card; called by PuzzleCard on completion
   const scrollToNext = useCallback(() => {
+    showInterstitialIfDue();
     setActiveIndex((prev) => {
       const next = prev + 1;
       if (next < feedLengthRef.current) {

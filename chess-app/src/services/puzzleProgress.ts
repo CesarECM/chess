@@ -1,4 +1,11 @@
 import { supabase } from '@/services/supabase';
+import {
+  loadLocalProgress,
+  saveLocalProgress,
+  loadDueLocalProgress,
+} from '@/services/localProgress';
+import { queueForSync } from '@/services/offlineSyncQueue';
+import { useAuthStore } from '@/stores/useAuthStore';
 import type { UserPuzzleProgress } from '@/types';
 
 // ── DB row ↔ domain type ───────────────────────────────────────────────────────
@@ -59,6 +66,10 @@ export async function loadProgress(
   userId: string,
   puzzleId: string,
 ): Promise<UserPuzzleProgress | null> {
+  if (useAuthStore.getState().isGuest) {
+    return loadLocalProgress(puzzleId);
+  }
+
   const { data, error } = await supabase
     .from('user_puzzle_progress')
     .select('*')
@@ -72,11 +83,19 @@ export async function loadProgress(
 
 /** Upsert the FSRS progress record after a review. Fire-and-forget safe. */
 export async function saveProgress(progress: UserPuzzleProgress): Promise<void> {
+  if (useAuthStore.getState().isGuest) {
+    return saveLocalProgress(progress);
+  }
+
   const { error } = await supabase
     .from('user_puzzle_progress')
     .upsert(progressToRow(progress), { onConflict: 'user_id,puzzle_id' });
 
-  if (error) console.error('[puzzleProgress] saveProgress error:', error.message);
+  if (error) {
+    console.error('[puzzleProgress] saveProgress error:', error.message);
+    // Buffer locally so it syncs when connectivity is restored
+    await queueForSync(progress);
+  }
 }
 
 /**
@@ -87,6 +106,10 @@ export async function loadDueProgress(
   userId: string,
   now: Date = new Date(),
 ): Promise<UserPuzzleProgress[]> {
+  if (useAuthStore.getState().isGuest) {
+    return loadDueLocalProgress(now);
+  }
+
   const { data, error } = await supabase
     .from('user_puzzle_progress')
     .select('*')
