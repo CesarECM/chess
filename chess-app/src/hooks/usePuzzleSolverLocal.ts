@@ -1,0 +1,259 @@
+import { useState, useEffect, useRef, useCallback, type RefObject } from 'react';
+import type { Square, PieceSymbol } from 'chess.js';
+import type { ChessboardRef } from '@/components/chess/ChessBoard';
+import type { Puzzle, UserPuzzleProgress } from '@/types';
+import { applyMove } from '@/services/chess';
+import { useUserStore } from '@/stores/useUserStore';
+import { usePuzzleStore } from '@/stores/usePuzzleStore';
+import { deriveFsrsRating, createProgress, reviewProgress } from '@/services/fsrs';
+import { getOrCreateGuestId } from '@/services/identity';
+import { loadProgress, saveProgress } from '@/services/puzzleProgress';
+import { recordViralityEvent } from '@/services/virality';
+
+export type SolverStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'complete';
+
+const HIGHLIGHT_FROM = 'rgba(255, 165, 0, 0.75)';
+const HIGHLIGHT_TO   = 'rgba(255, 165, 0, 0.50)';
+
+function uciToMove(uci: string) {
+  return {
+    from: uci.slice(0, 2) as Square,
+    to:   uci.slice(2, 4) as Square,
+    ...(uci.length === 5 && { promotion: uci[4] as PieceSymbol }),
+  };
+}
+
+function normalizeUCI(uci: string) {
+  return uci.toLowerCase().trim();
+}
+
+/**
+ * Self-contained puzzle solver with local state.
+ * Designed for feed cards where multiple puzzle instances coexist.
+ * Side effects (ELO, FSRS, history) still flow through global stores.
+ */
+export function usePuzzleSolverLocal(
+  puzzle: Puzzle | null,
+  boardRef: RefObject<ChessboardRef | null>,
+  isActive: boolean,
+) {
+  const [puzzleStatus, setPuzzleStatus] = useState<SolverStatus>('idle');
+
+  // Refs for mutable solver state — avoids stale closures in callbacks
+  const fenRef        = useRef(puzzle?.fen ?? '');
+  const moveIndexRef  = useRef(0);
+  const statusRef     = useRef<SolverStatus>('idle');
+  const countedRef    = useRef<string | null>(null);
+  const solveStartRef = useRef<number | null>(null);
+  const progressRef   = useRef<UserPuzzleProgress | null>(null);
+  const userIdRef     = useRef<string | null>(null);
+
+  const updateElo            = useUserStore((s) => s.updateElo);
+  const incrementCalibration = useUserStore((s) => s.incrementCalibration);
+  const isCalibrated         = useUserStore((s) => s.isCalibrated);
+  const calibrationCount     = useUserStore((s) => s.calibrationCount);
+  const addToHistory         = usePuzzleStore((s) => s.addToHistory);
+  const setLastFsrsRating    = usePuzzleStore((s) => s.setLastFsrsRating);
+
+  function setStatus(s: SolverStatus) {
+    statusRef.current = s;
+    setPuzzleStatus(s);
+  }
+
+  function highlightMove(uci: string) {
+    boardRef.current?.highlight({ square: uci.slice(0, 2) as Square, color: HIGHLIGHT_FROM });
+    boardRef.current?.highlight({ square: uci.slice(2, 4) as Square, color: HIGHLIGHT_TO });
+  }
+
+  // Resolve guest ID once per component lifetime
+  useEffect(() => {
+    getOrCreateGuestId().then((id) => { userIdRef.current = id; });
+  }, []);
+
+  // Load FSRS progress when puzzle changes (also fires on FlashList recycling)
+  useEffect(() => {
+    if (!puzzle) return;
+    let cancelled = false;
+    (async () => {
+      const userId = userIdRef.current ?? await getOrCreateGuestId();
+      userIdRef.current = userId;
+      const existing = await loadProgress(userId, puzzle.id);
+      if (!cancelled) {
+        progressRef.current = existing ?? createProgress(userId, puzzle.id);
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
+  // Reset solver when puzzle changes (handles FlashList view recycling)
+  useEffect(() => {
+    if (!puzzle) return;
+    fenRef.current        = puzzle.fen;
+    moveIndexRef.current  = 0;
+    countedRef.current    = null;
+    solveStartRef.current = null;
+    setStatus('idle');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
+  // Animate first opponent move when idle and the card is visible
+  useEffect(() => {
+    if (puzzleStatus !== 'idle' || !puzzle || !isActive) return;
+
+    boardRef.current?.resetBoard(puzzle.fen);
+
+    const t = setTimeout(() => {
+      const opponentUCI = puzzle.moves[0];
+      if (!opponentUCI) return;
+      const newFen = applyMove(puzzle.fen, opponentUCI);
+      if (!newFen) return;
+
+      boardRef.current?.move(uciToMove(opponentUCI));
+      fenRef.current       = newFen;
+      moveIndexRef.current = 1;
+      setStatus('playing');
+
+      setTimeout(() => { solveStartRef.current = Date.now(); }, 400);
+    }, 500);
+
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzleStatus, puzzle?.id, isActive]);
+
+  // Reset board to initial FEN when review mode starts
+  useEffect(() => {
+    if (puzzleStatus !== 'reviewing' || !puzzle || !isActive) return;
+
+    boardRef.current?.resetBoard(puzzle.fen);
+    boardRef.current?.resetAllHighlightedSquares();
+
+    const t = setTimeout(() => {
+      if (puzzle.moves[0]) highlightMove(puzzle.moves[0]);
+    }, 300);
+
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzleStatus, puzzle?.id, isActive]);
+
+  // Records ELO + calibration + FSRS once per puzzle; idempotent via countedRef
+  function recordResult(puzzleId: string, puzzleRating: number, solved: boolean) {
+    if (countedRef.current === puzzleId) return;
+    countedRef.current = puzzleId;
+
+    const elapsedMs  = solveStartRef.current ? Date.now() - solveStartRef.current : 0;
+    const fsrsRating = deriveFsrsRating(solved, elapsedMs);
+
+    setLastFsrsRating(fsrsRating);
+    updateElo(puzzleRating, solved);
+    incrementCalibration();
+    addToHistory(puzzleId);
+
+    if (progressRef.current) {
+      const updated = reviewProgress(progressRef.current, fsrsRating);
+      progressRef.current = updated;
+      saveProgress(updated).catch(console.error);
+    }
+
+    recordViralityEvent(puzzleId, solved, elapsedMs).catch(console.error);
+  }
+
+  const onUserMove = useCallback((uciMove: string) => {
+    if (!puzzle || statusRef.current !== 'playing') return;
+
+    const idx      = moveIndexRef.current;
+    const fen      = fenRef.current;
+    const expected = puzzle.moves[idx];
+
+    if (normalizeUCI(uciMove) !== normalizeUCI(expected)) {
+      setStatus('failed');
+      return;
+    }
+
+    const fenAfterUser = applyMove(fen, uciMove);
+    if (!fenAfterUser) return;
+    const afterUserIdx = idx + 1;
+
+    if (afterUserIdx >= puzzle.moves.length) {
+      fenRef.current       = fenAfterUser;
+      moveIndexRef.current = afterUserIdx;
+      setStatus('complete');
+      recordResult(puzzle.id, puzzle.rating, true);
+      return;
+    }
+
+    const opponentMove     = puzzle.moves[afterUserIdx];
+    const fenAfterOpponent = applyMove(fenAfterUser, opponentMove) ?? fenAfterUser;
+    const afterOpponentIdx = afterUserIdx + 1;
+
+    fenRef.current       = fenAfterOpponent;
+    moveIndexRef.current = afterOpponentIdx;
+
+    if (afterOpponentIdx >= puzzle.moves.length) {
+      setStatus('complete');
+      recordResult(puzzle.id, puzzle.rating, true);
+    }
+
+    setTimeout(() => {
+      boardRef.current?.move(uciToMove(opponentMove));
+    }, 400);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
+  const startReview = useCallback(() => {
+    if (!puzzle) return;
+    recordResult(puzzle.id, puzzle.rating, false);
+    fenRef.current       = puzzle.fen;
+    moveIndexRef.current = 0;
+    setStatus('reviewing');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
+  const handleAdvanceReview = useCallback(() => {
+    if (statusRef.current !== 'reviewing' || !puzzle) return;
+
+    boardRef.current?.resetAllHighlightedSquares();
+
+    const idx = moveIndexRef.current;
+    if (idx >= puzzle.moves.length) return;
+
+    const move   = puzzle.moves[idx];
+    const newFen = applyMove(fenRef.current, move);
+    if (!newFen) return;
+
+    boardRef.current?.move(uciToMove(move));
+
+    const newIdx = idx + 1;
+    const done   = newIdx >= puzzle.moves.length;
+
+    fenRef.current       = newFen;
+    moveIndexRef.current = newIdx;
+    setStatus(done ? 'complete' : 'reviewing');
+
+    if (!done) {
+      setTimeout(() => {
+        if (puzzle.moves[newIdx]) highlightMove(puzzle.moves[newIdx]);
+      }, 400);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
+  const onRetry = useCallback(() => {
+    if (!puzzle) return;
+    fenRef.current        = puzzle.fen;
+    moveIndexRef.current  = 0;
+    countedRef.current    = null;
+    setStatus('idle');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
+  return {
+    puzzleStatus,
+    onUserMove,
+    startReview,
+    handleAdvanceReview,
+    onRetry,
+    isCalibrated,
+    calibrationCount,
+  };
+}

@@ -11,6 +11,14 @@ export const CALIBRATION_PUZZLES = 12;
 
 export const FSRS_TARGET_RETENTION = 0.9;
 
+// Implicit FSRS rating thresholds (milliseconds)
+// solved < EASY  → Easy(4)
+// solved < HARD  → Good(3)
+// solved ≥ HARD  → Hard(2)
+// failed         → Again(1)
+export const FSRS_EASY_THRESHOLD_MS = 15_000;   // 15 s
+export const FSRS_HARD_THRESHOLD_MS = 60_000;   // 60 s
+
 export const SUBSCRIPTION_PRICE_USD = 2.99;
 
 export const REFERRAL_MIN_PUZZLES = 10;

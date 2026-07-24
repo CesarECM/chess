@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Puzzle, PuzzleId } from '@/types';
+import type { Puzzle, PuzzleId, FSRSRating } from '@/types';
 import { applyMove } from '@/services/chess';
 
 export type PuzzleStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'complete';
@@ -23,6 +23,9 @@ interface PuzzleState {
   currentFen:       string | null;
   currentMoveIndex: number;
   puzzleStatus:     PuzzleStatus;
+  /** FSRS implicit rating computed from solve behavior (set when puzzle ends). */
+  lastFsrsRating:   FSRSRating | null;
+  setLastFsrsRating: (rating: FSRSRating) => void;
   /** Load a new puzzle and prepare the solver (status → 'idle'). */
   startPuzzle:      (puzzle: Puzzle) => void;
   /**
@@ -63,9 +66,11 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     set((s) => ({ sessionHistory: [...s.sessionHistory, puzzleId] })),
 
   // ── Solver state ──────────────────────────────────────────────
-  currentFen:       null,
-  currentMoveIndex: 0,
-  puzzleStatus:     'idle',
+  currentFen:        null,
+  currentMoveIndex:  0,
+  puzzleStatus:      'idle',
+  lastFsrsRating:    null,
+  setLastFsrsRating: (rating) => set({ lastFsrsRating: rating }),
 
   startPuzzle: (puzzle) =>
     set({
@@ -73,6 +78,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
       currentFen:       puzzle.fen,
       currentMoveIndex: 0,
       puzzleStatus:     'idle', // hook animates move[0] then transitions to 'playing'
+      lastFsrsRating:   null,
     }),
 
   playOpponentMove: () => {

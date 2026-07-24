@@ -32,9 +32,12 @@ export interface Puzzle {
 export interface UserPuzzleProgress {
   userId: UserId;
   puzzleId: PuzzleId;
-  stability: number;      // FSRS: S
-  difficulty: number;     // FSRS: D
-  retrievability: number; // FSRS: R
+  stability: number;        // FSRS: S
+  difficulty: number;       // FSRS: D
+  retrievability: number;   // FSRS: R
+  state: 0 | 1 | 2 | 3;   // FSRS: New | Learning | Review | Relearning
+  lapses: number;           // FSRS: times forgotten in Review state
+  learningSteps: number;    // FSRS: step within learning/relearning sequence
   repetitions: number;
   lastRating: 1 | 2 | 3 | 4; // Again | Hard | Good | Easy
   lastReviewedAt: string;

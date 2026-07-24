@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { CALIBRATION_PUZZLES } from '@/constants';
+import { calculateElo } from '@/services/elo';
+
+const K_CALIBRATING = 32;
+const K_ESTABLISHED = 16;
 
 interface UserState {
   elo: number;
@@ -9,6 +13,7 @@ interface UserState {
   lastActiveDate: string | null;
   isPremium: boolean;
   setElo: (elo: number) => void;
+  updateElo: (puzzleRating: number, solved: boolean) => void;
   incrementCalibration: () => void;
   updateStreak: () => void;
   setPremium: (value: boolean) => void;
@@ -22,6 +27,12 @@ export const useUserStore = create<UserState>((set, get) => ({
   lastActiveDate: null,
   isPremium: false,
   setElo: (elo) => set({ elo }),
+  updateElo: (puzzleRating, solved) => {
+    const { elo, isCalibrated } = get();
+    const kFactor = isCalibrated ? K_ESTABLISHED : K_CALIBRATING;
+    const { newElo } = calculateElo(elo, puzzleRating, solved, kFactor);
+    set({ elo: newElo });
+  },
   incrementCalibration: () => {
     const count = get().calibrationCount + 1;
     set({ calibrationCount: count, isCalibrated: count >= CALIBRATION_PUZZLES });
