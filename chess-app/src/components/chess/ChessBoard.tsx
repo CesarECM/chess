@@ -26,9 +26,11 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
     const { width } = useWindowDimensions();
     const boardSize = Math.min(width, 480);
 
+    // getSideToMove(fen) is the OPPONENT's color (moves[0] belongs to them).
+    // Player is the opposite color → flip when opponent is white (player is black).
     const flipped =
       orientation === 'black' ||
-      (orientation === 'auto' && getSideToMove(fen) === 'b');
+      (orientation === 'auto' && getSideToMove(fen) === 'w');
 
     const handleMove = useCallback(
       (result: MoveResult) => {

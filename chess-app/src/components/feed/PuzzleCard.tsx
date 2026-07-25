@@ -48,6 +48,10 @@ function PuzzleCardComponent({ puzzle, height, isActive, onComplete, onStatusCha
     calibrationCount,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive);
 
+  // fen.split(' ')[1] is the opponent's color (they play moves[0]).
+  // Player is the opposite side.
+  const playerColor = puzzle.fen.split(' ')[1] === 'w' ? 'black' : 'white';
+
   useEffect(() => {
     if (isActive) onStatusChange?.(puzzleStatus);
   }, [puzzleStatus, isActive, onStatusChange]);
@@ -87,6 +91,10 @@ function PuzzleCardComponent({ puzzle, height, isActive, onComplete, onStatusCha
 
       <Text style={[styles.meta, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
         {t('puzzle.ratingMeta', { rating: puzzle.rating, theme: puzzle.themes[0] })}
+      </Text>
+
+      <Text style={[styles.playerColor, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+        {t(playerColor === 'white' ? 'puzzle.playingWhite' : 'puzzle.playingBlack')}
       </Text>
 
       <ChessBoard
@@ -179,7 +187,8 @@ const styles = StyleSheet.create({
   calibText:  { fontWeight: '600', textAlign: 'center' },
   calibTrack: { height: 4, borderRadius: 2, width: '100%', overflow: 'hidden' },
   calibFill:  { height: 4, borderRadius: 2 },
-  meta:       { marginBottom: 4 },
+  meta:        { marginBottom: 2 },
+  playerColor: { marginBottom: 6, fontWeight: '600' },
   status:     { marginTop: 12, fontWeight: '500' },
   row:        { flexDirection: 'row' },
   btn:        { paddingHorizontal: 20, paddingVertical: 10 },

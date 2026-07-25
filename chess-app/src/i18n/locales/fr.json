@@ -28,8 +28,10 @@
     "hasAccount": "Déjà un compte ? Se connecter"
   },
   "puzzle": {
-    "statusIdle": "Chargement…",
+    "statusIdle": "Adversaire joue…",
     "statusPlaying": "À vous de jouer",
+    "playingWhite": "Vous jouez ♔ blanc",
+    "playingBlack": "Vous jouez ♚ noir",
     "statusFailed": "✗ Incorrect",
     "statusReviewing": "Révision de la solution…",
     "statusComplete": "✓ Puzzle résolu !",
