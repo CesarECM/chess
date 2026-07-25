@@ -6,6 +6,7 @@ import {
   GOOD_SCORE,
   MEDIOCRE_SCORE,
   RETIRE_PERSISTENT_ATTEMPTS,
+  ANCHOR_SLOTS,
 } from '@/services/virality';
 import { clamp } from '@/utils';
 import type { Puzzle } from '@/types';
@@ -18,11 +19,12 @@ const W_VIRALITY    = 0.25;
 const W_POPULARITY  = 0.20;
 const W_RELIABILITY = 0.15;
 
-// Lifecycle budget fractions (must sum to 1.0)
-const BUDGET_FRESH    = 0.25;
-const BUDGET_RISING   = 0.45;
-const BUDGET_COASTING = 0.20;
-const BUDGET_STRUGGLE = 0.10;
+// Lifecycle budget fractions applied to slots remaining after FSRS and anchors
+const BUDGET_EVALUATING = 0.25;
+const BUDGET_RISING     = 0.40;
+const BUDGET_VIRGIN     = 0.20;
+const BUDGET_COASTING   = 0.10;
+const BUDGET_STRUGGLE   = 0.05;
 
 function rowToPuzzle(row: Record<string, unknown>): Puzzle {
   return {
@@ -154,11 +156,12 @@ export async function fetchNextPuzzle(
  *
  * Lifecycle phases (TikTok-style content amplification):
  *  1. FSRS repasos vencidos — always first.
- *  2. Fresh    (25 %) — no data or < FRESH_THRESHOLD attempts. New content.
- *  3. Rising   (45 %) — effectiveScore ≥ GOOD_SCORE. Proven high performers.
- *  4. Coasting (20 %) — MEDIOCRE_SCORE ≤ effectiveScore < GOOD_SCORE. Middle tier.
- *  5. Struggling(10%) — low score, probabilistic inclusion that decays with attempts.
- *     Retired puzzles (score confirmed bad after enough attempts) are never shown.
+ *  2. Anchor  (fixed slots) — top puzzles by effectiveScore; shown to every user as champions.
+ *  3. Evaluating   (25 %) — impressions 1–29: accelerate data collection to reach reliable score.
+ *  4. Rising       (40 %) — impressions ≥ 30, effectiveScore ≥ GOOD_SCORE: proven performers.
+ *  5. Virgin       (20 %) — zero impressions: introduce new content.
+ *  6. Coasting     (10 %) — medium score: second tier.
+ *  7. Struggling    (5 %) — low score, probabilistic decay; retired puzzles never appear.
  */
 export async function buildReviewQueue(
   userId: string,
@@ -176,47 +179,68 @@ export async function buildReviewQueue(
 
   const excluded = new Set([...dueIds, ...excludeIds]);
 
-  // ── Fetch candidate pool ──────────────────────────────────────────────────
-  const { data: rawCandidates } = await supabase
+  // ── Fetch full ELO-window pool (no limit — anchors need the true global top) ──
+  const { data: rawPool } = await supabase
     .from('puzzles')
     .select('*')
     .gte('rating', userElo - ELO_WINDOW)
-    .lte('rating', userElo + ELO_WINDOW)
-    .order('id')
-    .limit(remaining * 5);
+    .lte('rating', userElo + ELO_WINDOW);
 
-  const candidates = ((rawCandidates ?? []) as Record<string, unknown>[])
+  const pool = ((rawPool ?? []) as Record<string, unknown>[])
     .map(rowToPuzzle)
     .filter((p) => !excluded.has(p.id));
 
-  if (candidates.length === 0) return duePuzzles;
+  if (pool.length === 0) return duePuzzles;
 
-  // ── Fetch virality data (score, effectiveScore, attempts, retired) ─────────
-  const viralityMap = await fetchViralityScores(candidates.map((p) => p.id));
+  // ── Fetch virality data for the full pool ──────────────────────────────────
+  const viralityMap = await fetchViralityScores(pool.map((p) => p.id));
 
-  // ── Classify candidates into lifecycle phases ─────────────────────────────
-  const fresh:     Puzzle[]                              = [];
-  const rising:    Puzzle[]                              = [];
-  const coasting:  Puzzle[]                              = [];
-  const struggling: { puzzle: Puzzle; attempts: number }[] = [];
+  // ── Anchor selection: top ANCHOR_SLOTS by effectiveScore (champions) ───────
+  const anchorPicks = pool
+    .filter((p) => {
+      const d = viralityMap.get(p.id);
+      return d && d.impressions >= FRESH_THRESHOLD && d.effectiveScore >= GOOD_SCORE && !d.retired;
+    })
+    .sort((a, b) => viralityMap.get(b.id)!.effectiveScore - viralityMap.get(a.id)!.effectiveScore)
+    .slice(0, ANCHOR_SLOTS);
 
-  for (const p of candidates) {
-    const data = viralityMap.get(p.id);
-    if (!data || data.attempts < FRESH_THRESHOLD) { fresh.push(p);    continue; }
-    if (data.retired)                              {                    continue; }
-    if (data.effectiveScore >= GOOD_SCORE)         { rising.push(p);   continue; }
-    if (data.effectiveScore >= MEDIOCRE_SCORE)     { coasting.push(p); continue; }
-    struggling.push({ puzzle: p, attempts: data.attempts });
+  const anchorIds = new Set(anchorPicks.map((p) => p.id));
+
+  // ── Lifecycle pool: everything except anchors ──────────────────────────────
+  const lifecycle = pool.filter((p) => !anchorIds.has(p.id));
+
+  // ── Classify lifecycle candidates into phases ──────────────────────────────
+  const evaluating: Puzzle[]                              = [];
+  const rising:     Puzzle[]                              = [];
+  const virgin:     Puzzle[]                              = [];
+  const coasting:   Puzzle[]                              = [];
+  const struggling: { puzzle: Puzzle; impressions: number }[] = [];
+
+  for (const p of lifecycle) {
+    const d = viralityMap.get(p.id);
+
+    if (!d) {
+      virgin.push(p);    // no virality row → truly unseen
+      continue;
+    }
+    if (d.retired)                              { continue; }
+    if (d.impressions < FRESH_THRESHOLD)        { evaluating.push(p); continue; }
+    if (d.effectiveScore >= GOOD_SCORE)         { rising.push(p);     continue; }
+    if (d.effectiveScore >= MEDIOCRE_SCORE)     { coasting.push(p);   continue; }
+    struggling.push({ puzzle: p, impressions: d.impressions });
   }
 
-  // ── Budget targets ────────────────────────────────────────────────────────
-  const tFresh    = Math.round(remaining * BUDGET_FRESH);
-  const tRising   = Math.round(remaining * BUDGET_RISING);
-  const tCoasting = Math.round(remaining * BUDGET_COASTING);
-  const tStruggle = Math.max(1, Math.round(remaining * BUDGET_STRUGGLE));
+  // ── Budget targets (applied to slots remaining after anchors) ──────────────
+  const lifecycleSlots = remaining - anchorPicks.length;
 
-  // ── Pick from each phase ──────────────────────────────────────────────────
-  const freshPicks = shuffled(fresh).slice(0, tFresh);
+  const tEvaluating = Math.round(lifecycleSlots * BUDGET_EVALUATING);
+  const tRising     = Math.round(lifecycleSlots * BUDGET_RISING);
+  const tVirgin     = Math.round(lifecycleSlots * BUDGET_VIRGIN);
+  const tCoasting   = Math.round(lifecycleSlots * BUDGET_COASTING);
+  const tStruggle   = Math.max(1, Math.round(lifecycleSlots * BUDGET_STRUGGLE));
+
+  // ── Pick from each phase ───────────────────────────────────────────────────
+  const evaluatingPicks = shuffled(evaluating).slice(0, tEvaluating);
 
   const risingByScore = rising
     .map((p) => ({ puzzle: p, score: scoreCandidate(p, userElo, viralityMap.get(p.id)!.effectiveScore) }))
@@ -224,26 +248,35 @@ export async function buildReviewQueue(
     .map((s) => s.puzzle);
   const risingPicks = applyTopicDiversity(risingByScore, 2, tRising);
 
+  const virginPicks = shuffled(virgin).slice(0, tVirgin);
+
   const coastingByScore = coasting
     .map((p) => ({ puzzle: p, score: scoreCandidate(p, userElo, viralityMap.get(p.id)!.effectiveScore) }))
     .sort((a, b) => b.score - a.score)
     .map((s) => s.puzzle);
   const coastingPicks = applyTopicDiversity(coastingByScore, 2, tCoasting);
 
-  // Struggling: inclusion probability decays linearly with attempts → 0 at RETIRE_PERSISTENT_ATTEMPTS
+  // Struggling: inclusion probability decays linearly with impressions → 0 at RETIRE_PERSISTENT_ATTEMPTS
   const eligibleStruggling = struggling
-    .filter(({ attempts }) => Math.random() < Math.max(0, 1 - attempts / RETIRE_PERSISTENT_ATTEMPTS))
+    .filter(({ impressions }) => Math.random() < Math.max(0, 1 - impressions / RETIRE_PERSISTENT_ATTEMPTS))
     .map(({ puzzle }) => puzzle);
   const strugglePicks = shuffled(eligibleStruggling).slice(0, tStruggle);
 
-  // ── Assemble + fill any gaps left by short pools ──────────────────────────
-  const picked = [...freshPicks, ...risingPicks, ...coastingPicks, ...strugglePicks];
+  // ── Assemble: anchors first, then lifecycle, capped at remaining ───────────
+  const picked = [
+    ...anchorPicks,
+    ...evaluatingPicks,
+    ...risingPicks,
+    ...virginPicks,
+    ...coastingPicks,
+    ...strugglePicks,
+  ].slice(0, remaining);
+
+  // ── Fill any gaps left by short pools ─────────────────────────────────────
   const pickedIds = new Set([...excluded, ...picked.map((p) => p.id)]);
-  const needed = remaining - picked.length;
+  const needed    = remaining - picked.length;
   if (needed > 0) {
-    const leftovers = candidates
-      .filter((p) => !pickedIds.has(p.id))
-      .slice(0, needed);
+    const leftovers = pool.filter((p) => !pickedIds.has(p.id)).slice(0, needed);
     picked.push(...leftovers);
   }
 

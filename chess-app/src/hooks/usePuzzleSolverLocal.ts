@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { deriveFsrsRating, createProgress, reviewProgress } from '@/services/fsrs';
 import { getOrCreateGuestId } from '@/services/identity';
 import { loadProgress, saveProgress } from '@/services/puzzleProgress';
-import { recordViralityEvent } from '@/services/virality';
+import { recordViralityEvent, recordSkipEvent } from '@/services/virality';
 import { recordSolveEvent } from '@/services/solveHistory';
 import { trackReferralPuzzle } from '@/services/referral';
 import { analytics } from '@/services/analytics';
@@ -49,8 +49,10 @@ export function usePuzzleSolverLocal(
   const statusRef     = useRef<SolverStatus>('idle');
   const countedRef    = useRef<string | null>(null);
   const solveStartRef = useRef<number | null>(null);
-  const progressRef   = useRef<UserPuzzleProgress | null>(null);
-  const userIdRef     = useRef<string | null>(null);
+  const progressRef    = useRef<UserPuzzleProgress | null>(null);
+  const userIdRef      = useRef<string | null>(null);
+  const hasAttemptedRef = useRef(false);  // true once the user submits any move
+  const prevIsActiveRef = useRef(false);
 
   const updateElo             = useUserStore((s) => s.updateElo);
   const incrementCalibration  = useUserStore((s) => s.incrementCalibration);
@@ -98,9 +100,20 @@ export function usePuzzleSolverLocal(
     moveIndexRef.current  = 0;
     countedRef.current    = null;
     solveStartRef.current = null;
+    hasAttemptedRef.current = false;
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
+
+  // Fire skip when this card loses focus before the user attempted any move
+  useEffect(() => {
+    const wasActive = prevIsActiveRef.current;
+    prevIsActiveRef.current = isActive;
+    if (wasActive && !isActive && puzzle && !hasAttemptedRef.current) {
+      recordSkipEvent(puzzle.id).catch(console.error);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
 
   // Animate first opponent move when idle and the card is visible
   useEffect(() => {
@@ -189,6 +202,7 @@ export function usePuzzleSolverLocal(
 
   const onUserMove = useCallback((uciMove: string) => {
     if (!puzzle || statusRef.current !== 'playing') return;
+    hasAttemptedRef.current = true;
 
     const idx      = moveIndexRef.current;
     const fen      = fenRef.current;
