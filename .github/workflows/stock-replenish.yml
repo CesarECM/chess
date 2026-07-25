@@ -1,0 +1,53 @@
+name: Puzzle Stock Replenish
+
+on:
+  schedule:
+    # 04:00 UTC daily — 1 h after pg_cron check_puzzle_stock() at 03:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  replenish:
+    name: Replenish puzzle stock
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chess-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Check stock alerts
+        id: check
+        run: |
+          COUNT=$(node scripts/seed-puzzles.mjs --check)
+          echo "alert_count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Stock alerts pending: $COUNT"
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Install zstd
+        if: steps.check.outputs.alert_count != '0'
+        run: sudo apt-get install -y zstd
+
+      - name: Download and decompress Lichess CSV
+        if: steps.check.outputs.alert_count != '0'
+        run: |
+          curl -L --progress-bar \
+            https://database.lichess.org/lichess_db_puzzle.csv.zst \
+            | zstd -d -o /tmp/puzzles.csv
+
+      - name: Replenish stock
+        if: steps.check.outputs.alert_count != '0'
+        run: node scripts/seed-puzzles.mjs --replenish --file /tmp/puzzles.csv
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

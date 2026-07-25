@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Lichess puzzle CSV — too large for git (1.1 GB)
+scripts/puzzles.csv
