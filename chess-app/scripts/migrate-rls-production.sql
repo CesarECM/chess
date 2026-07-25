@@ -9,6 +9,7 @@
 
 ALTER TABLE user_puzzle_progress ENABLE ROW LEVEL SECURITY;
 
+-- user_id es uuid — comparar directamente con auth.uid() (sin cast a text)
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
@@ -16,8 +17,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "Users read own progress"
       ON user_puzzle_progress FOR SELECT
-      USING (auth.uid()::text = user_id OR user_id NOT LIKE '%-%');
-      -- guests use a UUID sin dashes generado localmente; autenticados usan auth.uid()
+      USING (auth.uid() = user_id::uuid);
   END IF;
 END $$;
 
@@ -28,8 +28,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "Users upsert own progress"
       ON user_puzzle_progress FOR INSERT
-      WITH CHECK (true);
-      -- Upsert via service role desde Edge Functions; clientes autenticados usan su user_id
+      WITH CHECK (auth.uid() = user_id::uuid);
   END IF;
 END $$;
 
@@ -40,7 +39,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "Users update own progress"
       ON user_puzzle_progress FOR UPDATE
-      USING (auth.uid()::text = user_id);
+      USING (auth.uid() = user_id::uuid);
   END IF;
 END $$;
 
