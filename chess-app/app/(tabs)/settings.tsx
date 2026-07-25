@@ -1,49 +1,83 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { signOut } from '@/services/auth';
+import { scheduleStreakReminder } from '@/services/notifications';
+import i18n, { getDeviceLocale } from '@/i18n';
 import type { ThemePreference } from '@/stores/useThemeStore';
 
-const OPTIONS: { label: string; value: ThemePreference }[] = [
-  { label: 'Sistema', value: 'system' },
-  { label: 'Claro',   value: 'light'  },
-  { label: 'Oscuro',  value: 'dark'   },
+const NOTIFICATION_HOURS: { label: string; value: number }[] = [
+  { label: '8:00',  value: 8  },
+  { label: '12:00', value: 12 },
+  { label: '18:00', value: 18 },
+  { label: '20:00', value: 20 },
+  { label: '22:00', value: 22 },
+];
+
+const LANGUAGE_OPTIONS: { key: string; value: string | null }[] = [
+  { key: 'settings.langAuto', value: null  },
+  { key: 'settings.langEs',   value: 'es'  },
+  { key: 'settings.langEn',   value: 'en'  },
+  { key: 'settings.langPt',   value: 'pt'  },
+  { key: 'settings.langFr',   value: 'fr'  },
 ];
 
 export default function SettingsScreen() {
   const { colors, typography, radius } = useTheme();
+  const { t } = useTranslation();
   const { preference, setPreference } = useThemeStore();
   const { user, isGuest, reset } = useAuthStore();
   const isPremium = useUserStore((s) => s.isPremium);
+  const streakDays = useUserStore((s) => s.streakDays);
+  const notificationStreakHour = useUserStore((s) => s.notificationStreakHour);
+  const setNotificationStreakHour = useUserStore((s) => s.setNotificationStreakHour);
+  const preferredLanguage = useUserStore((s) => s.preferredLanguage);
+  const setPreferredLanguage = useUserStore((s) => s.setPreferredLanguage);
   const router = useRouter();
+
+  const THEME_OPTIONS: { label: string; value: ThemePreference }[] = [
+    { label: t('settings.themeSystem'), value: 'system' },
+    { label: t('settings.themeLight'),  value: 'light'  },
+    { label: t('settings.themeDark'),   value: 'dark'   },
+  ];
+
+  async function handleSelectNotificationHour(hour: number) {
+    setNotificationStreakHour(hour);
+    await scheduleStreakReminder(hour, streakDays).catch(console.error);
+  }
+
+  function handleSelectLanguage(value: string | null) {
+    setPreferredLanguage(value);
+    i18n.changeLanguage(value ?? getDeviceLocale());
+  }
 
   async function handleSignOut() {
     try {
       await signOut();
     } catch {
-      // onAuthStateChange still fires even if signOut throws (e.g. already signed out)
       reset();
     }
   }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.inner}>
+      {/* ── Apariencia ───────────────────────────────────────── */}
       <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-        APARIENCIA
+        {t('settings.sectionAppearance')}
       </Text>
-
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-        {OPTIONS.map(({ label, value }, i) => (
+        {THEME_OPTIONS.map(({ label, value }, i) => (
           <TouchableOpacity
             key={value}
             onPress={() => setPreference(value)}
             style={[
               styles.row,
-              i < OPTIONS.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+              i < THEME_OPTIONS.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
             ]}
           >
             <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
@@ -56,14 +90,67 @@ export default function SettingsScreen() {
         ))}
       </View>
 
+      {/* ── Idioma ───────────────────────────────────────────── */}
+      <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
+        {t('settings.sectionLanguage')}
+      </Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+        {LANGUAGE_OPTIONS.map(({ key, value }, i) => (
+          <TouchableOpacity
+            key={key}
+            onPress={() => handleSelectLanguage(value)}
+            style={[
+              styles.row,
+              i < LANGUAGE_OPTIONS.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
+              {t(key)}
+            </Text>
+            {preferredLanguage === value && (
+              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* ── Notificaciones ───────────────────────────────────── */}
+      <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
+        {t('settings.sectionNotifications')}
+      </Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+        <View style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.sm }]}>
+            {t('settings.notificationStreak')}
+          </Text>
+        </View>
+        {NOTIFICATION_HOURS.map(({ label, value }, i) => (
+          <TouchableOpacity
+            key={value}
+            onPress={() => handleSelectNotificationHour(value)}
+            style={[
+              styles.row,
+              i < NOTIFICATION_HOURS.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
+              {label}
+            </Text>
+            {notificationStreakHour === value && (
+              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* ── Suscripción ──────────────────────────────────────── */}
       <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
-        SUSCRIPCIÓN
+        {t('settings.sectionSubscription')}
       </Text>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
         <TouchableOpacity style={styles.row} onPress={() => router.push('/subscription' as never)}>
           <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
-            {isPremium ? '✓ Premium activo' : 'Hacerse Premium — $2.99/mes'}
+            {isPremium ? t('settings.subscriptionActive') : t('settings.subscriptionUpgrade')}
           </Text>
           {!isPremium && (
             <Text style={[{ color: colors.textSecondary, fontSize: typography.size.md }]}>›</Text>
@@ -74,7 +161,7 @@ export default function SettingsScreen() {
       {!isGuest && user && (
         <>
           <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
-            CUENTA
+            {t('settings.sectionAccount')}
           </Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
             <View style={styles.row}>
@@ -87,12 +174,46 @@ export default function SettingsScreen() {
               onPress={handleSignOut}
             >
               <Text style={[styles.label, { color: colors.error, fontSize: typography.size.md }]}>
-                Cerrar sesión
+                {t('settings.signOut')}
               </Text>
             </TouchableOpacity>
           </View>
         </>
       )}
+
+      {/* ── Legal ────────────────────────────────────────────── */}
+      <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
+        {t('settings.sectionLegal')}
+      </Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+        <TouchableOpacity
+          style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
+          onPress={() => Linking.openURL(process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL ?? 'https://www.iubenda.com/privacy-policy')}
+        >
+          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
+            {t('settings.privacyPolicy')}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.size.md }}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
+          onPress={() => Linking.openURL(process.env.EXPO_PUBLIC_TOS_URL ?? 'https://www.iubenda.com/terms-and-conditions')}
+        >
+          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
+            {t('settings.termsOfService')}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.size.md }}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => router.push('/faq' as never)}
+        >
+          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
+            {t('settings.faq')}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.size.md }}>›</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }

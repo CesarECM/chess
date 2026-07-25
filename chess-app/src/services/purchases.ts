@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { useUserStore } from '@/stores/useUserStore';
+import { analytics } from '@/services/analytics';
 
 const ENTITLEMENT_ID = 'premium';
 
@@ -37,7 +38,10 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     const isPremium = ENTITLEMENT_ID in customerInfo.entitlements.active;
-    if (isPremium) useUserStore.getState().setPremium(true);
+    if (isPremium) {
+      useUserStore.getState().setPremium(true);
+      analytics.track('subscription_started', { platform: Platform.OS });
+    }
     return isPremium;
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'userCancelled' in e && !e.userCancelled) {

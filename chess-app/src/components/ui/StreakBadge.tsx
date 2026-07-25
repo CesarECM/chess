@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 
 interface Props {
@@ -9,14 +10,15 @@ interface Props {
 
 export function StreakBadge({ streakDays, streakLongest, weeklyPuzzleCount }: Props) {
   const { colors, typography } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Stat emoji="🔥" value={streakDays}         label="racha actual"  colors={colors} typography={typography} accent />
+      <Stat emoji="🔥" value={streakDays}         label={t('streak.current')}  colors={colors} typography={typography} accent />
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <Stat emoji="🏆" value={streakLongest}       label="mejor racha"   colors={colors} typography={typography} />
+      <Stat emoji="🏆" value={streakLongest}       label={t('streak.longest')}  colors={colors} typography={typography} />
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <Stat emoji="📅" value={weeklyPuzzleCount}   label="esta semana"   colors={colors} typography={typography} />
+      <Stat emoji="📅" value={weeklyPuzzleCount}   label={t('streak.thisWeek')} colors={colors} typography={typography} />
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -9,24 +10,19 @@ import { openStripeCheckout } from '@/services/stripe';
 import { getOrCreateGuestId } from '@/services/identity';
 import type { PurchasesPackage } from 'react-native-purchases';
 
-const BENEFITS = [
-  'Sin anuncios — experiencia limpia y fluida',
-  'Sincronización en la nube de todo tu progreso',
-  'Acceso ilimitado a repasos FSRS',
-  'Apoya el desarrollo de la app',
-];
-
 export default function SubscriptionScreen() {
   const { colors, typography, radius } = useTheme();
+  const { t } = useTranslation();
   const router  = useRouter();
   const { user } = useAuthStore();
   const isPremium = useUserStore((s) => s.isPremium);
 
-  const [pkg,       setPkg]       = useState<PurchasesPackage | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [buying,    setBuying]    = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const [message,   setMessage]   = useState<string | null>(null);
+  const [pkg,        setPkg]        = useState<PurchasesPackage | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [buying,     setBuying]     = useState(false);
+  const [restoring,  setRestoring]  = useState(false);
+  const [message,    setMessage]    = useState<string | null>(null);
+  const [msgSuccess, setMsgSuccess] = useState(false);
 
   useEffect(() => {
     if (Platform.OS === 'web') { setLoading(false); return; }
@@ -40,13 +36,13 @@ export default function SubscriptionScreen() {
       if (Platform.OS === 'web') {
         const userId = user?.id ?? (await getOrCreateGuestId());
         const result = await openStripeCheckout(userId);
-        if (result === 'success') setMessage('¡Suscripción activada!');
-        else if (result === 'error') setMessage('Error al iniciar el pago. Intenta de nuevo.');
+        if (result === 'success') { setMessage(t('subscription.msgSuccess')); setMsgSuccess(true); }
+        else if (result === 'error') { setMessage(t('subscription.msgError')); setMsgSuccess(false); }
       } else {
-        if (!pkg) { setMessage('Producto no disponible.'); return; }
+        if (!pkg) { setMessage(t('subscription.msgNoProduct')); setMsgSuccess(false); return; }
         const ok = await purchasePackage(pkg);
-        if (ok) setMessage('¡Suscripción activada!');
-        else setMessage('No se completó la compra.');
+        if (ok) { setMessage(t('subscription.msgPurchased')); setMsgSuccess(true); }
+        else { setMessage(t('subscription.msgError')); setMsgSuccess(false); }
       }
     } finally {
       setBuying(false);
@@ -57,11 +53,19 @@ export default function SubscriptionScreen() {
     setRestoring(true);
     setMessage(null);
     const ok = await restorePurchases();
-    setMessage(ok ? '¡Compras restauradas!' : 'No se encontraron compras previas.');
+    if (ok) { setMessage(t('subscription.msgPurchased')); setMsgSuccess(true); }
+    else { setMessage(t('subscription.msgNotFound')); setMsgSuccess(false); }
     setRestoring(false);
   }
 
   const priceLabel = pkg?.product.priceString ?? '$2.99';
+
+  const BENEFITS = [
+    t('subscription.benefit1'),
+    t('subscription.benefit2'),
+    t('subscription.benefit3'),
+    t('subscription.benefit4'),
+  ];
 
   return (
     <ScrollView
@@ -69,19 +73,17 @@ export default function SubscriptionScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
       <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
         <Text style={[{ color: colors.textSecondary, fontSize: typography.size.xl }]}>✕</Text>
       </TouchableOpacity>
 
       <Text style={[styles.title, { color: colors.text, fontSize: typography.size['2xl'] }]}>
-        ♟ Chess Puzzle App
+        {t('subscription.title')}
       </Text>
       <Text style={[styles.subtitle, { color: colors.accent, fontSize: typography.size.lg }]}>
         Premium
       </Text>
 
-      {/* Benefits */}
       <View style={[styles.benefitsCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
         {BENEFITS.map((b) => (
           <View key={b} style={styles.benefitRow}>
@@ -93,21 +95,19 @@ export default function SubscriptionScreen() {
         ))}
       </View>
 
-      {/* Price */}
       {loading ? (
         <ActivityIndicator color={colors.accent} style={{ marginVertical: 16 }} />
       ) : (
         <Text style={[styles.price, { color: colors.text, fontSize: typography.size['2xl'] }]}>
           {priceLabel}
-          <Text style={[{ color: colors.textSecondary, fontSize: typography.size.sm }]}> / mes</Text>
+          <Text style={[{ color: colors.textSecondary, fontSize: typography.size.sm }]}> {t('subscription.perMonth')}</Text>
         </Text>
       )}
 
-      {/* CTA */}
       {isPremium ? (
         <View style={[styles.alreadyPremium, { backgroundColor: colors.success + '22', borderRadius: radius.md }]}>
           <Text style={[{ color: colors.success, fontSize: typography.size.md, fontWeight: '700', textAlign: 'center' }]}>
-            ✓ Ya eres Premium
+            {t('subscription.alreadyPremium')}
           </Text>
         </View>
       ) : (
@@ -121,19 +121,15 @@ export default function SubscriptionScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={[styles.buyText, { fontSize: typography.size.md }]}>
-                Suscribirse — {priceLabel}/mes
+                {t('subscription.subscribe', { price: priceLabel })}
               </Text>
             )}
           </TouchableOpacity>
 
           {Platform.OS !== 'web' && (
-            <TouchableOpacity
-              style={[styles.restoreBtn]}
-              onPress={handleRestore}
-              disabled={restoring}
-            >
+            <TouchableOpacity style={[styles.restoreBtn]} onPress={handleRestore} disabled={restoring}>
               <Text style={[{ color: colors.textSecondary, fontSize: typography.size.sm }]}>
-                {restoring ? 'Restaurando…' : 'Restaurar compras'}
+                {restoring ? t('subscription.restoring') : t('subscription.restore')}
               </Text>
             </TouchableOpacity>
           )}
@@ -141,13 +137,13 @@ export default function SubscriptionScreen() {
       )}
 
       {message && (
-        <Text style={[styles.message, { color: message.startsWith('¡') ? colors.success : colors.error, fontSize: typography.size.sm }]}>
+        <Text style={[styles.message, { color: msgSuccess ? colors.success : colors.error, fontSize: typography.size.sm }]}>
           {message}
         </Text>
       )}
 
       <Text style={[styles.legal, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-        La suscripción se renueva automáticamente. Puedes cancelar en cualquier momento desde la tienda de tu dispositivo.
+        {t('subscription.legal')}
       </Text>
     </ScrollView>
   );

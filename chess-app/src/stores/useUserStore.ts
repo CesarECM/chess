@@ -40,11 +40,18 @@ interface UserState {
   solvedByTheme: Partial<Record<TacticType, number>>;
   failedByTheme: Partial<Record<TacticType, number>>;
   eloHistory: EloSnapshot[];
+  notificationStreakHour: number; // hora local (0-23) para el recordatorio de racha
+  preferredLanguage: string | null; // null = auto (device locale)
+  gdprConsentDate: string | null; // ISO date cuando el usuario dio consentimiento
+  analyticsConsent: boolean; // true = acepta analytics (PostHog)
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => void;
   incrementCalibration: () => void;
   updateStreak: () => void;
+  setNotificationStreakHour: (hour: number) => void;
+  setPreferredLanguage: (lang: string | null) => void;
+  setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
   setPremiumUntil: (date: string) => void;
   /** Consolidated per-puzzle stats update: streak, counts, tactic tracking, medals. */
@@ -76,6 +83,10 @@ export const useUserStore = create<UserState>()(
       solvedByTheme: {},
       failedByTheme: {},
       eloHistory: [],
+      notificationStreakHour: 20,
+      preferredLanguage: null,
+      gdprConsentDate: null,
+      analyticsConsent: false,
 
       setElo: (elo) => set({ elo }),
 
@@ -180,6 +191,12 @@ export const useUserStore = create<UserState>()(
         });
       },
 
+      setNotificationStreakHour: (hour) => set({ notificationStreakHour: hour }),
+      setPreferredLanguage: (lang) => set({ preferredLanguage: lang }),
+      setGdprConsent: (analytics) => set({
+        gdprConsentDate: new Date().toISOString(),
+        analyticsConsent: analytics,
+      }),
       setPremium: (value) => set({ isPremium: value }),
       setPremiumUntil: (date) => set({ premiumUntil: date }),
 
@@ -209,6 +226,9 @@ export const useUserStore = create<UserState>()(
         solvedByTheme: {},
         failedByTheme: {},
         eloHistory: [],
+        notificationStreakHour: 20,
+        preferredLanguage: null,
+        // GDPR no se resetea al hacer logout — el usuario ya consintió
       }),
     }),
     {
@@ -231,6 +251,10 @@ export const useUserStore = create<UserState>()(
         solvedByTheme: state.solvedByTheme,
         failedByTheme: state.failedByTheme,
         eloHistory: state.eloHistory,
+        notificationStreakHour: state.notificationStreakHour,
+        preferredLanguage: state.preferredLanguage,
+        gdprConsentDate: state.gdprConsentDate,
+        analyticsConsent: state.analyticsConsent,
       }),
     },
   ),

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -7,25 +8,16 @@ import { RangeBadge } from '@/components/ui/RangeBadge';
 import { StreakBadge } from '@/components/ui/StreakBadge';
 import { MedalGrid } from '@/components/ui/MedalGrid';
 import { loadSolveHistory, type SolveEvent } from '@/services/solveHistory';
-import { loadReferralStats, REFERRAL_REWARD_DAYS, REFERRAL_PUZZLES_REQUIRED } from '@/services/referral';
+import { loadReferralStats, REFERRAL_PUZZLES_REQUIRED } from '@/services/referral';
 import { ReferralShare } from '@/components/ui/ReferralShare';
 import { getOrCreateGuestId } from '@/services/identity';
-
-const TACTIC_LABELS: Record<string, string> = {
-  mate:             'Mate',
-  fork:             'Horquilla',
-  pin:              'Clavada',
-  skewer:           'Espeto',
-  discoveredAttack: 'Ataque desc.',
-  deflection:       'Desviación',
-  other:            'Otros',
-};
 
 const PAGE_SIZE = 10;
 const BAR_MAX_H = 48;
 
 export default function ProfileScreen() {
   const { colors, typography } = useTheme();
+  const { t, i18n } = useTranslation();
   const { user, isGuest } = useAuthStore();
   const {
     elo,
@@ -41,7 +33,6 @@ export default function ProfileScreen() {
   const total      = puzzlesCompleted + puzzlesFailed;
   const successPct = total > 0 ? Math.round((puzzlesCompleted / total) * 100) : 0;
 
-  // ── Solve history (S8.2) ──────────────────────────────────────────────────
   const [referralStats, setReferralStats] = useState<{ total: number; activated: number } | null>(null);
   const [history, setHistory]   = useState<SolveEvent[]>([]);
   const [histOffset, setHistOffset] = useState(0);
@@ -70,7 +61,6 @@ export default function ProfileScreen() {
     loadReferralStats(user.id).then(setReferralStats).catch(console.error);
   }, [user?.id]);
 
-  // ── ELO chart (S8.3) ──────────────────────────────────────────────────────
   const chartData = eloHistory.slice(-14);
   const chartMin  = chartData.length > 0 ? Math.min(...chartData.map((s) => s.elo)) : 0;
   const chartMax  = chartData.length > 0 ? Math.max(...chartData.map((s) => s.elo)) : 0;
@@ -82,36 +72,32 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Identity ───────────────────────────────────────────── */}
       <View style={styles.identity}>
         <Text style={[styles.displayName, { color: colors.text, fontSize: typography.size.xl }]}>
-          {isGuest ? 'Jugador invitado' : (user?.email ?? 'Jugador')}
+          {isGuest ? t('profile.guestName') : (user?.email ?? t('profile.guestName'))}
         </Text>
         {isGuest && (
           <Text style={[styles.guestHint, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-            Crea una cuenta para guardar tu progreso en la nube
+            {t('profile.guestHint')}
           </Text>
         )}
       </View>
 
-      {/* ── ELO Range ──────────────────────────────────────────── */}
-      <Section label="RANGO" colors={colors} typography={typography}>
+      <Section label={t('profile.sectionRank')} colors={colors} typography={typography}>
         <RangeBadge elo={elo} />
       </Section>
 
-      {/* ── Stats row ──────────────────────────────────────────── */}
-      <Section label="ESTADÍSTICAS" colors={colors} typography={typography}>
+      <Section label={t('profile.sectionStats')} colors={colors} typography={typography}>
         <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <StatCell value={puzzlesCompleted} label="resueltos"   colors={colors} typography={typography} />
+          <StatCell value={puzzlesCompleted} label={t('profile.solved')}  colors={colors} typography={typography} />
           <View style={[styles.cellDivider, { backgroundColor: colors.border }]} />
-          <StatCell value={`${successPct}%`} label="éxito"      colors={colors} typography={typography} />
+          <StatCell value={`${successPct}%`} label={t('profile.success')} colors={colors} typography={typography} />
           <View style={[styles.cellDivider, { backgroundColor: colors.border }]} />
-          <StatCell value={puzzlesFailed}    label="fallados"    colors={colors} typography={typography} />
+          <StatCell value={puzzlesFailed}    label={t('profile.failed')}  colors={colors} typography={typography} />
         </View>
       </Section>
 
-      {/* ── Streak ─────────────────────────────────────────────── */}
-      <Section label="RACHA" colors={colors} typography={typography}>
+      <Section label={t('profile.sectionStreak')} colors={colors} typography={typography}>
         <StreakBadge
           streakDays={streakDays}
           streakLongest={streakLongest}
@@ -119,34 +105,22 @@ export default function ProfileScreen() {
         />
       </Section>
 
-      {/* ── ELO Evolution (S8.3) ───────────────────────────────── */}
-      <Section label="EVOLUCIÓN ELO" colors={colors} typography={typography}>
+      <Section label={t('profile.sectionEloHistory')} colors={colors} typography={typography}>
         {chartData.length < 2 ? (
           <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[{ color: colors.textSecondary, fontSize: typography.size.sm, textAlign: 'center' }]}>
-              El gráfico aparece tras varios días de práctica.
+              {t('profile.eloChartEmpty')}
             </Text>
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.chartRow}>
               {chartData.map((snap, i) => {
-                const barH = Math.max(
-                  6,
-                  Math.round(((snap.elo - chartMin) / chartRange) * BAR_MAX_H),
-                );
+                const barH = Math.max(6, Math.round(((snap.elo - chartMin) / chartRange) * BAR_MAX_H));
                 const isLast = i === chartData.length - 1;
                 return (
                   <View key={snap.date} style={styles.barWrap}>
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: barH,
-                          backgroundColor: isLast ? colors.tabBarActive : colors.tabBarInactive,
-                        },
-                      ]}
-                    />
+                    <View style={[styles.bar, { height: barH, backgroundColor: isLast ? colors.tabBarActive : colors.tabBarInactive }]} />
                     <Text style={[styles.barDate, { color: colors.textSecondary, fontSize: 9 }]}>
                       {snap.date.slice(5)}
                     </Text>
@@ -162,36 +136,20 @@ export default function ProfileScreen() {
         )}
       </Section>
 
-      {/* ── Referidos (S10) ────────────────────────────────────── */}
       {user?.id && (
-        <Section label="REFERIDOS" colors={colors} typography={typography}>
+        <Section label={t('profile.sectionReferrals')} colors={colors} typography={typography}>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.statsRow}>
-              <StatCell
-                value={referralStats?.total ?? 0}
-                label="invitados"
-                colors={colors}
-                typography={typography}
-              />
+              <StatCell value={referralStats?.total ?? 0}     label={t('profile.referralInvited')}   colors={colors} typography={typography} />
               <View style={[styles.cellDivider, { backgroundColor: colors.border }]} />
-              <StatCell
-                value={referralStats?.activated ?? 0}
-                label="activados"
-                colors={colors}
-                typography={typography}
-              />
+              <StatCell value={referralStats?.activated ?? 0} label={t('profile.referralActivated')} colors={colors} typography={typography} />
               <View style={[styles.cellDivider, { backgroundColor: colors.border }]} />
-              <StatCell
-                value={`+${(referralStats?.activated ?? 0) * REFERRAL_REWARD_DAYS}d`}
-                label="días gratis"
-                colors={colors}
-                typography={typography}
-              />
+              <StatCell value={`+${(referralStats?.activated ?? 0) * 7}d`} label={t('profile.referralFreeDays')} colors={colors} typography={typography} />
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
               <Text style={[{ color: colors.textSecondary, fontSize: typography.size.xs, marginBottom: 8 }]}>
-                Tu amigo debe completar {REFERRAL_PUZZLES_REQUIRED} puzzles para activar la recompensa.
+                {t('profile.referralHint', { n: REFERRAL_PUZZLES_REQUIRED })}
               </Text>
               <ReferralShare userId={user.id} />
             </View>
@@ -199,12 +157,11 @@ export default function ProfileScreen() {
         </Section>
       )}
 
-      {/* ── Historial (S8.2) ───────────────────────────────────── */}
-      <Section label="HISTORIAL" colors={colors} typography={typography}>
+      <Section label={t('profile.sectionHistory')} colors={colors} typography={typography}>
         {history.length === 0 && !loadingHist ? (
           <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[{ color: colors.textSecondary, fontSize: typography.size.sm, textAlign: 'center' }]}>
-              Aún no has resuelto ningún puzzle.
+              {t('profile.historyEmpty')}
             </Text>
           </View>
         ) : (
@@ -212,7 +169,7 @@ export default function ProfileScreen() {
             {history.map((ev, i) => (
               <View key={`${ev.puzzleId}-${ev.date}`}>
                 {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
-                <HistoryRow event={ev} colors={colors} typography={typography} />
+                <HistoryRow event={ev} colors={colors} typography={typography} locale={i18n.language} t={t} />
               </View>
             ))}
             {hasMore && (
@@ -222,7 +179,7 @@ export default function ProfileScreen() {
                 disabled={loadingHist}
               >
                 <Text style={[{ color: colors.tabBarActive, fontSize: typography.size.sm, fontWeight: '600' }]}>
-                  {loadingHist ? 'Cargando…' : 'Ver más'}
+                  {loadingHist ? t('profile.historyLoading') : t('profile.historyMore')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -230,26 +187,23 @@ export default function ProfileScreen() {
         )}
       </Section>
 
-      {/* ── Medals ─────────────────────────────────────────────── */}
-      <Section label={`MEDALLAS (${unlockedMedals.length}/15)`} colors={colors} typography={typography}>
+      <Section label={t('profile.sectionMedals', { unlocked: unlockedMedals.length })} colors={colors} typography={typography}>
         <MedalGrid unlockedMedals={unlockedMedals} />
       </Section>
     </ScrollView>
   );
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
 function HistoryRow({
-  event, colors, typography,
+  event, colors, typography, locale, t,
 }: {
   event: SolveEvent;
   colors: ReturnType<typeof useTheme>['colors'];
   typography: ReturnType<typeof useTheme>['typography'];
+  locale: string;
+  t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
-  const dateStr = new Date(event.date).toLocaleDateString('es-MX', {
-    month: 'short', day: 'numeric',
-  });
+  const dateStr = new Date(event.date).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   return (
     <View style={styles.histRow}>
       <Text style={[styles.histIcon, { color: event.solved ? colors.success : colors.error }]}>
@@ -257,10 +211,10 @@ function HistoryRow({
       </Text>
       <View style={styles.histInfo}>
         <Text style={[styles.histTactic, { color: colors.text, fontSize: typography.size.sm }]}>
-          {TACTIC_LABELS[event.tactic] ?? event.tactic}
+          {t(`tactic.${event.tactic}`) ?? event.tactic}
         </Text>
         <Text style={[{ color: colors.textSecondary, fontSize: typography.size.xs }]}>
-          Puzzle {event.rating} · ELO {event.eloAfter}
+          {t('profile.historyPuzzle', { rating: event.rating, elo: event.eloAfter })}
         </Text>
       </View>
       <Text style={[{ color: colors.textSecondary, fontSize: typography.size.xs }]}>
@@ -270,9 +224,7 @@ function HistoryRow({
   );
 }
 
-function Section({
-  label, children, colors, typography,
-}: {
+function Section({ label, children, colors, typography }: {
   label: string;
   children: React.ReactNode;
   colors: ReturnType<typeof useTheme>['colors'];
@@ -288,9 +240,7 @@ function Section({
   );
 }
 
-function StatCell({
-  value, label, colors, typography,
-}: {
+function StatCell({ value, label, colors, typography }: {
   value: number | string;
   label: string;
   colors: ReturnType<typeof useTheme>['colors'];
@@ -308,8 +258,6 @@ function StatCell({
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root:         { flex: 1 },
   content:      { padding: 16, paddingTop: 60, paddingBottom: 32, gap: 20 },
@@ -323,19 +271,14 @@ const styles = StyleSheet.create({
   cellDivider:  { width: 1 },
   statValue:    { fontWeight: '700' },
   statLabel:    { textTransform: 'uppercase', letterSpacing: 0.4 },
-
   card:         { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   emptyCard:    { borderRadius: 12, borderWidth: 1, paddingVertical: 20, paddingHorizontal: 16 },
   divider:      { height: 1 },
-
-  // ELO chart
   chartRow:     { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 60, paddingHorizontal: 12, paddingTop: 12 },
   barWrap:      { flex: 1, alignItems: 'center', gap: 2 },
   bar:          { width: '100%', borderRadius: 2 },
   barDate:      { textAlign: 'center' },
   chartLegend:  { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 10, paddingTop: 4 },
-
-  // History
   histRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
   histIcon:     { fontSize: 16, fontWeight: '700', width: 18, textAlign: 'center' },
   histInfo:     { flex: 1, gap: 2 },

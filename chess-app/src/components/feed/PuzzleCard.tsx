@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ChessBoard } from '@/components/chess/ChessBoard';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
 import { useTheme } from '@/hooks/useTheme';
@@ -10,14 +11,6 @@ import { RangeBadge } from '@/components/ui/RangeBadge';
 import { ShareCard } from '@/components/ui/ShareCard';
 import { CALIBRATION_PUZZLES } from '@/constants';
 import type { Puzzle } from '@/types';
-
-const STATUS_LABEL: Record<SolverStatus, string> = {
-  idle:      'Cargando…',
-  playing:   'Tu turno',
-  failed:    '✗ Incorrecto',
-  reviewing: 'Revisando solución…',
-  complete:  '✓ ¡Puzzle resuelto!',
-};
 
 const STATUS_COLOR: Record<SolverStatus, keyof ReturnType<typeof useTheme>['colors']> = {
   idle:      'textSecondary',
@@ -35,8 +28,9 @@ interface Props {
   onStatusChange?: (status: SolverStatus) => void;
 }
 
-export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChange }: Props) {
+function PuzzleCardComponent({ puzzle, height, isActive, onComplete, onStatusChange }: Props) {
   const { colors, typography, spacing } = useTheme();
+  const { t } = useTranslation();
   const boardRef = useRef<ChessboardRef>(null);
   const elo             = useUserStore((s) => s.elo);
   const streakDays      = useUserStore((s) => s.streakDays);
@@ -54,12 +48,19 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
     calibrationCount,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive);
 
-  // Notify parent of status changes so the feed can coordinate scroll/auto-advance
   useEffect(() => {
     if (isActive) onStatusChange?.(puzzleStatus);
   }, [puzzleStatus, isActive, onStatusChange]);
 
   const statusColor = colors[STATUS_COLOR[puzzleStatus]];
+
+  const statusLabels = useMemo<Record<SolverStatus, string>>(() => ({
+    idle:      t('puzzle.statusIdle'),
+    playing:   t('puzzle.statusPlaying'),
+    failed:    t('puzzle.statusFailed'),
+    reviewing: t('puzzle.statusReviewing'),
+    complete:  t('puzzle.statusComplete'),
+  }), [t]);
 
   return (
     <View style={[styles.card, { height, backgroundColor: colors.background }]}>
@@ -68,7 +69,7 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
       ) : (
         <View style={[styles.calibBar, { backgroundColor: colors.accent + '22', borderColor: colors.accent + '44' }]}>
           <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
-            Calibrando tu nivel · {calibrationCount}/{CALIBRATION_PUZZLES}
+            {t('puzzle.calibrating', { count: calibrationCount, total: CALIBRATION_PUZZLES })}
           </Text>
           <View style={[styles.calibTrack, { backgroundColor: colors.accent + '33' }]}>
             <View
@@ -85,7 +86,7 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
       )}
 
       <Text style={[styles.meta, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-        Rating {puzzle.rating} · {puzzle.themes[0]}
+        {t('puzzle.ratingMeta', { rating: puzzle.rating, theme: puzzle.themes[0] })}
       </Text>
 
       <ChessBoard
@@ -97,7 +98,7 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
       />
 
       <Text style={[styles.status, { color: statusColor, fontSize: typography.size.md }]}>
-        {STATUS_LABEL[puzzleStatus]}
+        {statusLabels[puzzleStatus]}
       </Text>
 
       {puzzleStatus === 'failed' && (
@@ -107,7 +108,7 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
             onPress={onRetry}
           >
             <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-              Reintentar
+              {t('puzzle.retry')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -115,7 +116,7 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
             onPress={startReview}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-              Ver solución
+              {t('puzzle.viewSolution')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -127,7 +128,7 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
           onPress={handleAdvanceReview}
         >
           <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-            Siguiente movimiento
+            {t('puzzle.nextMove')}
           </Text>
         </TouchableOpacity>
       )}
@@ -141,7 +142,7 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
               disabled={isSharing}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-                {isSharing ? '…' : 'Compartir'}
+                {isSharing ? '…' : t('puzzle.share')}
               </Text>
             </TouchableOpacity>
           )}
@@ -150,13 +151,12 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
             onPress={onComplete}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-              Siguiente puzzle
+              {t('puzzle.nextPuzzle')}
             </Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Off-screen card captured by useShareCard */}
       {puzzleStatus === 'complete' && Platform.OS !== 'web' && (
         <ShareCard
           ref={cardRef}
@@ -170,6 +170,8 @@ export function PuzzleCard({ puzzle, height, isActive, onComplete, onStatusChang
     </View>
   );
 }
+
+export const PuzzleCard = memo(PuzzleCardComponent);
 
 const styles = StyleSheet.create({
   card:       { alignItems: 'center', justifyContent: 'center', gap: 12 },

@@ -10,12 +10,15 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/hooks/useTheme';
 import { signUp } from '@/services/auth';
+import { analytics } from '@/services/analytics';
 
 export default function RegisterScreen() {
   const { colors, typography, radius } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -28,11 +31,11 @@ export default function RegisterScreen() {
   async function handleRegister() {
     if (!email.trim() || !password) return;
     if (password !== confirm) {
-      setError('Las contraseñas no coinciden');
+      setError(t('auth.passwordMismatch'));
       return;
     }
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
+      setError(t('auth.passwordTooShort'));
       return;
     }
     setLoading(true);
@@ -40,12 +43,11 @@ export default function RegisterScreen() {
     try {
       const { session } = await signUp(email.trim(), password);
       if (!session) {
-        // Supabase sent confirmation email
         setSuccess(true);
+        analytics.track('registration_completed');
       }
-      // if session exists, onAuthStateChange in initAuth redirects automatically
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error al registrarse');
+      setError(e instanceof Error ? e.message : t('auth.errorRegister'));
     } finally {
       setLoading(false);
     }
@@ -55,13 +57,13 @@ export default function RegisterScreen() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, padding: 24, justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={[styles.title, { color: colors.text, fontSize: typography.size['2xl'], marginBottom: 12 }]}>
-          Revisa tu email
+          {t('auth.checkEmail')}
         </Text>
         <Text style={{ color: colors.textSecondary, textAlign: 'center', fontSize: typography.size.md, marginBottom: 32 }}>
-          Te enviamos un link de confirmación a {email}. Una vez confirmado, inicia sesión.
+          {t('auth.emailSent', { email })}
         </Text>
         <Pressable onPress={() => router.replace('/auth/login')}>
-          <Text style={{ color: colors.accent, fontSize: typography.size.sm }}>Ir al inicio de sesión</Text>
+          <Text style={{ color: colors.accent, fontSize: typography.size.sm }}>{t('auth.goToLogin')}</Text>
         </Pressable>
       </View>
     );
@@ -74,12 +76,12 @@ export default function RegisterScreen() {
     >
       <View style={styles.inner}>
         <Text style={[styles.title, { color: colors.text, fontSize: typography.size['2xl'] }]}>
-          Crear cuenta
+          {t('auth.createAccount')}
         </Text>
 
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
-          placeholder="Email"
+          placeholder={t('auth.email')}
           placeholderTextColor={colors.textSecondary}
           value={email}
           onChangeText={setEmail}
@@ -89,7 +91,7 @@ export default function RegisterScreen() {
         />
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
-          placeholder="Contraseña (mín. 6 caracteres)"
+          placeholder={t('auth.passwordMin')}
           placeholderTextColor={colors.textSecondary}
           value={password}
           onChangeText={setPassword}
@@ -98,7 +100,7 @@ export default function RegisterScreen() {
         />
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
-          placeholder="Confirmar contraseña"
+          placeholder={t('auth.confirmPassword')}
           placeholderTextColor={colors.textSecondary}
           value={confirm}
           onChangeText={setConfirm}
@@ -111,13 +113,13 @@ export default function RegisterScreen() {
         <Pressable style={[styles.btn, { backgroundColor: colors.accent, borderRadius: radius.md }]} onPress={handleRegister} disabled={loading}>
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={[styles.btnText, { fontSize: typography.size.md }]}>Crear cuenta</Text>
+            : <Text style={[styles.btnText, { fontSize: typography.size.md }]}>{t('auth.createAccount')}</Text>
           }
         </Pressable>
 
         <Pressable style={styles.link} onPress={() => router.back()}>
           <Text style={{ color: colors.accent, fontSize: typography.size.sm }}>
-            ¿Ya tienes cuenta? Inicia sesión
+            {t('auth.hasAccount')}
           </Text>
         </Pressable>
       </View>

@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { MEDALS } from '@/constants/medals';
 
@@ -8,6 +9,7 @@ interface Props {
 
 export function MedalGrid({ unlockedMedals }: Props) {
   const { colors, typography } = useTheme();
+  const { t } = useTranslation();
   const unlockedSet = new Set(unlockedMedals);
 
   // Split into rows of 3
@@ -44,14 +46,14 @@ export function MedalGrid({ unlockedMedals }: Props) {
                   ]}
                   numberOfLines={1}
                 >
-                  {unlocked ? medal.label : '???'}
+                  {unlocked ? t(`medal.${medal.id}_label`) : '???'}
                 </Text>
                 {unlocked && (
                   <Text
                     style={[styles.desc, { color: colors.textSecondary, fontSize: 10 }]}
                     numberOfLines={2}
                   >
-                    {medal.description}
+                    {t(`medal.${medal.id}_desc`)}
                   </Text>
                 )}
               </View>

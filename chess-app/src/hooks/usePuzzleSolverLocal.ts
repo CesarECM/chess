@@ -12,6 +12,7 @@ import { loadProgress, saveProgress } from '@/services/puzzleProgress';
 import { recordViralityEvent } from '@/services/virality';
 import { recordSolveEvent } from '@/services/solveHistory';
 import { trackReferralPuzzle } from '@/services/referral';
+import { analytics } from '@/services/analytics';
 
 export type SolverStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'complete';
 
@@ -171,6 +172,14 @@ export function usePuzzleSolverLocal(
     }
 
     recordViralityEvent(puzzleId, solved, elapsedMs).catch(console.error);
+
+    analytics.track(solved ? 'puzzle_completed' : 'puzzle_failed', {
+      puzzle_id:  puzzleId,
+      rating:     puzzleRating,
+      elapsed_ms: elapsedMs,
+      tactic:     puzzle?.themes[0] ?? 'other',
+      elo:        useUserStore.getState().elo,
+    });
 
     // Track referral puzzle for authenticated users (fire-and-forget)
     if (!useAuthStore.getState().isGuest && userId) {

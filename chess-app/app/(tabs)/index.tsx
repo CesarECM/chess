@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import type { ListRenderItemInfo } from '@shopify/flash-list';
 import type ViewToken from '@shopify/flash-list/dist/viewability/ViewToken';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
@@ -18,6 +20,7 @@ const BATCH_SIZE         = 10;
 
 export default function FeedScreen() {
   const { colors, typography } = useTheme();
+  const { t } = useTranslation();
   const elo            = useUserStore((s) => s.elo);
   const feed           = usePuzzleStore((s) => s.feed);
   const setFeed        = usePuzzleStore((s) => s.setFeed);
@@ -151,6 +154,18 @@ export default function FeedScreen() {
     });
   }, []);
 
+  const renderItem = useCallback(({ item, index }: ListRenderItemInfo<Puzzle>) => (
+    <PuzzleCard
+      puzzle={item}
+      height={listHeight}
+      isActive={index === activeIndex}
+      onComplete={scrollToNext}
+      onStatusChange={index === activeIndex ? onActiveStatusChange : undefined}
+    />
+  // listHeight and activeIndex as deps — PuzzleCard is memoized so only changed props re-render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [listHeight, activeIndex, scrollToNext, onActiveStatusChange]);
+
   if (isLoading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -162,8 +177,8 @@ export default function FeedScreen() {
   if (hasError || feed.length === 0) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.error, fontSize: typography.size.md, fontWeight: '500' }}>
-          No se pudieron cargar los puzzles
+        <Text style={{ color: colors.error, fontSize: typography.size.md, fontWeight: '500', textAlign: 'center', paddingHorizontal: 32 }}>
+          {t('feed.loadError')}
         </Text>
       </View>
     );
@@ -178,16 +193,9 @@ export default function FeedScreen() {
         ref={listRef}
         data={feed}
         keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <PuzzleCard
-            puzzle={item}
-            height={listHeight}
-            isActive={index === activeIndex}
-            onComplete={scrollToNext}
-            onStatusChange={index === activeIndex ? onActiveStatusChange : undefined}
-          />
-        )}
+        renderItem={renderItem}
         estimatedItemSize={listHeight}
+        drawDistance={listHeight * 2}
         pagingEnabled
         scrollEnabled={activeStatus !== 'playing'}
         showsVerticalScrollIndicator={false}

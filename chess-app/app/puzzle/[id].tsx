@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { ChessBoard } from '@/components/chess/ChessBoard';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
@@ -14,14 +15,6 @@ import { getOrCreateGuestId } from '@/services/identity';
 import { CALIBRATION_PUZZLES } from '@/constants';
 import { RangeBadge } from '@/components/ui/RangeBadge';
 
-const STATUS_LABEL: Record<string, string> = {
-  idle:      'Cargando…',
-  playing:   'Tu turno',
-  failed:    '✗ Incorrecto',
-  reviewing: 'Revisando solución…',
-  complete:  '✓ ¡Puzzle resuelto!',
-};
-
 const STATUS_COLOR: Record<string, keyof ReturnType<typeof useTheme>['colors']> = {
   idle:      'textSecondary',
   playing:   'textSecondary',
@@ -33,6 +26,7 @@ const STATUS_COLOR: Record<string, keyof ReturnType<typeof useTheme>['colors']> 
 export default function PuzzleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors, typography, spacing } = useTheme();
+  const { t } = useTranslation();
   const boardRef    = useRef<ChessboardRef>(null);
   const startPuzzle = usePuzzleStore((s) => s.startPuzzle);
   const resetSolver = usePuzzleStore((s) => s.resetSolver);
@@ -69,19 +63,25 @@ export default function PuzzleScreen() {
     if (next) startPuzzle(next);
   };
 
-  const statusLabel    = STATUS_LABEL[puzzleStatus] ?? '';
+  const statusLabels: Record<string, string> = {
+    idle:      t('puzzle.statusIdle'),
+    playing:   t('puzzle.statusPlaying'),
+    failed:    t('puzzle.statusFailed'),
+    reviewing: t('puzzle.statusReviewing'),
+    complete:  t('puzzle.statusComplete'),
+  };
+
+  const statusLabel    = statusLabels[puzzleStatus] ?? '';
   const statusColorKey = STATUS_COLOR[puzzleStatus] ?? 'textSecondary';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Rank badge — visible once calibrated */}
       {isCalibrated && <RangeBadge elo={elo} />}
 
-      {/* Calibration banner */}
       {!isCalibrated && (
         <View style={[styles.calibrationBar, { backgroundColor: colors.accent + '22', borderColor: colors.accent + '44' }]}>
           <Text style={[styles.calibrationText, { color: colors.accent, fontSize: typography.size.xs }]}>
-            Calibrando tu nivel · {calibrationCount}/{CALIBRATION_PUZZLES}
+            {t('puzzle.calibrating', { count: calibrationCount, total: CALIBRATION_PUZZLES })}
           </Text>
           <View style={[styles.calibrationTrack, { backgroundColor: colors.accent + '33' }]}>
             <View
@@ -97,14 +97,12 @@ export default function PuzzleScreen() {
         </View>
       )}
 
-      {/* Puzzle meta */}
       {currentPuzzle && (
         <Text style={[styles.meta, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-          Rating {currentPuzzle.rating} · {currentPuzzle.themes[0]}
+          {t('puzzle.ratingMeta', { rating: currentPuzzle.rating, theme: currentPuzzle.themes[0] })}
         </Text>
       )}
 
-      {/* Board */}
       <ChessBoard
         ref={boardRef}
         fen={currentPuzzle?.fen ?? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'}
@@ -113,12 +111,10 @@ export default function PuzzleScreen() {
         onMove={(uci) => onUserMove(uci)}
       />
 
-      {/* Status */}
       <Text style={[styles.status, { color: colors[statusColorKey], fontSize: typography.size.md }]}>
         {statusLabel}
       </Text>
 
-      {/* Failed: offer solution review or retry */}
       {puzzleStatus === 'failed' && (
         <View style={[styles.row, { gap: spacing[2] }]}>
           <TouchableOpacity
@@ -126,7 +122,7 @@ export default function PuzzleScreen() {
             onPress={() => currentPuzzle && startPuzzle(currentPuzzle)}
           >
             <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-              Reintentar
+              {t('puzzle.retry')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -134,25 +130,23 @@ export default function PuzzleScreen() {
             onPress={startReview}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-              Ver solución
+              {t('puzzle.viewSolution')}
             </Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Reviewing: advance through solution moves */}
       {puzzleStatus === 'reviewing' && (
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 8 }]}
           onPress={handleAdvanceReview}
         >
           <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-            Siguiente movimiento
+            {t('puzzle.nextMove')}
           </Text>
         </TouchableOpacity>
       )}
 
-      {/* Complete: proceed to next puzzle */}
       {puzzleStatus === 'complete' && (
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: colors.success, borderRadius: 8 }]}
@@ -160,7 +154,7 @@ export default function PuzzleScreen() {
           disabled={loadingNext}
         >
           <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-            {loadingNext ? 'Cargando…' : 'Siguiente puzzle'}
+            {loadingNext ? t('puzzle.loading') : t('puzzle.nextPuzzle')}
           </Text>
         </TouchableOpacity>
       )}

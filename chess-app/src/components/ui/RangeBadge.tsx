@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { ELO_RANGES } from '@/constants';
 import { getRangeFromElo, clamp } from '@/utils';
@@ -11,6 +12,7 @@ const RANGE_ORDER = Object.values(ELO_RANGES);
 
 export function RangeBadge({ elo }: Props) {
   const { colors, typography } = useTheme();
+  const { t } = useTranslation();
 
   const current   = getRangeFromElo(elo);
   const nextIndex = RANGE_ORDER.findIndex((r) => r === current) + 1;
@@ -28,7 +30,7 @@ export function RangeBadge({ elo }: Props) {
         <Text style={[styles.piece, { fontSize: typography.size.xl }]}>{current.piece}</Text>
         <View style={styles.labelBlock}>
           <Text style={[styles.label, { color: colors.text, fontSize: typography.size.sm }]}>
-            {current.label}
+            {t(`elo.${current.label}`)}
           </Text>
           <Text style={[styles.elo, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
             {elo} ELO
@@ -36,12 +38,12 @@ export function RangeBadge({ elo }: Props) {
         </View>
         {!isTop && next && (
           <Text style={[styles.nextLabel, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-            {ptsToNext} pts → {next.piece}
+            {t('elo.ptsToNext', { pts: ptsToNext, piece: next.piece })}
           </Text>
         )}
         {isTop && (
           <Text style={[styles.nextLabel, { color: colors.accent, fontSize: typography.size.xs }]}>
-            Rango máximo
+            {t('elo.maxRank')}
           </Text>
         )}
       </View>

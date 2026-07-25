@@ -1,16 +1,48 @@
+import '@/i18n'; // inicializa i18next con los recursos bundleados
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { GDPRConsentModal } from '@/components/ui/GDPRConsentModal';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { analytics } from '@/services/analytics';
+
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useUserStore } from '@/stores/useUserStore';
 import { drainSyncQueue } from '@/services/offlineSyncQueue';
 import { initAds } from '@/services/ads';
 import { configurePurchases, syncPremiumStatus } from '@/services/purchases';
 import { registerPendingReferral, syncReferralPremium } from '@/services/referral';
 import { useReferral } from '@/hooks/useReferral';
+import {
+  registerPushToken,
+  scheduleStreakReminder,
+  scheduleReviewReminder,
+  cancelTodayNotifications,
+} from '@/services/notifications';
+import { loadDueProgress } from '@/services/puzzleProgress';
+import i18n, { getDeviceLocale } from '@/i18n';
+
+/** S11.4 — Scheduling inteligente: cancela notifs si el usuario ya jugó hoy,
+ *  o las (re)programa con el conteo actual de repasos FSRS. */
+async function refreshNotifications(userId: string | undefined): Promise<void> {
+  const { lastActiveDate, streakDays, notificationStreakHour } = useUserStore.getState();
+  const today = new Date().toISOString().split('T')[0];
+  if (lastActiveDate === today) {
+    await cancelTodayNotifications();
+    return;
+  }
+  await scheduleStreakReminder(notificationStreakHour, streakDays);
+  try {
+    const due = await loadDueProgress(userId ?? '', new Date());
+    await scheduleReviewReminder(due.length);
+  } catch {
+    // Si no hay conectividad, skip — la racha ya está programada
+  }
+}
 
 function AuthGuard() {
   const { user, isGuest, isLoading, initAuth } = useAuthStore();
@@ -21,6 +53,8 @@ function AuthGuard() {
   useEffect(() => {
     const unsubscribe = initAuth();
     initAds().catch(console.error);
+    refreshNotifications(undefined).catch(console.error);
+    analytics.track('app_opened');
     return unsubscribe;
   }, []);
 
@@ -30,19 +64,31 @@ function AuthGuard() {
       syncPremiumStatus().catch(console.error);
       registerPendingReferral(user.id).catch(console.error);
       syncReferralPremium(user.id).catch(console.error);
+      registerPushToken(user.id).catch(console.error);
+      analytics.identify(user.id);
+    } else {
+      analytics.reset();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   useReferral();
 
+  // S12.4 — sincronizar idioma cuando la preferencia del usuario se hidrata desde AsyncStorage
+  const preferredLanguage = useUserStore((s) => s.preferredLanguage);
+  useEffect(() => {
+    i18n.changeLanguage(preferredLanguage ?? getDeviceLocale());
+  }, [preferredLanguage]);
+
   // Drain the offline FSRS sync queue whenever the app returns to foreground
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       const prev = appState.current;
       appState.current = next;
-      if (next === 'active' && prev !== 'active' && user?.id) {
-        drainSyncQueue(user.id).catch(console.error);
+      if (next === 'active' && prev !== 'active') {
+        if (user?.id) drainSyncQueue(user.id).catch(console.error);
+        // S11.4: scheduling inteligente en cada vuelta a foreground
+        refreshNotifications(user?.id).catch(console.error);
       }
     });
     return () => sub.remove();
@@ -72,6 +118,7 @@ function ThemedApp() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <AuthGuard />
       <Stack screenOptions={{ headerShown: false }} />
+      <GDPRConsentModal />
     </>
   );
 }
@@ -79,7 +126,9 @@ function ThemedApp() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemedApp />
+      <ErrorBoundary>
+        <ThemedApp />
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

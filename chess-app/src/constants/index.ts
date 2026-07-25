@@ -1,10 +1,10 @@
 export const ELO_RANGES = {
-  PAWN: { min: 0, max: 800, label: 'Peón', piece: '♟' },
-  KNIGHT: { min: 800, max: 1200, label: 'Caballo', piece: '♞' },
-  BISHOP: { min: 1200, max: 1500, label: 'Alfil', piece: '♝' },
-  ROOK: { min: 1500, max: 1800, label: 'Torre', piece: '♜' },
-  QUEEN: { min: 1800, max: 2200, label: 'Reina', piece: '♛' },
-  KING: { min: 2200, max: Infinity, label: 'Rey', piece: '♚' },
+  PAWN:   { min: 0,        max: 800,      label: 'pawn',   piece: '♟' },
+  KNIGHT: { min: 800,      max: 1200,     label: 'knight', piece: '♞' },
+  BISHOP: { min: 1200,     max: 1500,     label: 'bishop', piece: '♝' },
+  ROOK:   { min: 1500,     max: 1800,     label: 'rook',   piece: '♜' },
+  QUEEN:  { min: 1800,     max: 2200,     label: 'queen',  piece: '♛' },
+  KING:   { min: 2200,     max: Infinity, label: 'king',   piece: '♚' },
 } as const;
 
 export const CALIBRATION_PUZZLES = 12;

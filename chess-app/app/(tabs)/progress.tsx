@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -7,22 +8,13 @@ import { loadFSRSProjection, type FSRSProjection } from '@/services/progressDash
 import { getOrCreateGuestId } from '@/services/identity';
 import type { TacticType } from '@/types';
 
-const TACTIC_LABELS: Record<TacticType, string> = {
-  mate:             'Mate',
-  fork:             'Horquilla',
-  pin:              'Clavada',
-  skewer:           'Espeto',
-  discoveredAttack: 'Ataque descubierto',
-  deflection:       'Desviación',
-  other:            'Otros',
-};
-
 const TACTIC_ORDER: TacticType[] = [
   'mate', 'fork', 'pin', 'skewer', 'discoveredAttack', 'deflection', 'other',
 ];
 
 export default function ProgressScreen() {
   const { colors, typography } = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
 
   const {
@@ -46,26 +38,23 @@ export default function ProgressScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // ── Global stats ─────────────────────────────────────────────────────────────
   const total      = puzzlesCompleted + puzzlesFailed;
   const successPct = total > 0 ? Math.round((puzzlesCompleted / total) * 100) : 0;
 
-  // ── Tactic rows (only show tactics with at least 1 attempt) ──────────────────
   const tacticRows = useMemo(() => {
     return TACTIC_ORDER
       .map((tactic) => {
         const s = solvedByTheme[tactic] ?? 0;
         const f = failedByTheme[tactic] ?? 0;
-        const t = s + f;
-        if (t === 0) return null;
-        return { tactic, solved: s, total: t, pct: Math.round((s / t) * 100) };
+        const tot = s + f;
+        if (tot === 0) return null;
+        return { tactic, solved: s, total: tot, pct: Math.round((s / tot) * 100) };
       })
       .filter(Boolean) as { tactic: TacticType; solved: number; total: number; pct: number }[];
   }, [solvedByTheme, failedByTheme]);
 
   const maxTacticTotal = tacticRows.reduce((m, r) => Math.max(m, r.total), 1);
 
-  // ── ELO chart (last 14 snapshots) ────────────────────────────────────────────
   const chartData = eloHistory.slice(-14);
   const chartMin  = chartData.length > 0 ? Math.min(...chartData.map((s) => s.elo)) : 0;
   const chartMax  = chartData.length > 0 ? Math.max(...chartData.map((s) => s.elo)) : 0;
@@ -78,21 +67,19 @@ export default function ProgressScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Resumen general ──────────────────────────────────────── */}
-      <Section label="RESUMEN GENERAL" colors={colors} typography={typography}>
+      <Section label={t('progress.sectionSummary')} colors={colors} typography={typography}>
         <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <StatCell value={puzzlesCompleted} label="resueltos"  colors={colors} typography={typography} />
+          <StatCell value={puzzlesCompleted} label={t('progress.solved')}  colors={colors} typography={typography} />
           <View style={[styles.cellDivider, { backgroundColor: colors.border }]} />
-          <StatCell value={`${successPct}%`} label="éxito"     colors={colors} typography={typography} />
+          <StatCell value={`${successPct}%`} label={t('progress.success')} colors={colors} typography={typography} />
           <View style={[styles.cellDivider, { backgroundColor: colors.border }]} />
-          <StatCell value={puzzlesFailed}    label="fallados"   colors={colors} typography={typography} />
+          <StatCell value={puzzlesFailed}    label={t('progress.failed')}  colors={colors} typography={typography} />
         </View>
       </Section>
 
-      {/* ── Tácticas ─────────────────────────────────────────────── */}
-      <Section label="TÁCTICAS" colors={colors} typography={typography}>
+      <Section label={t('progress.sectionTactics')} colors={colors} typography={typography}>
         {tacticRows.length === 0 ? (
-          <EmptyHint text="Sin datos aún — resuelve puzzles para ver tu progreso por táctica." colors={colors} typography={typography} />
+          <EmptyHint text={t('progress.tacticsEmpty')} colors={colors} typography={typography} />
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {tacticRows.map((row, i) => (
@@ -100,7 +87,7 @@ export default function ProgressScreen() {
                 {i > 0 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
                 <View style={styles.tacticRow}>
                   <Text style={[styles.tacticLabel, { color: colors.text, fontSize: typography.size.sm }]}>
-                    {TACTIC_LABELS[row.tactic]}
+                    {t(`tactic.${row.tactic}`)}
                   </Text>
                   <View style={styles.tacticBarWrap}>
                     <View style={[styles.tacticBarBg, { backgroundColor: colors.border }]}>
@@ -125,56 +112,28 @@ export default function ProgressScreen() {
         )}
       </Section>
 
-      {/* ── Proyección FSRS ──────────────────────────────────────── */}
-      <Section label="REPASOS FSRS" colors={colors} typography={typography}>
+      <Section label={t('progress.sectionFSRS')} colors={colors} typography={typography}>
         <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <StatCell
-            value={projection?.dueToday ?? '—'}
-            label="hoy"
-            colors={colors}
-            typography={typography}
-          />
+          <StatCell value={projection?.dueToday ?? '—'}    label={t('progress.today')}    colors={colors} typography={typography} />
           <View style={[styles.cellDivider, { backgroundColor: colors.border }]} />
-          <StatCell
-            value={projection?.dueThisWeek ?? '—'}
-            label="esta semana"
-            colors={colors}
-            typography={typography}
-          />
+          <StatCell value={projection?.dueThisWeek ?? '—'} label={t('progress.thisWeek')} colors={colors} typography={typography} />
           <View style={[styles.cellDivider, { backgroundColor: colors.border }]} />
-          <StatCell
-            value={projection?.totalLearned ?? '—'}
-            label="aprendidos"
-            colors={colors}
-            typography={typography}
-          />
+          <StatCell value={projection?.totalLearned ?? '—'} label={t('progress.learned')} colors={colors} typography={typography} />
         </View>
       </Section>
 
-      {/* ── Historial ELO ────────────────────────────────────────── */}
-      <Section label="HISTORIAL ELO" colors={colors} typography={typography}>
+      <Section label={t('progress.sectionEloHistory')} colors={colors} typography={typography}>
         {chartData.length < 2 ? (
-          <EmptyHint text="Sin historial aún — el gráfico aparece tras varios días de práctica." colors={colors} typography={typography} />
+          <EmptyHint text={t('progress.eloEmpty')} colors={colors} typography={typography} />
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.chartRow}>
               {chartData.map((snap, i) => {
-                const barH = Math.max(
-                  8,
-                  Math.round(((snap.elo - chartMin) / chartRange) * BAR_MAX_H),
-                );
+                const barH = Math.max(8, Math.round(((snap.elo - chartMin) / chartRange) * BAR_MAX_H));
                 const isLast = i === chartData.length - 1;
                 return (
                   <View key={snap.date} style={styles.barWrap}>
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: barH,
-                          backgroundColor: isLast ? colors.tabBarActive : colors.tabBarInactive,
-                        },
-                      ]}
-                    />
+                    <View style={[styles.bar, { height: barH, backgroundColor: isLast ? colors.tabBarActive : colors.tabBarInactive }]} />
                     <Text style={[styles.barDate, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
                       {snap.date.slice(5)}
                     </Text>
@@ -183,12 +142,8 @@ export default function ProgressScreen() {
               })}
             </View>
             <View style={styles.chartLegend}>
-              <Text style={[styles.legendText, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-                {chartMin}
-              </Text>
-              <Text style={[styles.legendText, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-                {chartMax}
-              </Text>
+              <Text style={[styles.legendText, { color: colors.textSecondary, fontSize: typography.size.xs }]}>{chartMin}</Text>
+              <Text style={[styles.legendText, { color: colors.textSecondary, fontSize: typography.size.xs }]}>{chartMax}</Text>
             </View>
           </View>
         )}
@@ -197,11 +152,7 @@ export default function ProgressScreen() {
   );
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function Section({
-  label, children, colors, typography,
-}: {
+function Section({ label, children, colors, typography }: {
   label: string;
   children: React.ReactNode;
   colors: ReturnType<typeof useTheme>['colors'];
@@ -217,9 +168,7 @@ function Section({
   );
 }
 
-function StatCell({
-  value, label, colors, typography,
-}: {
+function StatCell({ value, label, colors, typography }: {
   value: number | string;
   label: string;
   colors: ReturnType<typeof useTheme>['colors'];
@@ -237,9 +186,7 @@ function StatCell({
   );
 }
 
-function EmptyHint({
-  text, colors, typography,
-}: {
+function EmptyHint({ text, colors, typography }: {
   text: string;
   colors: ReturnType<typeof useTheme>['colors'];
   typography: ReturnType<typeof useTheme>['typography'];
@@ -253,36 +200,29 @@ function EmptyHint({
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root:         { flex: 1 },
   content:      { padding: 16, paddingTop: 60, paddingBottom: 32, gap: 20 },
   section:      { gap: 8, alignItems: 'stretch' },
   sectionLabel: { letterSpacing: 0.5, fontWeight: '600', marginLeft: 2 },
-
   statsRow:     { flexDirection: 'row', borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   statCell:     { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 2 },
   cellDivider:  { width: 1 },
   statValue:    { fontWeight: '700' },
   statLabel:    { textTransform: 'uppercase', letterSpacing: 0.4, textAlign: 'center' },
-
   card:         { borderRadius: 12, borderWidth: 1, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10 },
   rowDivider:   { height: 1, marginVertical: 8 },
-
   tacticRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
   tacticLabel:  { width: 110, fontWeight: '500' },
   tacticBarWrap:{ flex: 1 },
   tacticBarBg:  { height: 6, borderRadius: 3, overflow: 'hidden' },
   tacticBarFill:{ height: '100%', borderRadius: 3 },
   tacticMeta:   { width: 72, textAlign: 'right' },
-
   chartRow:     { flexDirection: 'row', alignItems: 'flex-end', gap: 4, paddingBottom: 4, height: 80 },
   barWrap:      { flex: 1, alignItems: 'center', gap: 2 },
   bar:          { width: '100%', borderRadius: 3 },
   barDate:      { textAlign: 'center' },
   chartLegend:  { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   legendText:   {},
-
   emptyHint:    { borderRadius: 12, borderWidth: 1, paddingVertical: 20, paddingHorizontal: 16 },
 });

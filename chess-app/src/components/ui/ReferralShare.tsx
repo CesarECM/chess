@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
-import { shareReferralLink } from '@/services/referral';
+import { shareReferralLink, REFERRAL_REWARD_DAYS } from '@/services/referral';
 
 interface Props {
   userId: string;
@@ -8,6 +9,7 @@ interface Props {
 
 export function ReferralShare({ userId }: Props) {
   const { colors, typography, radius } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <TouchableOpacity
@@ -16,7 +18,7 @@ export function ReferralShare({ userId }: Props) {
       activeOpacity={0.8}
     >
       <Text style={[styles.text, { color: '#fff', fontSize: typography.size.sm }]}>
-        Invitar amigos — +7 días gratis por referido activo
+        {t('referral.shareBtn', { days: REFERRAL_REWARD_DAYS })}
       </Text>
     </TouchableOpacity>
   );

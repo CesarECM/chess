@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -17,6 +18,7 @@ import { signIn, signInWithGoogle } from '@/services/auth';
 
 export default function LoginScreen() {
   const { colors, typography, radius } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const { setGuest } = useAuthStore();
 
@@ -32,7 +34,7 @@ export default function LoginScreen() {
     try {
       await signIn(email.trim(), password);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error al iniciar sesión');
+      setError(e instanceof Error ? e.message : t('auth.errorSignIn'));
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,7 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error con Google');
+      setError(e instanceof Error ? e.message : t('auth.errorGoogle'));
     } finally {
       setLoading(false);
     }
@@ -57,12 +59,12 @@ export default function LoginScreen() {
     >
       <View style={styles.inner}>
         <Text style={[styles.title, { color: colors.text, fontSize: typography.size['2xl'] }]}>
-          ♟ Chess Puzzles
+          {t('auth.title')}
         </Text>
 
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
-          placeholder="Email"
+          placeholder={t('auth.email')}
           placeholderTextColor={colors.textSecondary}
           value={email}
           onChangeText={setEmail}
@@ -72,7 +74,7 @@ export default function LoginScreen() {
         />
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
-          placeholder="Contraseña"
+          placeholder={t('auth.password')}
           placeholderTextColor={colors.textSecondary}
           value={password}
           onChangeText={setPassword}
@@ -85,31 +87,31 @@ export default function LoginScreen() {
         <Pressable style={[styles.btn, { backgroundColor: colors.accent, borderRadius: radius.md }]} onPress={handleSignIn} disabled={loading}>
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={[styles.btnText, { fontSize: typography.size.md }]}>Iniciar sesión</Text>
+            : <Text style={[styles.btnText, { fontSize: typography.size.md }]}>{t('auth.signIn')}</Text>
           }
         </Pressable>
 
         <View style={styles.divider}>
           <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm, marginHorizontal: 8 }}>o</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm, marginHorizontal: 8 }}>{t('auth.or')}</Text>
           <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         <Pressable style={[styles.btnOutline, { borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface }]} onPress={handleGoogle} disabled={loading}>
           <Text style={[styles.btnOutlineText, { color: colors.text, fontSize: typography.size.md }]}>
-            Continuar con Google
+            {t('auth.signInWithGoogle')}
           </Text>
         </Pressable>
 
         <Pressable style={styles.link} onPress={() => router.push('/auth/register' as Href)}>
           <Text style={{ color: colors.accent, fontSize: typography.size.sm }}>
-            ¿No tienes cuenta? Regístrate
+            {t('auth.noAccount')}
           </Text>
         </Pressable>
 
         <Pressable style={styles.link} onPress={setGuest}>
           <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>
-            Continuar sin cuenta
+            {t('auth.continueAsGuest')}
           </Text>
         </Pressable>
       </View>

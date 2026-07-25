@@ -1,18 +1,50 @@
 {
   "expo": {
-    "name": "chess-app",
+    "name": "Chess Puzzles",
     "slug": "chess-app",
     "scheme": "chess-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "primaryColor": "#4a90d9",
+    "description": "Improve your chess with daily tactical puzzles powered by spaced repetition (FSRS). Solve puzzles, track your ELO, earn medals and build your streak.",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a1a"
+    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "mx.ceecm.chessapp"
+      "bundleIdentifier": "mx.ceecm.chessapp",
+      "buildNumber": "1",
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+          }
+        ]
+      },
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "We use this to show you relevant ads and measure ad performance.",
+        "NSPhotoLibraryUsageDescription": "We need access to share your puzzle achievements.",
+        "UIBackgroundModes": []
+      }
     },
     "android": {
       "package": "mx.ceecm.chessapp",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -23,19 +55,34 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "Chess Puzzles",
+      "shortName": "Chess",
+      "description": "Daily chess tactical puzzles with spaced repetition",
+      "themeColor": "#4a90d9",
+      "backgroundColor": "#0a0a1a"
     },
     "plugins": [
       "expo-router",
       "expo-status-bar",
       "expo-web-browser",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1a1a2e",
+          "defaultChannel": "chess-reminders",
+          "sounds": []
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-3940256099942544~3347511713",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true
