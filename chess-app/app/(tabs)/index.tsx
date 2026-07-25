@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import type { ListRenderItemInfo } from '@shopify/flash-list';
 import type ViewToken from '@shopify/flash-list/dist/viewability/ViewToken';
@@ -186,12 +186,17 @@ export default function FeedScreen() {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[
+        styles.container,
+        { backgroundColor: colors.background },
+        Platform.OS === 'web' && { height: listHeight },
+      ]}
       onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
     >
       <FlashList
         ref={listRef}
         data={feed}
+        extraData={activeIndex}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         estimatedItemSize={listHeight}
