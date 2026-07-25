@@ -1,8 +1,16 @@
 import { supabase } from '@/services/supabase';
 import { clamp } from '@/utils';
 
-// solve-time sweet spot for the speed score (20 s = ideal engagement)
 const IDEAL_SOLVE_MS = 20_000;
+const CONFIDENCE_K   = 40;   // Bayesian prior weight (K = 40 → ~50 % confidence at 40 attempts)
+
+// Lifecycle thresholds — consumed by reviewQueue
+export const FRESH_THRESHOLD           = 30;
+export const GOOD_SCORE                = 0.55;
+export const MEDIOCRE_SCORE            = 0.35;
+export const RETIRE_BAD_ATTEMPTS       = 100;
+export const RETIRE_BAD_SCORE          = 0.20;
+export const RETIRE_PERSISTENT_ATTEMPTS = 250;  // also the struggling p_include denominator
 
 interface ViralityRow {
   puzzle_id:      string;
@@ -12,36 +20,41 @@ interface ViralityRow {
   total_solve_ms: number;
 }
 
-/**
- * Composite virality score ∈ [0, 1] for a puzzle given its aggregate stats.
- *
- * fail_score    — sweet spot 30-70 % failure rate (peak engagement difficulty)
- * speed_score   — log-scale proximity to IDEAL_SOLVE_MS (too fast/slow scores lower)
- * completion    — fraction of attempts that end in a solve (not abandoned on fail)
- */
+export interface ViralityData {
+  score:         number;   // raw composite virality score ∈ [0, 1]
+  effectiveScore: number;  // Bayesian-smoothed score (confidence-weighted toward 0.5 prior)
+  attempts:      number;
+  retired:       boolean;
+}
+
 export function computeViralityScore(row: ViralityRow): number {
-  if (row.total_attempts === 0) return 0.5; // neutral fallback for unseen puzzles
+  if (row.total_attempts === 0) return 0.5;
 
   const failRate       = row.total_failures / row.total_attempts;
   const completionRate = row.total_solves   / row.total_attempts;
 
-  // Fail score: peaks at 50 % failure, falls off symmetrically
   const failScore = clamp(1 - Math.abs(failRate - 0.5) * 2, 0, 1);
 
-  // Speed score: log-scale bell around IDEAL_SOLVE_MS; 0 if no solves yet
-  const avgSolveMs  = row.total_solves > 0 ? row.total_solve_ms / row.total_solves : 0;
-  const speedScore  = avgSolveMs > 0
+  const avgSolveMs = row.total_solves > 0 ? row.total_solve_ms / row.total_solves : 0;
+  const speedScore = avgSolveMs > 0
     ? clamp(1 - Math.abs(Math.log(avgSolveMs / IDEAL_SOLVE_MS)) / 2, 0, 1)
     : 0.5;
 
   return 0.40 * failScore + 0.30 * speedScore + 0.30 * completionRate;
 }
 
-/**
- * Fire-and-forget: record one puzzle result in the virality aggregate.
- * Uses a Postgres RPC for an atomic increment (no read-then-write race).
- * Requires migrate-virality.sql to have been run in Supabase.
- */
+function computeEffectiveScore(measuredScore: number, attempts: number): number {
+  const confidence = attempts / (attempts + CONFIDENCE_K);
+  return 0.5 * (1 - confidence) + measuredScore * confidence;
+}
+
+function isRetired(effectiveScore: number, attempts: number): boolean {
+  return (
+    (attempts >= RETIRE_BAD_ATTEMPTS        && effectiveScore < RETIRE_BAD_SCORE) ||
+    (attempts >= RETIRE_PERSISTENT_ATTEMPTS && effectiveScore < MEDIOCRE_SCORE)
+  );
+}
+
 export async function recordViralityEvent(
   puzzleId: string,
   solved: boolean,
@@ -55,14 +68,10 @@ export async function recordViralityEvent(
   if (error) console.error('[virality] recordViralityEvent:', error.message);
 }
 
-/**
- * Fetch virality scores for a batch of puzzle IDs.
- * Returns a Map<puzzleId, score>. Missing IDs default to 0.5 (neutral).
- */
 export async function fetchViralityScores(
   puzzleIds: string[],
-): Promise<Map<string, number>> {
-  const result = new Map<string, number>();
+): Promise<Map<string, ViralityData>> {
+  const result = new Map<string, ViralityData>();
   if (puzzleIds.length === 0) return result;
 
   const { data, error } = await supabase
@@ -73,7 +82,14 @@ export async function fetchViralityScores(
   if (error || !data) return result;
 
   for (const row of data as ViralityRow[]) {
-    result.set(row.puzzle_id, computeViralityScore(row));
+    const score          = computeViralityScore(row);
+    const effectiveScore = computeEffectiveScore(score, row.total_attempts);
+    result.set(row.puzzle_id, {
+      score,
+      effectiveScore,
+      attempts: row.total_attempts,
+      retired:  isRetired(effectiveScore, row.total_attempts),
+    });
   }
   return result;
 }

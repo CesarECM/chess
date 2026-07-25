@@ -1,6 +1,12 @@
 import { supabase } from '@/services/supabase';
 import { loadDueProgress } from '@/services/puzzleProgress';
-import { fetchViralityScores } from '@/services/virality';
+import {
+  fetchViralityScores,
+  FRESH_THRESHOLD,
+  GOOD_SCORE,
+  MEDIOCRE_SCORE,
+  RETIRE_PERSISTENT_ATTEMPTS,
+} from '@/services/virality';
 import { clamp } from '@/utils';
 import type { Puzzle } from '@/types';
 
@@ -11,6 +17,12 @@ const W_ELO_MATCH   = 0.40;
 const W_VIRALITY    = 0.25;
 const W_POPULARITY  = 0.20;
 const W_RELIABILITY = 0.15;
+
+// Lifecycle budget fractions (must sum to 1.0)
+const BUDGET_FRESH    = 0.25;
+const BUDGET_RISING   = 0.45;
+const BUDGET_COASTING = 0.20;
+const BUDGET_STRUGGLE = 0.10;
 
 function rowToPuzzle(row: Record<string, unknown>): Puzzle {
   return {
@@ -25,13 +37,13 @@ function rowToPuzzle(row: Record<string, unknown>): Puzzle {
   };
 }
 
-function scoreCandidate(puzzle: Puzzle, userElo: number, virality: number): number {
+function scoreCandidate(puzzle: Puzzle, userElo: number, effectiveScore: number): number {
   const eloMatch         = Math.max(0, 1 - Math.abs(puzzle.rating - userElo) / ELO_WINDOW);
   const popularityScore  = clamp((puzzle.popularity + 100) / 200, 0, 1);
   const reliabilityScore = clamp(1 - puzzle.ratingDeviation / 500, 0, 1);
   return (
     W_ELO_MATCH   * eloMatch +
-    W_VIRALITY    * virality +
+    W_VIRALITY    * effectiveScore +
     W_POPULARITY  * popularityScore +
     W_RELIABILITY * reliabilityScore
   );
@@ -102,7 +114,6 @@ export async function fetchNextPuzzle(
     if (puzzles[0]) return puzzles[0];
   }
 
-  // Fetch total count so the random offset is always valid
   const { count } = await supabase
     .from('puzzles')
     .select('id', { count: 'exact', head: true });
@@ -122,14 +133,12 @@ export async function fetchNextPuzzle(
 
   if (!data) return null;
 
-  // Exclude the given ID in JS to avoid SQL string-building issues
   const candidate = (data as Record<string, unknown>[])
     .map(rowToPuzzle)
     .find((p) => p.id !== excludeId);
 
   if (candidate) return candidate;
 
-  // Fallback: first puzzle outside the exclusion
   const { data: fallback } = await supabase
     .from('puzzles')
     .select('*')
@@ -143,12 +152,13 @@ export async function fetchNextPuzzle(
 /**
  * Build a prioritized, scored, and diversified puzzle batch for the feed.
  *
- * Priority order:
- *  1. FSRS repasos vencidos (most overdue first).
- *  2. Puzzles WITH our engagement data (virality row with total_attempts ≥ 1),
- *     ranked by composite score + topic diversity.
- *  3. Puzzles WITHOUT engagement data yet (random fill) — these are "stock"
- *     puzzles that have not been seen by any user yet.
+ * Lifecycle phases (TikTok-style content amplification):
+ *  1. FSRS repasos vencidos — always first.
+ *  2. Fresh    (25 %) — no data or < FRESH_THRESHOLD attempts. New content.
+ *  3. Rising   (45 %) — effectiveScore ≥ GOOD_SCORE. Proven high performers.
+ *  4. Coasting (20 %) — MEDIOCRE_SCORE ≤ effectiveScore < GOOD_SCORE. Middle tier.
+ *  5. Struggling(10%) — low score, probabilistic inclusion that decays with attempts.
+ *     Retired puzzles (score confirmed bad after enough attempts) are never shown.
  */
 export async function buildReviewQueue(
   userId: string,
@@ -157,24 +167,23 @@ export async function buildReviewQueue(
   excludeIds: string[] = [],
 ): Promise<Puzzle[]> {
   // ── Tier 1: FSRS repasos vencidos ─────────────────────────────────────────
-  const due      = await loadDueProgress(userId);
-  const dueIds   = due.map((p) => p.puzzleId);
+  const due        = await loadDueProgress(userId);
+  const dueIds     = due.map((p) => p.puzzleId);
   const duePuzzles = await fetchPuzzlesByIds(dueIds);
 
   const remaining = batchSize - duePuzzles.length;
   if (remaining <= 0) return duePuzzles.slice(0, batchSize);
 
-  // Build JS-side exclusion set — no SQL string building
   const excluded = new Set([...dueIds, ...excludeIds]);
 
-  // ── Fetch candidate pool (ELO window, wider than needed for scoring) ───────
+  // ── Fetch candidate pool ──────────────────────────────────────────────────
   const { data: rawCandidates } = await supabase
     .from('puzzles')
     .select('*')
     .gte('rating', userElo - ELO_WINDOW)
     .lte('rating', userElo + ELO_WINDOW)
     .order('id')
-    .limit(remaining * 4);
+    .limit(remaining * 5);
 
   const candidates = ((rawCandidates ?? []) as Record<string, unknown>[])
     .map(rowToPuzzle)
@@ -182,25 +191,61 @@ export async function buildReviewQueue(
 
   if (candidates.length === 0) return duePuzzles;
 
-  // ── Fetch virality data for the candidate pool ─────────────────────────────
+  // ── Fetch virality data (score, effectiveScore, attempts, retired) ─────────
   const viralityMap = await fetchViralityScores(candidates.map((p) => p.id));
 
-  // ── Tier 2: puzzles WITH engagement data ──────────────────────────────────
-  // A puzzle has data ↔ it has a row in puzzle_virality (viralityMap.has its id).
-  // Rows are only created by increment_virality, so presence = at least 1 attempt.
-  const withData    = candidates.filter((p) =>  viralityMap.has(p.id));
-  const withoutData = candidates.filter((p) => !viralityMap.has(p.id));
+  // ── Classify candidates into lifecycle phases ─────────────────────────────
+  const fresh:     Puzzle[]                              = [];
+  const rising:    Puzzle[]                              = [];
+  const coasting:  Puzzle[]                              = [];
+  const struggling: { puzzle: Puzzle; attempts: number }[] = [];
 
-  const tier2Sorted = withData
-    .map((p) => ({ puzzle: p, score: scoreCandidate(p, userElo, viralityMap.get(p.id)!) }))
+  for (const p of candidates) {
+    const data = viralityMap.get(p.id);
+    if (!data || data.attempts < FRESH_THRESHOLD) { fresh.push(p);    continue; }
+    if (data.retired)                              {                    continue; }
+    if (data.effectiveScore >= GOOD_SCORE)         { rising.push(p);   continue; }
+    if (data.effectiveScore >= MEDIOCRE_SCORE)     { coasting.push(p); continue; }
+    struggling.push({ puzzle: p, attempts: data.attempts });
+  }
+
+  // ── Budget targets ────────────────────────────────────────────────────────
+  const tFresh    = Math.round(remaining * BUDGET_FRESH);
+  const tRising   = Math.round(remaining * BUDGET_RISING);
+  const tCoasting = Math.round(remaining * BUDGET_COASTING);
+  const tStruggle = Math.max(1, Math.round(remaining * BUDGET_STRUGGLE));
+
+  // ── Pick from each phase ──────────────────────────────────────────────────
+  const freshPicks = shuffled(fresh).slice(0, tFresh);
+
+  const risingByScore = rising
+    .map((p) => ({ puzzle: p, score: scoreCandidate(p, userElo, viralityMap.get(p.id)!.effectiveScore) }))
     .sort((a, b) => b.score - a.score)
     .map((s) => s.puzzle);
+  const risingPicks = applyTopicDiversity(risingByScore, 2, tRising);
 
-  const tier2 = applyTopicDiversity(tier2Sorted, 2, remaining);
+  const coastingByScore = coasting
+    .map((p) => ({ puzzle: p, score: scoreCandidate(p, userElo, viralityMap.get(p.id)!.effectiveScore) }))
+    .sort((a, b) => b.score - a.score)
+    .map((s) => s.puzzle);
+  const coastingPicks = applyTopicDiversity(coastingByScore, 2, tCoasting);
 
-  // ── Tier 3: puzzles WITHOUT engagement data (random fill) ─────────────────
-  const need3 = remaining - tier2.length;
-  const tier3  = need3 > 0 ? shuffled(withoutData).slice(0, need3) : [];
+  // Struggling: inclusion probability decays linearly with attempts → 0 at RETIRE_PERSISTENT_ATTEMPTS
+  const eligibleStruggling = struggling
+    .filter(({ attempts }) => Math.random() < Math.max(0, 1 - attempts / RETIRE_PERSISTENT_ATTEMPTS))
+    .map(({ puzzle }) => puzzle);
+  const strugglePicks = shuffled(eligibleStruggling).slice(0, tStruggle);
 
-  return [...duePuzzles, ...tier2, ...tier3];
+  // ── Assemble + fill any gaps left by short pools ──────────────────────────
+  const picked = [...freshPicks, ...risingPicks, ...coastingPicks, ...strugglePicks];
+  const pickedIds = new Set([...excluded, ...picked.map((p) => p.id)]);
+  const needed = remaining - picked.length;
+  if (needed > 0) {
+    const leftovers = candidates
+      .filter((p) => !pickedIds.has(p.id))
+      .slice(0, needed);
+    picked.push(...leftovers);
+  }
+
+  return [...duePuzzles, ...picked];
 }
