@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import type { ListRenderItemInfo } from '@shopify/flash-list';
-import type ViewToken from '@shopify/flash-list/dist/viewability/ViewToken';
+import type { ViewToken } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
@@ -200,7 +200,6 @@ export default function FeedScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         estimatedItemSize={listHeight}
-        drawDistance={listHeight * 2}
         pagingEnabled
         scrollEnabled={activeStatus !== 'playing'}
         showsVerticalScrollIndicator={false}
