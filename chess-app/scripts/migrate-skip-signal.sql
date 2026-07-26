@@ -5,7 +5,10 @@ ALTER TABLE puzzle_virality
   ADD COLUMN IF NOT EXISTS total_skips INT NOT NULL DEFAULT 0;
 
 -- Atomic upsert: called when user swipes away without attempting the puzzle.
-CREATE OR REPLACE FUNCTION record_skip(p_puzzle_id TEXT) RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION record_skip(p_puzzle_id TEXT) RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   INSERT INTO puzzle_virality (puzzle_id, total_skips)
   VALUES (p_puzzle_id, 1)

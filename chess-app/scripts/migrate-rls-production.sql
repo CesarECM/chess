@@ -61,7 +61,8 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- La función increment_virality usa SECURITY DEFINER, bypassa RLS para escritura.
+-- increment_virality y record_skip tienen SECURITY DEFINER (definido en migrate-virality.sql
+-- y migrate-skip-signal.sql respectivamente), por lo que bypassan RLS para escritura.
 -- No se necesita política de INSERT/UPDATE para usuarios normales.
 
 -- ── 3. referrals — política INSERT faltante ────────────────

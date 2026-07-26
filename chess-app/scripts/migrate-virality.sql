@@ -16,7 +16,10 @@ CREATE OR REPLACE FUNCTION increment_virality(
   p_puzzle_id TEXT,
   p_solved    BOOLEAN,
   p_solve_ms  BIGINT
-) RETURNS VOID AS $$
+) RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   INSERT INTO puzzle_virality (puzzle_id, total_attempts, total_failures, total_solves, total_solve_ms)
   VALUES (
