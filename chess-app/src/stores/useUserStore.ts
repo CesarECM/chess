@@ -6,6 +6,7 @@ import { calculateElo } from '@/services/elo';
 import { evaluateNewMedals } from '@/services/medals';
 import type { Profile } from '@/services/auth';
 import type { TacticType } from '@/types';
+import type { BoardThemeId, PieceSetId } from '@/constants/boardThemes';
 
 const K_CALIBRATING = 32;
 const K_ESTABLISHED = 16;
@@ -44,6 +45,9 @@ interface UserState {
   preferredLanguage: string | null; // null = auto (device locale)
   gdprConsentDate: string | null; // ISO date cuando el usuario dio consentimiento
   analyticsConsent: boolean; // true = acepta analytics (PostHog)
+  boardTheme: BoardThemeId;
+  pieceSet: PieceSetId;
+  onboardingCompleted: boolean;
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => void;
@@ -51,6 +55,9 @@ interface UserState {
   updateStreak: () => void;
   setNotificationStreakHour: (hour: number) => void;
   setPreferredLanguage: (lang: string | null) => void;
+  setBoardTheme: (theme: BoardThemeId) => void;
+  setPieceSet: (set: PieceSetId) => void;
+  completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId) => void;
   setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
   setPremiumUntil: (date: string) => void;
@@ -87,6 +94,9 @@ export const useUserStore = create<UserState>()(
       preferredLanguage: null,
       gdprConsentDate: null,
       analyticsConsent: false,
+      boardTheme: 'classic',
+      pieceSet: 'cburnett',
+      onboardingCompleted: false,
 
       setElo: (elo) => set({ elo }),
 
@@ -193,6 +203,17 @@ export const useUserStore = create<UserState>()(
 
       setNotificationStreakHour: (hour) => set({ notificationStreakHour: hour }),
       setPreferredLanguage: (lang) => set({ preferredLanguage: lang }),
+      setBoardTheme: (theme) => set({ boardTheme: theme }),
+      setPieceSet: (s) => set({ pieceSet: s }),
+      completeOnboarding: (levelElo, theme, pieces) => {
+        const { puzzlesCompleted } = get();
+        set({
+          boardTheme: theme,
+          pieceSet: pieces,
+          onboardingCompleted: true,
+          ...(puzzlesCompleted === 0 ? { elo: levelElo } : {}),
+        });
+      },
       setGdprConsent: (analytics) => set({
         gdprConsentDate: new Date().toISOString(),
         analyticsConsent: analytics,
@@ -255,6 +276,9 @@ export const useUserStore = create<UserState>()(
         preferredLanguage: state.preferredLanguage,
         gdprConsentDate: state.gdprConsentDate,
         analyticsConsent: state.analyticsConsent,
+        boardTheme: state.boardTheme,
+        pieceSet: state.pieceSet,
+        onboardingCompleted: state.onboardingCompleted,
       }),
     },
   ),

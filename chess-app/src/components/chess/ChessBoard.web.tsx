@@ -1,9 +1,12 @@
 import { forwardRef, useImperativeHandle, useState, useCallback, useRef } from 'react';
-import { Animated, Easing, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Animated, Easing, View, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Chess } from 'chess.js';
 import type { Square, PieceSymbol, Move } from 'chess.js';
 
 import { applyMove, getLegalMovesFromSquare } from '@/services/chess';
+import { BOARD_THEMES } from '@/constants/boardThemes';
+import { getPieceUrl } from '@/constants/pieceSets';
+import { useUserStore } from '@/stores/useUserStore';
 
 export interface ChessboardRef {
   move: (p: { from: Square; to: Square; promotion?: PieceSymbol }) => Promise<Move | undefined>;
@@ -24,11 +27,6 @@ interface ChessBoardProps {
   enabled?: boolean;
 }
 
-const UNICODE: Record<string, string> = {
-  wp: '♙', wn: '♘', wb: '♗', wr: '♖', wq: '♕', wk: '♔',
-  bp: '♟', bn: '♞', bb: '♝', br: '♜', bq: '♛', bk: '♚',
-};
-
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'];
 const SIZE  = 350;
@@ -48,10 +46,14 @@ function parseFen(fen: string): Record<string, string> {
   } catch { return {}; }
 }
 
-/** Pixel top-left corner of a square on the board. */
+/** Converts chess.js color+type (e.g. 'w'+'k') to piece key (e.g. 'wK'). */
+function toPieceKey(colorType: string): string {
+  return colorType[0] + colorType[1].toUpperCase();
+}
+
 function squareToPos(sq: Square, flipped: boolean): { x: number; y: number } {
-  const fileIndex = FILES.indexOf(sq[0]);        // 0 = a … 7 = h
-  const rankIndex = RANKS.indexOf(sq[1]);        // 0 = rank 8 (top) … 7 = rank 1 (bottom)
+  const fileIndex = FILES.indexOf(sq[0]);
+  const rankIndex = RANKS.indexOf(sq[1]);
   return {
     x: (flipped ? 7 - fileIndex : fileIndex) * SQ,
     y: (flipped ? 7 - rankIndex : rankIndex) * SQ,
@@ -60,29 +62,27 @@ function squareToPos(sq: Square, flipped: boolean): { x: number; y: number } {
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
   ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true }, ref) => {
-    // ── Internal position state ───────────────────────────────────────────────
+    const boardThemeId = useUserStore((s) => s.boardTheme);
+    const pieceSet     = useUserStore((s) => s.pieceSet);
+    const theme        = BOARD_THEMES[boardThemeId];
+
     const currentFenRef = useRef(fen);
     const [currentFen, setCurrentFen] = useState(fen);
     const fenPropRef    = useRef(fen);
     fenPropRef.current  = fen;
 
-    // ── Visual state ─────────────────────────────────────────────────────────
     const [highlights,   setHighlights]   = useState<Record<string, string>>({});
     const [selected,     setSelected]     = useState<Square | null>(null);
     const [lastMove,     setLastMove]     = useState<{ from: Square; to: Square } | null>(null);
     const [legalDests,   setLegalDests]   = useState<ReadonlySet<string>>(new Set());
 
-    // ── Animation state ───────────────────────────────────────────────────────
     const [hiddenSquare, setHiddenSquare] = useState<Square | null>(null);
     const [animState, setAnimState] = useState<{
-      type: string;
+      pieceKey: string;
       anim: Animated.ValueXY;
     } | null>(null);
     const animRef = useRef<Animated.ValueXY | null>(null);
 
-    // ── Orientation ───────────────────────────────────────────────────────────
-    // fen.split(' ')[1] is the OPPONENT's color (they play moves[0]).
-    // Flip when opponent is white → player is black → black at bottom.
     const flipped    = orientation === 'black' ||
       (orientation === 'auto' && fen.split(' ')[1] === 'w');
     const flippedRef = useRef(flipped);
@@ -91,17 +91,7 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
     const ranks = flipped ? [...RANKS].reverse() : RANKS;
     const files = flipped ? [...FILES].reverse() : FILES;
 
-    // ── Animation helper ──────────────────────────────────────────────────────
-    // All values accessed at call-time via refs/stable setters → safe to capture
-    // in useImperativeHandle's [] closure.
-    function playMoveAnim(
-      from: Square,
-      to: Square,
-      newFen: string,
-      pieceType: string,
-      promotion?: PieceSymbol,
-    ) {
-      // Cancel any in-progress animation and snap previous state
+    function playMoveAnim(from: Square, to: Square, newFen: string, pieceType: string, promotion?: PieceSymbol) {
       if (animRef.current) {
         animRef.current.stopAnimation();
         animRef.current = null;
@@ -110,14 +100,15 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
         setCurrentFen(currentFenRef.current);
       }
 
-      const displayType = promotion ? `${pieceType[0]}${promotion}` : pieceType;
-      const fromPos     = squareToPos(from, flippedRef.current);
-      const toPos       = squareToPos(to,   flippedRef.current);
+      const rawType   = promotion ? `${pieceType[0]}${promotion}` : pieceType;
+      const pieceKey  = toPieceKey(rawType);
+      const fromPos   = squareToPos(from, flippedRef.current);
+      const toPos     = squareToPos(to,   flippedRef.current);
 
       const anim = new Animated.ValueXY(fromPos);
       animRef.current = anim;
       setHiddenSquare(from);
-      setAnimState({ type: displayType, anim });
+      setAnimState({ pieceKey, anim });
 
       Animated.timing(anim, {
         toValue:         toPos,
@@ -133,7 +124,6 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
       });
     }
 
-    // ── Imperative handle ─────────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
       move: ({ from, to, promotion }) => {
         const uci       = `${from}${to}${promotion ?? ''}`;
@@ -172,7 +162,6 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
       getState: () => ({}),
     }), []);
 
-    // ── User interaction ──────────────────────────────────────────────────────
     const pieces = parseFen(currentFen);
 
     const handleTap = useCallback((sq: Square) => {
@@ -225,7 +214,6 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
       }
     }, [enabled, selected, onMove, onIllegalMove]);
 
-    // ── Render ────────────────────────────────────────────────────────────────
     return (
       <View style={styles.board}>
         {ranks.map((rank, ri) => (
@@ -244,7 +232,7 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
                 ? 'rgba(20,85,30,0.75)'
                 : hlColor ?? (isLastMove
                   ? (isLight ? 'rgba(20,85,30,0.45)' : 'rgba(20,85,30,0.65)')
-                  : (isLight ? '#F0D9B5' : '#B58863'));
+                  : (isLight ? theme.light : theme.dark));
 
               return (
                 <TouchableOpacity
@@ -254,15 +242,10 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
                   style={[styles.square, { backgroundColor: bgColor }]}
                 >
                   {piece && (
-                    <Text style={[
-                      styles.piece,
-                      {
-                        color:           piece[0] === 'w' ? '#fff' : '#1a1a1a',
-                        textShadowColor: piece[0] === 'w' ? '#444' : '#bbb',
-                      },
-                    ]}>
-                      {UNICODE[piece] ?? ''}
-                    </Text>
+                    <Image
+                      source={{ uri: getPieceUrl(pieceSet, toPieceKey(piece)) }}
+                      style={styles.piece}
+                    />
                   )}
                   {isDest && !isCapture && <View style={styles.dot} />}
                   {isDest && isCapture  && <View style={styles.captureRing} />}
@@ -272,21 +255,15 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
           </View>
         ))}
 
-        {/* Animated piece overlay — absolutely positioned over the board grid */}
         {animState && (
           <Animated.View
             pointerEvents="none"
             style={[styles.animPiece, animState.anim.getLayout()]}
           >
-            <Text style={[
-              styles.piece,
-              {
-                color:           animState.type[0] === 'w' ? '#fff' : '#1a1a1a',
-                textShadowColor: animState.type[0] === 'w' ? '#444' : '#bbb',
-              },
-            ]}>
-              {UNICODE[animState.type] ?? ''}
-            </Text>
+            <Image
+              source={{ uri: getPieceUrl(pieceSet, animState.pieceKey) }}
+              style={styles.piece}
+            />
           </Animated.View>
         )}
       </View>
@@ -298,12 +275,7 @@ const styles = StyleSheet.create({
   board:  { width: SIZE, height: SIZE },
   row:    { flexDirection: 'row' },
   square: { width: SQ, height: SQ, alignItems: 'center', justifyContent: 'center' },
-  piece:  {
-    fontSize:         SQ * 0.72,
-    textShadowOffset: { width: 0.5, height: 0.5 },
-    textShadowRadius: 1,
-    userSelect:       'none' as never,
-  },
+  piece:  { width: SQ * 0.88, height: SQ * 0.88 },
   dot: {
     position:        'absolute',
     width:           SQ * 0.33,

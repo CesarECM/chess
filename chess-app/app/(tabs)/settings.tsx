@@ -1,4 +1,4 @@
-import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +10,9 @@ import { signOut } from '@/services/auth';
 import { scheduleStreakReminder } from '@/services/notifications';
 import i18n, { getDeviceLocale } from '@/i18n';
 import type { ThemePreference } from '@/stores/useThemeStore';
+import { BOARD_THEMES, PIECE_SETS } from '@/constants/boardThemes';
+import { getPieceUrl } from '@/constants/pieceSets';
+import type { BoardThemeId, PieceSetId } from '@/constants/boardThemes';
 
 const NOTIFICATION_HOURS: { label: string; value: number }[] = [
   { label: '8:00',  value: 8  },
@@ -38,6 +41,10 @@ export default function SettingsScreen() {
   const setNotificationStreakHour = useUserStore((s) => s.setNotificationStreakHour);
   const preferredLanguage = useUserStore((s) => s.preferredLanguage);
   const setPreferredLanguage = useUserStore((s) => s.setPreferredLanguage);
+  const boardTheme = useUserStore((s) => s.boardTheme);
+  const setBoardTheme = useUserStore((s) => s.setBoardTheme);
+  const pieceSet = useUserStore((s) => s.pieceSet);
+  const setPieceSet = useUserStore((s) => s.setPieceSet);
   const router = useRouter();
 
   const THEME_OPTIONS: { label: string; value: ThemePreference }[] = [
@@ -181,6 +188,78 @@ export default function SettingsScreen() {
         </>
       )}
 
+      {/* ── Tablero ──────────────────────────────────────────── */}
+      <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
+        {t('settings.sectionBoard')}
+      </Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+        {/* Board color theme */}
+        <View style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.sm }]}>
+            {t('settings.boardThemeLabel')}
+          </Text>
+        </View>
+        <View style={[styles.themeRow]}>
+          {(Object.keys(BOARD_THEMES) as BoardThemeId[]).map((id) => {
+            const th = BOARD_THEMES[id];
+            const isActive = boardTheme === id;
+            return (
+              <TouchableOpacity
+                key={id}
+                onPress={() => setBoardTheme(id)}
+                style={[styles.themeChip, isActive && { borderColor: colors.accent, borderWidth: 2 }]}
+              >
+                <View style={styles.themePreview}>
+                  <View style={[styles.themeHalf, { backgroundColor: th.light }]} />
+                  <View style={[styles.themeHalf, { backgroundColor: th.dark }]} />
+                </View>
+                <Text style={[styles.themeLabel, { color: isActive ? colors.accent : colors.textSecondary, fontSize: typography.size.xs }]}>
+                  {t(`settings.boardTheme${id.charAt(0).toUpperCase() + id.slice(1)}` as never)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Piece set — web only */}
+        {Platform.OS === 'web' && (
+          <>
+            <View style={[styles.row, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+              <Text style={[styles.label, { color: colors.text, fontSize: typography.size.sm }]}>
+                {t('settings.pieceSetLabel')}
+              </Text>
+            </View>
+            <View style={styles.pieceSetRow}>
+              {PIECE_SETS.map((id) => {
+                const active = pieceSet === id;
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    onPress={() => setPieceSet(id as PieceSetId)}
+                    style={[
+                      styles.pieceChip,
+                      {
+                        borderColor: active ? colors.accent : colors.border,
+                        borderRadius: radius.md,
+                        backgroundColor: active ? colors.accent + '18' : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: getPieceUrl(id, 'wQ') }}
+                      style={styles.queenImg}
+                    />
+                    <Text style={[styles.pieceLabel, { color: active ? colors.accent : colors.textSecondary, fontSize: typography.size.xs }]}>
+                      {t(`settings.pieceSet${id.charAt(0).toUpperCase() + id.slice(1)}` as never)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
+      </View>
+
       {/* ── Legal ────────────────────────────────────────────── */}
       <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
         {t('settings.sectionLegal')}
@@ -226,4 +305,13 @@ const styles = StyleSheet.create({
   row:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   label:     {},
   dot:       { width: 8, height: 8, borderRadius: 4 },
+  themeRow:  { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12, paddingHorizontal: 8 },
+  themeChip: { alignItems: 'center', gap: 6, padding: 6, borderRadius: 8, borderWidth: 2, borderColor: 'transparent' },
+  themePreview: { flexDirection: 'row', width: 44, height: 44, borderRadius: 6, overflow: 'hidden' },
+  themeHalf: { flex: 1 },
+  themeLabel: { fontWeight: '600' },
+  pieceSetRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12, paddingHorizontal: 8 },
+  pieceChip:   { alignItems: 'center', gap: 6, padding: 10, borderWidth: 1.5 },
+  queenImg:    { width: 44, height: 44 },
+  pieceLabel:  { fontWeight: '600' },
 });

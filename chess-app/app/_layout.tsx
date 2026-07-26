@@ -6,6 +6,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { GDPRConsentModal } from '@/components/ui/GDPRConsentModal';
+import { OnboardingModal } from '@/components/ui/OnboardingModal';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { analytics } from '@/services/analytics';
 
@@ -119,6 +120,7 @@ function ThemedApp() {
       <AuthGuard />
       <Stack screenOptions={{ headerShown: false }} />
       <GDPRConsentModal />
+      <OnboardingModal />
     </>
   );
 }

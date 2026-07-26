@@ -6,6 +6,8 @@ import * as Haptics from 'expo-haptics';
 
 import { getSideToMove, toUCI } from '@/services/chess';
 import { useTheme } from '@/hooks/useTheme';
+import { BOARD_THEMES } from '@/constants/boardThemes';
+import { useUserStore } from '@/stores/useUserStore';
 
 export type { ChessboardRef };
 export type Orientation = 'white' | 'black' | 'auto';
@@ -24,6 +26,8 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
   ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true }, ref) => {
     const { colors } = useTheme();
     const { width } = useWindowDimensions();
+    const boardThemeId = useUserStore((s) => s.boardTheme);
+    const boardTheme   = BOARD_THEMES[boardThemeId];
     const boardSize = Math.min(width, 480);
 
     // getSideToMove(fen) is the OPPONENT's color (moves[0] belongs to them).
@@ -60,8 +64,8 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
         onMove={handleMove}
         onIllegalMove={handleIllegalMove}
         colors={{
-          white: '#F0D9B5',
-          black: '#B58863',
+          white: boardTheme.light,
+          black: boardTheme.dark,
           lastMoveHighlight: 'rgba(20, 85, 30, 0.5)',
           checkmateHighlight: '#E53E3E',
           promotionPieceButton: colors.accent,
