@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import type { Puzzle, PuzzleId, FSRSRating, FeedItem, ProgressMessage } from '@/types';
+import type { Puzzle, PuzzleId, FSRSRating, FeedItem, ProgressMessage, LockedSlotItem } from '@/types';
+
+export const LOCKED_SLOT: LockedSlotItem = { id: 'locked-slot', kind: 'locked-slot' };
 import { applyMove } from '@/services/chess';
 
 export type PuzzleStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'complete';
@@ -18,6 +20,7 @@ interface PuzzleState {
   setFeed:          (items: FeedItem[]) => void;
   appendToFeed:     (items: FeedItem[]) => void;
   insertMessagesAfterIndex: (index: number, messages: ProgressMessage[]) => void;
+  insertBeforeLockedSlot:   (items: FeedItem[]) => void;
   addToHistory:     (puzzleId: PuzzleId) => void;
 
   // ── Solved/failed puzzle tracking (for feed visual state) ───────
@@ -26,10 +29,6 @@ interface PuzzleState {
   markPuzzleSolved: (id: string) => void;
   markPuzzleFailed: (id: string) => void;
 
-  // ── Pending fail (skip-warning modal confirmation) ────────────
-  pendingFailPuzzleId: string | null;
-  setPendingFail:      (puzzleId: string) => void;
-  clearPendingFail:    () => void;
 
   // ── Session state (not persisted — resets on app restart) ─────
   sessionStartElo:            number | null;
@@ -79,6 +78,13 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
       feed.splice(index + 1, 0, ...messages);
       return { feed };
     }),
+  insertBeforeLockedSlot: (items) =>
+    set((s) => {
+      if (items.length === 0) return {};
+      const feed = [...s.feed];
+      feed.splice(feed.length - 1, 0, ...items);
+      return { feed };
+    }),
   addToHistory: (puzzleId) =>
     set((s) => ({ sessionHistory: [...s.sessionHistory, puzzleId] })),
 
@@ -87,11 +93,6 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   failedPuzzleIds: [],
   markPuzzleSolved: (id) => set((s) => ({ solvedPuzzleIds: [...s.solvedPuzzleIds, id] })),
   markPuzzleFailed: (id) => set((s) => ({ failedPuzzleIds: [...s.failedPuzzleIds, id] })),
-
-  // ── Pending fail ──────────────────────────────────────────────
-  pendingFailPuzzleId: null,
-  setPendingFail:      (puzzleId) => set({ pendingFailPuzzleId: puzzleId }),
-  clearPendingFail:    () => set({ pendingFailPuzzleId: null }),
 
   // ── Session state ──────────────────────────────────────────────
   sessionStartElo:            null,

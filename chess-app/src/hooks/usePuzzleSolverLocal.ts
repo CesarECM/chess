@@ -66,7 +66,6 @@ export function usePuzzleSolverLocal(
   const calibrationCount      = useUserStore((s) => s.calibrationCount);
   const addToHistory          = usePuzzleStore((s) => s.addToHistory);
   const setLastFsrsRating     = usePuzzleStore((s) => s.setLastFsrsRating);
-  const pendingFailPuzzleId   = usePuzzleStore((s) => s.pendingFailPuzzleId);
 
   function setStatus(s: SolverStatus) {
     statusRef.current = s;
@@ -120,16 +119,6 @@ export function usePuzzleSolverLocal(
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
-
-  // Execute fail when skip-warning modal is confirmed for this puzzle
-  useEffect(() => {
-    if (!puzzle || !pendingFailPuzzleId) return;
-    if (pendingFailPuzzleId === puzzle.id) {
-      recordResult(puzzle.id, puzzle.rating, false);
-      usePuzzleStore.getState().clearPendingFail();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingFailPuzzleId, puzzle?.id]);
 
   // Animate first opponent move when idle and the card is visible
   useEffect(() => {

@@ -158,7 +158,8 @@
   },
   "feed": {
     "loadError": "Impossible de charger les puzzles. Vérifiez votre connexion.",
-    "viewProfile": "Voir le profil"
+    "viewProfile": "Voir le profil",
+    "lockedSlot": "Résolvez ce puzzle pour continuer"
   },
   "message": {
     "continue": "Continuer",

@@ -64,4 +64,9 @@ export interface ProgressMessage {
   payload: Record<string, unknown>;
 }
 
-export type FeedItem = Puzzle | ProgressMessage;
+export interface LockedSlotItem {
+  id: 'locked-slot';
+  kind: 'locked-slot';
+}
+
+export type FeedItem = Puzzle | ProgressMessage | LockedSlotItem;

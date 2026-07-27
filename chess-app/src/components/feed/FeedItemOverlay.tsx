@@ -1,18 +1,5 @@
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-
-/**
- * Shown in place of future feed items — prevents peeking at unseen puzzles/cards.
- * A dark full-height placeholder with a faint chess icon.
- */
-export function FuturePlaceholder({ height }: { height: number }) {
-  const { colors } = useTheme();
-  return (
-    <View style={[styles.future, { height, backgroundColor: colors.background }]}>
-      <Text style={[styles.futureIcon, { color: colors.text }]}>♟</Text>
-    </View>
-  );
-}
 
 /**
  * Absolute overlay drawn on top of a past puzzle card.
@@ -35,16 +22,6 @@ export function PastPuzzleOverlay({ solved, height }: { solved: boolean; height:
 }
 
 const styles = StyleSheet.create({
-  future: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...Platform.select({ web: { filter: 'blur(6px)' } as any }),
-  },
-  futureIcon: {
-    fontSize: 96,
-    opacity: 0.06,
-  },
   overlay: {
     position: 'absolute',
     top: 0,
