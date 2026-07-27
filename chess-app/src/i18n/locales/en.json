@@ -169,7 +169,8 @@
   "feed": {
     "loadError": "Could not load puzzles. Check your connection.",
     "viewProfile": "View profile",
-    "lockedSlot": "Solve this puzzle to continue"
+    "lockedSlot": "Solve this puzzle to continue",
+    "goToPuzzle": "← Back to puzzle"
   },
   "message": {
     "continue": "Continue",

@@ -215,11 +215,37 @@ export default function FeedScreen() {
     ({ viewableItems }: { viewableItems: ViewToken<FeedItem>[] }) => {
       const first = viewableItems.find((v) => v.isViewable);
       if (first?.index !== null && first?.index !== undefined) {
-        setActiveIndex(first.index as number);
+        const newIndex = first.index as number;
+        const item     = feedRef.current[newIndex];
+
+        // Scrolling backward into a past MessageCard — skip to nearest puzzle
+        if (newIndex < activeIndexRef.current && item && 'kind' in item && item.kind === 'progress') {
+          let targetIndex = newIndex - 1;
+          while (targetIndex >= 0) {
+            const prev = feedRef.current[targetIndex];
+            if (!prev || !('kind' in prev) || prev.kind !== 'progress') break;
+            targetIndex--;
+          }
+          if (targetIndex >= 0) {
+            activeIndexRef.current = targetIndex;
+            setActiveIndex(targetIndex);
+            listRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+            return;
+          }
+        }
+
+        setActiveIndex(newIndex);
       }
     },
     [],
   );
+
+  const goToActivePuzzle = useCallback(() => {
+    const targetIndex = feedRef.current.length - 2; // Item just before LockedSlot
+    if (targetIndex >= 0) {
+      listRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+    }
+  }, []);
 
   const onScrollEnd = useCallback(() => {
     if (Platform.OS !== 'web') return;
@@ -256,11 +282,14 @@ export default function FeedScreen() {
 
     // ── LockedSlot ────────────────────────────────────────────────────────
     if ('kind' in item && item.kind === 'locked-slot') {
-      return <LockedSlot height={listHeight} isLoading={waitingForBuffer} />;
+      return <LockedSlot height={listHeight} isLoading={waitingForBuffer} onGoToPuzzle={goToActivePuzzle} />;
     }
 
-    // ── MessageCard (progress card) ───────────────────────────────────────
+    // ── MessageCard (progress card) — invisible when past ────────────────
     if ('kind' in item) {
+      if (position === 'past') {
+        return <View style={{ height: listHeight }} />;
+      }
       return (
         <MessageCard
           message={item}
@@ -300,7 +329,7 @@ export default function FeedScreen() {
       </View>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listHeight, activeIndex, solvedPuzzleIds, waitingForBuffer, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned]);
+  }, [listHeight, activeIndex, solvedPuzzleIds, waitingForBuffer, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned, goToActivePuzzle]);
 
   if (isLoading) {
     return (

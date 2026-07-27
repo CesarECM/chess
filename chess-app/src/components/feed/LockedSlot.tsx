@@ -1,8 +1,14 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 
-export function LockedSlot({ height, isLoading = false }: { height: number; isLoading?: boolean }) {
+interface Props {
+  height: number;
+  isLoading?: boolean;
+  onGoToPuzzle?: () => void;
+}
+
+export function LockedSlot({ height, isLoading = false, onGoToPuzzle }: Props) {
   const { colors, typography } = useTheme();
   const { t } = useTranslation();
 
@@ -16,6 +22,16 @@ export function LockedSlot({ height, isLoading = false }: { height: number; isLo
           <Text style={[styles.label, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
             {t('feed.lockedSlot')}
           </Text>
+          {onGoToPuzzle && (
+            <TouchableOpacity
+              onPress={onGoToPuzzle}
+              style={[styles.btn, { borderColor: colors.textSecondary + '60' }]}
+            >
+              <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+                {t('feed.goToPuzzle')}
+              </Text>
+            </TouchableOpacity>
+          )}
         </>
       )}
     </View>
@@ -37,5 +53,15 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     textAlign: 'center',
     paddingHorizontal: 40,
+  },
+  btn: {
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  btnText: {
+    fontWeight: '500',
   },
 });
