@@ -25,6 +25,11 @@ interface PuzzleState {
   addPendingMessage:      (msg: ProgressMessage) => void;
   clearPendingMessages:   () => void;
 
+  // ── Pending fail (skip-warning modal confirmation) ────────────
+  pendingFailPuzzleId: string | null;
+  setPendingFail:      (puzzleId: string) => void;
+  clearPendingFail:    () => void;
+
   // ── Session state (not persisted — resets on app restart) ─────
   sessionStartElo:            number | null;
   sessionPuzzleCount:         number;
@@ -80,6 +85,11 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   pendingMessages:      [],
   addPendingMessage:    (msg) => set((s) => ({ pendingMessages: [...s.pendingMessages, msg] })),
   clearPendingMessages: () => set({ pendingMessages: [] }),
+
+  // ── Pending fail ──────────────────────────────────────────────
+  pendingFailPuzzleId: null,
+  setPendingFail:      (puzzleId) => set({ pendingFailPuzzleId: puzzleId }),
+  clearPendingFail:    () => set({ pendingFailPuzzleId: null }),
 
   // ── Session state ──────────────────────────────────────────────
   sessionStartElo:            null,

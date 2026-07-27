@@ -150,6 +150,12 @@
     "continue": "Continue",
     "start": "Let's play!"
   },
+  "skipWarning": {
+    "title": "Puzzle unfinished",
+    "body": "If you see the next puzzle, the previous one will be marked as unsolved.",
+    "confirm": "See next",
+    "goBack": "Go back to puzzle"
+  },
   "feed": {
     "loadError": "Could not load puzzles. Check your connection."
   },

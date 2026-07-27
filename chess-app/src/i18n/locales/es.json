@@ -150,6 +150,12 @@
     "continue": "Continuar",
     "start": "¡Empezar!"
   },
+  "skipWarning": {
+    "title": "Puzzle sin terminar",
+    "body": "Si ves el siguiente puzzle, el anterior quedará marcado como no resuelto.",
+    "confirm": "Ver siguiente",
+    "goBack": "Volver al puzzle"
+  },
   "feed": {
     "loadError": "No se pudieron cargar los puzzles. Revisa tu conexión."
   },
