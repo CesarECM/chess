@@ -227,16 +227,13 @@ export default function FeedScreen() {
   // Scroll-only advance — used by MessageCards (no buffer consumption)
   const scrollToNext = useCallback(() => {
     showInterstitialIfDue();
-    setActiveIndex((prev) => {
-      const feedLength = usePuzzleStore.getState().feed.length;
-      const nextIdx    = prev + 1;
-      if (nextIdx < feedLength) {
-        activeIndexRef.current = nextIdx; // update ref before scroll to prevent web snap-back
-        listRef.current?.scrollToIndex({ index: nextIdx, animated: true });
-        return nextIdx;
-      }
-      return prev;
-    });
+    const feedLength = usePuzzleStore.getState().feed.length;
+    const nextIdx    = activeIndexRef.current + 1;
+    if (nextIdx < feedLength) {
+      activeIndexRef.current = nextIdx;
+      setActiveIndex(nextIdx);
+      listRef.current?.scrollToIndex({ index: nextIdx, animated: true });
+    }
   }, []);
 
   // Called when a puzzle is resolved (solved or review finished) — inserts next from buffer
