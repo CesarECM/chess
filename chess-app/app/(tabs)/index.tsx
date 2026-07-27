@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, ActivityIndicator, Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { router } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import type { ListRenderItemInfo, ViewToken, FlashListRef } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
@@ -12,14 +14,16 @@ import { cachePuzzles, getCachedPuzzles } from '@/services/puzzleCache';
 import { PuzzleCard } from '@/components/feed/PuzzleCard';
 import { MessageCard } from '@/components/feed/MessageCard';
 import { SkipWarningModal } from '@/components/feed/SkipWarningModal';
+import { FuturePlaceholder, PastPuzzleOverlay } from '@/components/feed/FeedItemOverlay';
 import { showInterstitialIfDue } from '@/services/ads';
 import { PROGRESS_CARDS_ENABLED } from '@/constants';
 import { detectSessionStartEvents } from '@/services/feedMessages';
-import type { FeedItem, Puzzle } from '@/types';
+import type { FeedItem, Puzzle, ProgressMessage } from '@/types';
 import type { SolverStatus } from '@/hooks/usePuzzleSolverLocal';
 
-const PREFETCH_THRESHOLD = 3;
-const BATCH_SIZE         = 10;
+const PREFETCH_THRESHOLD           = 3;
+const BATCH_SIZE                   = 10;
+const OVERSCROLL_PROFILE_THRESHOLD = 50; // px past the next-page boundary to show profile hint
 
 // States that mean the current puzzle was left incomplete
 const INCOMPLETE: SolverStatus[] = ['idle', 'playing', 'failed'];
@@ -33,11 +37,11 @@ export default function FeedScreen() {
   const appendToFeed   = usePuzzleStore((s) => s.appendToFeed);
   const sessionHistory = usePuzzleStore((s) => s.sessionHistory);
 
-  const pendingMessages          = usePuzzleStore((s) => s.pendingMessages);
-  const clearPendingMessages     = usePuzzleStore((s) => s.clearPendingMessages);
   const insertMessagesAfterIndex = usePuzzleStore((s) => s.insertMessagesAfterIndex);
   const initSession              = usePuzzleStore((s) => s.initSession);
   const setPendingFail           = usePuzzleStore((s) => s.setPendingFail);
+  const solvedPuzzleIds          = usePuzzleStore((s) => s.solvedPuzzleIds);
+  const failedPuzzleIds          = usePuzzleStore((s) => s.failedPuzzleIds);
 
   const [isLoading,       setIsLoading]       = useState(true);
   const [hasError,        setHasError]        = useState(false);
@@ -58,11 +62,23 @@ export default function FeedScreen() {
   const prevActiveIndexRef   = useRef<number>(-1);   // index before last navigation
   const goingBackToIndexRef  = useRef<number | null>(null); // set when user presses "Volver"
 
+  // ── Additional refs ────────────────────────────────────────────────────
+  const listHeightRef     = useRef(listHeight);
+  const profileHintAnim   = useRef(new Animated.Value(0)).current;
+  const profileHintActive = useRef(false); // prevents competing animations
+
   eloRef.current            = elo;
   feedLengthRef.current     = feed.length;
   feedRef.current           = feed;
   sessionHistoryRef.current = sessionHistory;
   activeIndexRef.current    = activeIndex;
+  listHeightRef.current     = listHeight;
+
+  // Feed slice: only one future item is rendered — creates a physical stop
+  const visibleFeed = useMemo(
+    () => feed.slice(0, activeIndex + 2),
+    [feed, activeIndex],
+  );
 
   // ── Initial feed load ────────────────────────────────────────────────────
   useEffect(() => {
@@ -143,13 +159,14 @@ export default function FeedScreen() {
     }
     goingBackToIndexRef.current = null;
 
-    const prevStatus  = activeStatus;   // value from the PREVIOUS render (before reset)
-    const prevIdx     = prevActiveIndexRef.current;
+    const prevStatus    = activeStatus;   // value from the PREVIOUS render (before reset)
+    const prevIdx       = prevActiveIndexRef.current;
+    const isGoingForward = activeIndex > prevIdx;
     setActiveStatus('idle');
 
-    // Show skip-warning when navigating away from an incomplete puzzle
-    // (not on first mount where prevIdx = -1)
-    if (prevIdx >= 0 && INCOMPLETE.includes(prevStatus)) {
+    // Show skip-warning only when navigating FORWARD away from an incomplete puzzle
+    // (not on first mount where prevIdx = -1, not when scrolling back)
+    if (prevIdx >= 0 && isGoingForward && INCOMPLETE.includes(prevStatus)) {
       const prevItem = feedRef.current[prevIdx];
       if (prevItem && !('kind' in prevItem)) {
         setSkipWarningInfo({ puzzleId: (prevItem as Puzzle).id });
@@ -158,12 +175,54 @@ export default function FeedScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex]);
 
-  // ── Insert pending progress messages after the current card ─────────────
-  useEffect(() => {
-    if (pendingMessages.length === 0) return;
-    insertMessagesAfterIndex(activeIndexRef.current, pendingMessages);
-    clearPendingMessages();
-  }, [pendingMessages, insertMessagesAfterIndex, clearPendingMessages]);
+  // ── Stable callback for progress card insertion at the correct feed index ─
+  const handleMessagesEarned = useCallback(
+    (messages: ProgressMessage[], feedIndex: number) => {
+      insertMessagesAfterIndex(feedIndex, messages);
+    },
+    [insertMessagesAfterIndex],
+  );
+
+  // ── Profile hint: shows when user overscrolls past the one allowed future ─
+  const showProfileHintThenFade = useCallback(() => {
+    if (profileHintActive.current) return;
+    profileHintActive.current = true;
+    Animated.sequence([
+      Animated.timing(profileHintAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1800),
+      Animated.timing(profileHintAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+    ]).start(() => { profileHintActive.current = false; });
+  }, [profileHintAnim]);
+
+  // Fires continuously during scroll — updates profile hint opacity on iOS overscroll
+  const handleScroll = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (Platform.OS !== 'ios') return;
+      if (profileHintActive.current) return;
+      const maxScroll  = (activeIndexRef.current + 1) * listHeightRef.current;
+      const overscroll = Math.max(0, nativeEvent.contentOffset.y - maxScroll);
+      profileHintAnim.setValue(Math.min(overscroll / 80, 1));
+    },
+    [profileHintAnim],
+  );
+
+  // Fires when user releases the drag — trigger full hint-then-fade if enough pull
+  const handleScrollEndDrag = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (Platform.OS === 'web') return;
+      const maxScroll  = (activeIndexRef.current + 1) * listHeightRef.current;
+      const overscroll = nativeEvent.contentOffset.y - maxScroll;
+      if (overscroll > OVERSCROLL_PROFILE_THRESHOLD) {
+        showProfileHintThenFade();
+      } else {
+        // Fade out any partial hint from the iOS live drag
+        if (!profileHintActive.current) {
+          Animated.timing(profileHintAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start();
+        }
+      }
+    },
+    [profileHintAnim, showProfileHintThenFade],
+  );
 
   const onActiveStatusChange = useCallback((status: SolverStatus) => {
     setActiveStatus(status);
@@ -224,6 +283,14 @@ export default function FeedScreen() {
   }, []);
 
   const renderItem = useCallback(({ item, index }: ListRenderItemInfo<FeedItem>) => {
+    const position = index < activeIndex ? 'past' : index === activeIndex ? 'active' : 'future';
+
+    // ── Future items: show placeholder, never render actual content ──────
+    if (position === 'future') {
+      return <FuturePlaceholder height={listHeight} />;
+    }
+
+    // ── MessageCard (progress card) ───────────────────────────────────────
     if ('kind' in item) {
       return (
         <MessageCard
@@ -234,19 +301,33 @@ export default function FeedScreen() {
       );
     }
 
-    const isCurrentlyActive = index === activeIndex;
-    // Block the board from starting while the skip-warning is shown
-    const isActiveAndUnblocked = isCurrentlyActive && skipWarningInfo === null;
+    // ── PuzzleCard ────────────────────────────────────────────────────────
+    const puzzle = item as Puzzle;
+    const isCurrentlyActive     = position === 'active';
+    const isActiveAndUnblocked  = isCurrentlyActive && skipWarningInfo === null;
+    const isSolved              = solvedPuzzleIds.includes(puzzle.id);
 
     return (
       <View style={{ flex: 1 }}>
         <PuzzleCard
-          puzzle={item as Puzzle}
+          puzzle={puzzle}
           height={listHeight}
           isActive={isActiveAndUnblocked}
+          feedIndex={index}
           onComplete={scrollToNext}
           onStatusChange={isActiveAndUnblocked ? onActiveStatusChange : undefined}
+          onMessagesEarned={handleMessagesEarned}
         />
+
+        {/* Past puzzle: show solved/failed overlay */}
+        {position === 'past' && (
+          <PastPuzzleOverlay
+            solved={isSolved}
+            height={listHeight}
+          />
+        )}
+
+        {/* Active puzzle with unresolved skip: show warning modal */}
         {isCurrentlyActive && skipWarningInfo !== null && (
           <SkipWarningModal
             height={listHeight}
@@ -257,7 +338,7 @@ export default function FeedScreen() {
       </View>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listHeight, activeIndex, skipWarningInfo, scrollToNext, onActiveStatusChange, handleSkipConfirm, handleSkipGoBack]);
+  }, [listHeight, activeIndex, skipWarningInfo, solvedPuzzleIds, scrollToNext, onActiveStatusChange, handleSkipConfirm, handleSkipGoBack, handleMessagesEarned]);
 
   if (isLoading) {
     return (
@@ -288,24 +369,58 @@ export default function FeedScreen() {
     >
       <FlashList
         ref={listRef}
-        data={feed}
-        extraData={{ activeIndex, skipWarningInfo }}
+        data={visibleFeed}
+        extraData={{ activeIndex, skipWarningInfo, solvedPuzzleIds, failedPuzzleIds }}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         pagingEnabled
         // On web, always allow scroll — blocking during 'playing' causes the list
         // to get stuck between two pages when revisiting a card that re-enters 'playing'
-        scrollEnabled={Platform.OS === 'web' || activeStatus !== 'playing'}
+        scrollEnabled={Platform.OS === 'web' || (activeStatus !== 'playing' && skipWarningInfo === null)}
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        onScroll={handleScroll}
+        onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={onScrollEnd}
+        bounces={Platform.OS === 'ios'}
       />
+
+      {/* Profile hint: slides up from bottom when user overscrolls past the one allowed future */}
+      {Platform.OS !== 'web' && (
+        <Animated.View
+          style={[
+            styles.profileHint,
+            {
+              opacity: profileHintAnim,
+              transform: [{
+                translateY: profileHintAnim.interpolate({
+                  inputRange:  [0, 1],
+                  outputRange: [40, 0],
+                }),
+              }],
+            },
+          ]}
+        >
+          <Text
+            style={[styles.profileHintIcon, { color: colors.accent }]}
+            onPress={() => router.push('/(tabs)/profile')}
+          >
+            👤
+          </Text>
+          <Text style={[styles.profileHintText, { color: colors.textSecondary }]}>
+            {t('feed.viewProfile')}
+          </Text>
+        </Animated.View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container:        { flex: 1 },
+  centered:         { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  profileHint:      { position: 'absolute', bottom: 40, alignSelf: 'center', alignItems: 'center', gap: 6 },
+  profileHintIcon:  { fontSize: 36 },
+  profileHintText:  { fontSize: 13, fontWeight: '600' },
 });

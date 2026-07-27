@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, type RefObject } from 'react';
 import type { Square, PieceSymbol } from 'chess.js';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
-import type { Puzzle, UserPuzzleProgress } from '@/types';
+import type { Puzzle, UserPuzzleProgress, ProgressMessage } from '@/types';
 import { applyMove } from '@/services/chess';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
@@ -42,6 +42,7 @@ export function usePuzzleSolverLocal(
   puzzle: Puzzle | null,
   boardRef: RefObject<ChessboardRef | null>,
   isActive: boolean,
+  onMessagesEarned?: (messages: ProgressMessage[]) => void,
 ) {
   const [puzzleStatus, setPuzzleStatus] = useState<SolverStatus>('idle');
 
@@ -53,8 +54,10 @@ export function usePuzzleSolverLocal(
   const solveStartRef = useRef<number | null>(null);
   const progressRef    = useRef<UserPuzzleProgress | null>(null);
   const userIdRef      = useRef<string | null>(null);
-  const hasAttemptedRef = useRef(false);  // true once the user submits any move
-  const prevIsActiveRef = useRef(false);
+  const hasAttemptedRef    = useRef(false);  // true once the user submits any move
+  const prevIsActiveRef    = useRef(false);
+  const onMessagesEarnedRef = useRef(onMessagesEarned);
+  onMessagesEarnedRef.current = onMessagesEarned;
 
   const updateElo             = useUserStore((s) => s.updateElo);
   const incrementCalibration  = useUserStore((s) => s.incrementCalibration);
@@ -199,14 +202,16 @@ export function usePuzzleSolverLocal(
     addToHistory(puzzleId);
     incrementPuzzleStats(solved, puzzle?.themes ?? []);
 
-    // Update session counters
+    // Update session counters + mark solved/failed for feed visual state
     if (solved) {
       usePuzzleStore.getState().recordSolvedInSession();
+      usePuzzleStore.getState().markPuzzleSolved(puzzleId);
     } else {
       usePuzzleStore.getState().recordFailedInSession();
+      usePuzzleStore.getState().markPuzzleFailed(puzzleId);
     }
 
-    // Detect and enqueue progress messages
+    // Detect and deliver progress messages directly to the feed at the correct index
     if (solved && PROGRESS_CARDS_ENABLED && preUser && preSession) {
       const messages = detectPuzzleEvents({
         eloBefore:                preUser.elo,
@@ -226,8 +231,8 @@ export function usePuzzleSolverLocal(
         sessionPerfectRun10Shown: preSession.perfectRun10Shown,
       });
 
-      for (const msg of messages) {
-        usePuzzleStore.getState().addPendingMessage(msg);
+      if (messages.length > 0) {
+        onMessagesEarnedRef.current?.(messages);
       }
 
       if (messages.some((m) => m.type === 'session_elo_gain')) {

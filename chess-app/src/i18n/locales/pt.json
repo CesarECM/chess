@@ -157,7 +157,8 @@
     "goBack": "Voltar ao puzzle"
   },
   "feed": {
-    "loadError": "Não foi possível carregar os puzzles. Verifique sua conexão."
+    "loadError": "Não foi possível carregar os puzzles. Verifique sua conexão.",
+    "viewProfile": "Ver perfil"
   },
   "message": {
     "continue": "Continuar",

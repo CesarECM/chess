@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ChessBoard } from '@/components/chess/ChessBoard';
@@ -10,7 +10,7 @@ import { useShareCard } from '@/hooks/useShareCard';
 import { RangeBadge } from '@/components/ui/RangeBadge';
 import { ShareCard } from '@/components/ui/ShareCard';
 import { CALIBRATION_PUZZLES } from '@/constants';
-import type { Puzzle } from '@/types';
+import type { Puzzle, ProgressMessage } from '@/types';
 
 const STATUS_COLOR: Record<SolverStatus, keyof ReturnType<typeof useTheme>['colors']> = {
   idle:      'textSecondary',
@@ -24,11 +24,13 @@ interface Props {
   puzzle: Puzzle;
   height: number;
   isActive: boolean;
+  feedIndex: number;
   onComplete: () => void;
   onStatusChange?: (status: SolverStatus) => void;
+  onMessagesEarned?: (messages: ProgressMessage[], feedIndex: number) => void;
 }
 
-function PuzzleCardComponent({ puzzle, height, isActive, onComplete, onStatusChange }: Props) {
+function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, onStatusChange, onMessagesEarned }: Props) {
   const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
   const boardRef = useRef<ChessboardRef>(null);
@@ -38,6 +40,11 @@ function PuzzleCardComponent({ puzzle, height, isActive, onComplete, onStatusCha
 
   const { cardRef, isSharing, captureAndShare } = useShareCard();
 
+  const handleMessagesEarned = useCallback(
+    (msgs: ProgressMessage[]) => onMessagesEarned?.(msgs, feedIndex),
+    [feedIndex, onMessagesEarned],
+  );
+
   const {
     puzzleStatus,
     onUserMove,
@@ -46,7 +53,7 @@ function PuzzleCardComponent({ puzzle, height, isActive, onComplete, onStatusCha
     onRetry,
     isCalibrated,
     calibrationCount,
-  } = usePuzzleSolverLocal(puzzle, boardRef, isActive);
+  } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
 
   // fen.split(' ')[1] is the opponent's color (they play moves[0]).
   // Player is the opposite side.

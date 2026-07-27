@@ -157,7 +157,8 @@
     "goBack": "Go back to puzzle"
   },
   "feed": {
-    "loadError": "Could not load puzzles. Check your connection."
+    "loadError": "Could not load puzzles. Check your connection.",
+    "viewProfile": "View profile"
   },
   "message": {
     "continue": "Continue",

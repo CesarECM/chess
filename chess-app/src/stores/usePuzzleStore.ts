@@ -20,10 +20,11 @@ interface PuzzleState {
   insertMessagesAfterIndex: (index: number, messages: ProgressMessage[]) => void;
   addToHistory:     (puzzleId: PuzzleId) => void;
 
-  // ── Pending progress messages (consumed by FeedScreen) ────────
-  pendingMessages:        ProgressMessage[];
-  addPendingMessage:      (msg: ProgressMessage) => void;
-  clearPendingMessages:   () => void;
+  // ── Solved/failed puzzle tracking (for feed visual state) ───────
+  solvedPuzzleIds: string[];
+  failedPuzzleIds: string[];
+  markPuzzleSolved: (id: string) => void;
+  markPuzzleFailed: (id: string) => void;
 
   // ── Pending fail (skip-warning modal confirmation) ────────────
   pendingFailPuzzleId: string | null;
@@ -81,10 +82,11 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   addToHistory: (puzzleId) =>
     set((s) => ({ sessionHistory: [...s.sessionHistory, puzzleId] })),
 
-  // ── Pending messages ──────────────────────────────────────────
-  pendingMessages:      [],
-  addPendingMessage:    (msg) => set((s) => ({ pendingMessages: [...s.pendingMessages, msg] })),
-  clearPendingMessages: () => set({ pendingMessages: [] }),
+  // ── Solved/failed tracking ────────────────────────────────────
+  solvedPuzzleIds: [],
+  failedPuzzleIds: [],
+  markPuzzleSolved: (id) => set((s) => ({ solvedPuzzleIds: [...s.solvedPuzzleIds, id] })),
+  markPuzzleFailed: (id) => set((s) => ({ failedPuzzleIds: [...s.failedPuzzleIds, id] })),
 
   // ── Pending fail ──────────────────────────────────────────────
   pendingFailPuzzleId: null,
