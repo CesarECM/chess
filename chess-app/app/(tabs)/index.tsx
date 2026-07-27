@@ -224,29 +224,31 @@ export default function FeedScreen() {
     listRef.current?.scrollToIndex({ index: activeIndexRef.current, animated: false });
   }, []);
 
-  // Called when a puzzle is completed (solved or review finished)
-  const handleComplete = useCallback(() => {
+  // Scroll-only advance — used by MessageCards (no buffer consumption)
+  const scrollToNext = useCallback(() => {
     showInterstitialIfDue();
-
-    const next = puzzleBufferRef.current.shift();
-    if (next) {
-      // Insert next puzzle synchronously before scrolling
-      usePuzzleStore.getState().insertBeforeLockedSlot([next]);
-    } else {
-      // Buffer empty — mark as pending; prefetch will deliver when ready
-      pendingNextPuzzleRef.current = true;
-    }
-
     setActiveIndex((prev) => {
       const feedLength = usePuzzleStore.getState().feed.length;
-      const next       = prev + 1;
-      if (next < feedLength) {
-        listRef.current?.scrollToIndex({ index: next, animated: true });
-        return next;
+      const nextIdx    = prev + 1;
+      if (nextIdx < feedLength) {
+        activeIndexRef.current = nextIdx; // update ref before scroll to prevent web snap-back
+        listRef.current?.scrollToIndex({ index: nextIdx, animated: true });
+        return nextIdx;
       }
       return prev;
     });
   }, []);
+
+  // Called when a puzzle is resolved (solved or review finished) — inserts next from buffer
+  const handleComplete = useCallback(() => {
+    const next = puzzleBufferRef.current.shift();
+    if (next) {
+      usePuzzleStore.getState().insertBeforeLockedSlot([next]);
+    } else {
+      pendingNextPuzzleRef.current = true;
+    }
+    scrollToNext();
+  }, [scrollToNext]);
 
   const renderItem = useCallback(({ item, index }: ListRenderItemInfo<FeedItem>) => {
     const position = index < activeIndex ? 'past' : index === activeIndex ? 'active' : 'future';
@@ -262,7 +264,7 @@ export default function FeedScreen() {
         <MessageCard
           message={item}
           height={listHeight}
-          onComplete={handleComplete}
+          onComplete={scrollToNext}
         />
       );
     }
@@ -293,7 +295,7 @@ export default function FeedScreen() {
       </View>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listHeight, activeIndex, solvedPuzzleIds, handleComplete, onActiveStatusChange, handleMessagesEarned]);
+  }, [listHeight, activeIndex, solvedPuzzleIds, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned]);
 
   if (isLoading) {
     return (
