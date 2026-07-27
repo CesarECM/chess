@@ -45,6 +45,7 @@ export function usePuzzleSolverLocal(
   onMessagesEarned?: (messages: ProgressMessage[]) => void,
 ) {
   const [puzzleStatus, setPuzzleStatus] = useState<SolverStatus>('idle');
+  const [eloDelta, setEloDelta] = useState<number | null>(null);
 
   // Refs for mutable solver state — avoids stale closures in callbacks
   const fenRef        = useRef(puzzle?.fen ?? '');
@@ -56,6 +57,7 @@ export function usePuzzleSolverLocal(
   const userIdRef      = useRef<string | null>(null);
   const hasAttemptedRef    = useRef(false);  // true once the user submits any move
   const prevIsActiveRef    = useRef(false);
+  const solvedResultRef    = useRef<boolean | null>(null); // null = no result yet
   const onMessagesEarnedRef = useRef(onMessagesEarned);
   onMessagesEarnedRef.current = onMessagesEarned;
 
@@ -101,22 +103,31 @@ export function usePuzzleSolverLocal(
   // Reset solver when puzzle changes (handles FlashList view recycling)
   useEffect(() => {
     if (!puzzle) return;
-    fenRef.current        = puzzle.fen;
-    moveIndexRef.current  = 0;
-    countedRef.current    = null;
-    solveStartRef.current = null;
-    hasAttemptedRef.current = false;
+    fenRef.current           = puzzle.fen;
+    moveIndexRef.current     = 0;
+    countedRef.current       = null;
+    solveStartRef.current    = null;
+    hasAttemptedRef.current  = false;
+    solvedResultRef.current  = null;
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
 
-  // Fire skip when this card loses focus before the user attempted any move
+  // When this card loses focus: fire skip or mark solved/failed for feed visual state
   useEffect(() => {
     const wasActive = prevIsActiveRef.current;
     prevIsActiveRef.current = isActive;
-    if (wasActive && !isActive && puzzle && !hasAttemptedRef.current) {
+    if (!wasActive || isActive || !puzzle) return;
+
+    if (!hasAttemptedRef.current) {
       recordSkipEvent(puzzle.id).catch(console.error);
       usePuzzleStore.getState().markPuzzleSkipped(puzzle.id);
+    } else if (solvedResultRef.current !== null) {
+      if (solvedResultRef.current) {
+        usePuzzleStore.getState().markPuzzleSolved(puzzle.id);
+      } else {
+        usePuzzleStore.getState().markPuzzleFailed(puzzle.id);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
@@ -187,18 +198,19 @@ export function usePuzzleSolverLocal(
     } : null;
 
     setLastFsrsRating(fsrsRating);
-    updateElo(puzzleRating, solved);
+    const delta = updateElo(puzzleRating, solved);
+    setEloDelta(delta);
     incrementCalibration();
     addToHistory(puzzleId);
     incrementPuzzleStats(solved, puzzle?.themes ?? []);
 
-    // Update session counters + mark solved/failed for feed visual state
+    // Session counters (needed immediately for progress card detection below)
+    // markPuzzleSolved/Failed is deferred to when the card loses focus (isActive effect)
+    solvedResultRef.current = solved;
     if (solved) {
       usePuzzleStore.getState().recordSolvedInSession();
-      usePuzzleStore.getState().markPuzzleSolved(puzzleId);
     } else {
       usePuzzleStore.getState().recordFailedInSession();
-      usePuzzleStore.getState().markPuzzleFailed(puzzleId);
     }
 
     // Detect and deliver progress messages directly to the feed at the correct index
@@ -366,5 +378,7 @@ export function usePuzzleSolverLocal(
     onRetry,
     isCalibrated,
     calibrationCount,
+    eloDelta,
+    clearEloDelta: () => setEloDelta(null),
   };
 }

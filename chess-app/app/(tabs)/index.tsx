@@ -14,7 +14,6 @@ import { cachePuzzles, getCachedPuzzles } from '@/services/puzzleCache';
 import { PuzzleCard } from '@/components/feed/PuzzleCard';
 import { MessageCard } from '@/components/feed/MessageCard';
 import { LockedSlot } from '@/components/feed/LockedSlot';
-import { PastPuzzleOverlay } from '@/components/feed/FeedItemOverlay';
 import { showInterstitialIfDue } from '@/services/ads';
 import { PROGRESS_CARDS_ENABLED } from '@/constants';
 import { detectSessionStartEvents } from '@/services/feedMessages';
@@ -280,6 +279,12 @@ export default function FeedScreen() {
     // A done puzzle is never re-activated, even if the user scrolls back to it
     const isCurrentlyActive = position === 'active' && !isDone;
 
+    const pastBg = isDone || position === 'past'
+      ? isSolved
+        ? colors.success + '28'
+        : colors.error   + '28'
+      : undefined;
+
     return (
       <View style={{ flex: 1 }}>
         <PuzzleCard
@@ -290,15 +295,8 @@ export default function FeedScreen() {
           onComplete={handleComplete}
           onStatusChange={isCurrentlyActive ? onActiveStatusChange : undefined}
           onMessagesEarned={handleMessagesEarned}
+          backgroundColor={pastBg}
         />
-
-        {(isDone || position === 'past') && (
-          <PastPuzzleOverlay
-            solved={isSolved}
-            skipped={isSkipped}
-            height={listHeight}
-          />
-        )}
       </View>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -50,7 +50,7 @@ interface UserState {
   onboardingCompleted: boolean;
 
   setElo: (elo: number) => void;
-  updateElo: (puzzleRating: number, solved: boolean) => void;
+  updateElo: (puzzleRating: number, solved: boolean) => number;
   incrementCalibration: () => void;
   updateStreak: () => void;
   setNotificationStreakHour: (hour: number) => void;
@@ -105,6 +105,7 @@ export const useUserStore = create<UserState>()(
         const kFactor = isCalibrated ? K_ESTABLISHED : K_CALIBRATING;
         const { newElo } = calculateElo(elo, puzzleRating, solved, kFactor);
         set({ elo: newElo });
+        return newElo - elo;
       },
 
       incrementCalibration: () => {

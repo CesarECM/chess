@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
 import { usePuzzleSolverLocal, type SolverStatus } from '@/hooks/usePuzzleSolverLocal';
 import { useShareCard } from '@/hooks/useShareCard';
+import { EloDeltaBadge } from '@/components/feed/EloDeltaBadge';
 import { RangeBadge } from '@/components/ui/RangeBadge';
 import { ShareCard } from '@/components/ui/ShareCard';
 import { CALIBRATION_PUZZLES } from '@/constants';
@@ -29,9 +30,10 @@ interface Props {
   onComplete: () => void;
   onStatusChange?: (status: SolverStatus) => void;
   onMessagesEarned?: (messages: ProgressMessage[], feedIndex: number) => void;
+  backgroundColor?: string;
 }
 
-function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, onStatusChange, onMessagesEarned }: Props) {
+function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, onStatusChange, onMessagesEarned, backgroundColor }: Props) {
   const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
   const boardRef = useRef<ChessboardRef>(null);
@@ -55,6 +57,8 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
     onRetry,
     isCalibrated,
     calibrationCount,
+    eloDelta,
+    clearEloDelta,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
 
   // fen.split(' ')[1] is the opponent's color (they play moves[0]).
@@ -76,7 +80,7 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
   }), [t]);
 
   return (
-    <View style={[styles.card, { height, backgroundColor: colors.background }]}>
+    <View style={[styles.card, { height, backgroundColor: backgroundColor ?? colors.background }]}>
       {isCalibrated ? (
         <View style={styles.topRow}>
           <RangeBadge elo={elo} />
@@ -113,13 +117,18 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
         {t(playerColor === 'white' ? 'puzzle.playingWhite' : 'puzzle.playingBlack')}
       </Text>
 
-      <ChessBoard
-        ref={boardRef}
-        fen={puzzle.fen}
-        orientation="auto"
-        enabled={puzzleStatus === 'playing' && isActive}
-        onMove={onUserMove}
-      />
+      <View style={styles.boardWrapper}>
+        <ChessBoard
+          ref={boardRef}
+          fen={puzzle.fen}
+          orientation="auto"
+          enabled={puzzleStatus === 'playing' && isActive}
+          onMove={onUserMove}
+        />
+        {eloDelta !== null && (
+          <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
+        )}
+      </View>
 
       <Text style={[styles.status, { color: statusColor, fontSize: typography.size.md }]}>
         {statusLabels[puzzleStatus]}
@@ -205,6 +214,7 @@ const styles = StyleSheet.create({
   calibText:  { fontWeight: '600', textAlign: 'center' },
   calibTrack: { height: 4, borderRadius: 2, width: '100%', overflow: 'hidden' },
   calibFill:  { height: 4, borderRadius: 2 },
+  boardWrapper: {},
   meta:        { marginBottom: 2 },
   playerColor: { marginBottom: 6, fontWeight: '600' },
   status:     { marginTop: 12, fontWeight: '500' },
