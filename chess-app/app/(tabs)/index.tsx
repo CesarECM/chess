@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import type { ListRenderItemInfo } from '@shopify/flash-list';
-import type { ViewToken } from '@shopify/flash-list';
+import type { ListRenderItemInfo, ViewToken, FlashListRef } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
@@ -11,8 +10,11 @@ import { buildReviewQueue } from '@/services/reviewQueue';
 import { getOrCreateGuestId } from '@/services/identity';
 import { cachePuzzles, getCachedPuzzles } from '@/services/puzzleCache';
 import { PuzzleCard } from '@/components/feed/PuzzleCard';
+import { MessageCard } from '@/components/feed/MessageCard';
 import { showInterstitialIfDue } from '@/services/ads';
-import type { Puzzle } from '@/types';
+import { PROGRESS_CARDS_ENABLED } from '@/constants';
+import { detectSessionStartEvents } from '@/services/feedMessages';
+import type { FeedItem, Puzzle } from '@/types';
 import type { SolverStatus } from '@/hooks/usePuzzleSolverLocal';
 
 const PREFETCH_THRESHOLD = 3;
@@ -27,28 +29,29 @@ export default function FeedScreen() {
   const appendToFeed   = usePuzzleStore((s) => s.appendToFeed);
   const sessionHistory = usePuzzleStore((s) => s.sessionHistory);
 
+  const pendingMessages         = usePuzzleStore((s) => s.pendingMessages);
+  const clearPendingMessages    = usePuzzleStore((s) => s.clearPendingMessages);
+  const insertMessagesAfterIndex = usePuzzleStore((s) => s.insertMessagesAfterIndex);
+  const initSession             = usePuzzleStore((s) => s.initSession);
+
   const [isLoading,    setIsLoading]    = useState(true);
   const [hasError,     setHasError]     = useState(false);
   const [activeIndex,  setActiveIndex]  = useState(0);
   const [listHeight,   setListHeight]   = useState(Dimensions.get('window').height - 80);
   const [activeStatus, setActiveStatus] = useState<SolverStatus>('idle');
 
-  const listRef            = useRef<FlashList<Puzzle>>(null);
+  const listRef            = useRef<FlashListRef<FeedItem> | null>(null);
   const prefetching        = useRef(false);
   const userIdRef          = useRef<string | null>(null);
   const eloRef             = useRef(elo);
   const feedLengthRef      = useRef(feed.length);
   const sessionHistoryRef  = useRef(sessionHistory);
-  const autoScrollTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeIndexRef     = useRef(activeIndex);
 
   eloRef.current             = elo;
   feedLengthRef.current      = feed.length;
   sessionHistoryRef.current  = sessionHistory;
-
-  // Clean up auto-scroll timer on unmount
-  useEffect(() => () => {
-    if (autoScrollTimer.current) clearTimeout(autoScrollTimer.current);
-  }, []);
+  activeIndexRef.current     = activeIndex;
 
   // Load the first batch on mount
   useEffect(() => {
@@ -60,8 +63,25 @@ export default function FeedScreen() {
         const puzzles = await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, sessionHistoryRef.current);
         if (!cancelled) {
           if (puzzles.length) {
-            cachePuzzles(puzzles); // fire-and-forget cache update
-            setFeed(puzzles);
+            cachePuzzles(puzzles);
+
+            // Detect session-start events and prepend after first puzzle
+            let feedItems: FeedItem[] = puzzles;
+            if (PROGRESS_CARDS_ENABLED) {
+              const { streakDays, weekStartDate, weeklyPuzzleCount } = useUserStore.getState();
+              initSession(eloRef.current);
+              const sessionMessages = detectSessionStartEvents({
+                streakDays,
+                weekStartDate,
+                weeklyPuzzleCount,
+                elo: eloRef.current,
+              });
+              if (sessionMessages.length > 0 && puzzles.length > 1) {
+                feedItems = [puzzles[0], ...sessionMessages, ...puzzles.slice(1)];
+              }
+            }
+
+            setFeed(feedItems);
           } else {
             setHasError(true);
           }
@@ -80,10 +100,11 @@ export default function FeedScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Prefetch when ≤ PREFETCH_THRESHOLD puzzles remain ahead
+  // Prefetch when ≤ PREFETCH_THRESHOLD puzzle cards remain ahead
   useEffect(() => {
     if (feed.length === 0 || prefetching.current) return;
-    if (feed.length - 1 - activeIndex > PREFETCH_THRESHOLD) return;
+    const puzzlesAhead = feed.slice(activeIndex + 1).filter((item) => !('kind' in item)).length;
+    if (puzzlesAhead > PREFETCH_THRESHOLD) return;
 
     prefetching.current = true;
     (async () => {
@@ -95,7 +116,7 @@ export default function FeedScreen() {
           appendToFeed(more);
         }
       } catch {
-        // Offline during prefetch — silently skip; current feed keeps playing
+        // Offline during prefetch — silently skip
       } finally {
         prefetching.current = false;
       }
@@ -103,36 +124,26 @@ export default function FeedScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex, feed.length]);
 
-  // Cancel any pending auto-scroll when the active index changes (user swiped manually)
+  // Reset activeStatus when the active card changes
   useEffect(() => {
-    if (autoScrollTimer.current) {
-      clearTimeout(autoScrollTimer.current);
-      autoScrollTimer.current = null;
-    }
     setActiveStatus('idle');
   }, [activeIndex]);
 
-  // Auto-advance 1.5 s after the active puzzle is solved
+  // Insert pending progress messages after the current card
+  useEffect(() => {
+    if (pendingMessages.length === 0) return;
+    insertMessagesAfterIndex(activeIndexRef.current, pendingMessages);
+    clearPendingMessages();
+  }, [pendingMessages, insertMessagesAfterIndex, clearPendingMessages]);
+
   const onActiveStatusChange = useCallback((status: SolverStatus) => {
     setActiveStatus(status);
-    if (status === 'complete') {
-      autoScrollTimer.current = setTimeout(() => {
-        setActiveIndex((prev) => {
-          const next = prev + 1;
-          if (next < feedLengthRef.current) {
-            listRef.current?.scrollToIndex({ index: next, animated: true });
-            return next;
-          }
-          return prev;
-        });
-      }, 1500);
-    }
   }, []);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 51 }).current;
 
   const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    ({ viewableItems }: { viewableItems: ViewToken<FeedItem>[] }) => {
       const first = viewableItems.find((v) => v.isViewable);
       if (first?.index !== null && first?.index !== undefined) {
         setActiveIndex(first.index);
@@ -141,7 +152,6 @@ export default function FeedScreen() {
     [],
   );
 
-  // Advance to the next card; called by PuzzleCard on completion
   const scrollToNext = useCallback(() => {
     showInterstitialIfDue();
     setActiveIndex((prev) => {
@@ -154,17 +164,27 @@ export default function FeedScreen() {
     });
   }, []);
 
-  const renderItem = useCallback(({ item, index }: ListRenderItemInfo<Puzzle>) => (
-    <PuzzleCard
-      puzzle={item}
-      height={listHeight}
-      isActive={index === activeIndex}
-      onComplete={scrollToNext}
-      onStatusChange={index === activeIndex ? onActiveStatusChange : undefined}
-    />
-  // listHeight and activeIndex as deps — PuzzleCard is memoized so only changed props re-render
+  const renderItem = useCallback(({ item, index }: ListRenderItemInfo<FeedItem>) => {
+    if ('kind' in item) {
+      return (
+        <MessageCard
+          message={item}
+          height={listHeight}
+          onComplete={scrollToNext}
+        />
+      );
+    }
+    return (
+      <PuzzleCard
+        puzzle={item as Puzzle}
+        height={listHeight}
+        isActive={index === activeIndex}
+        onComplete={scrollToNext}
+        onStatusChange={index === activeIndex ? onActiveStatusChange : undefined}
+      />
+    );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [listHeight, activeIndex, scrollToNext, onActiveStatusChange]);
+  }, [listHeight, activeIndex, scrollToNext, onActiveStatusChange]);
 
   if (isLoading) {
     return (
@@ -199,7 +219,6 @@ export default function FeedScreen() {
         extraData={activeIndex}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        estimatedItemSize={listHeight}
         pagingEnabled
         scrollEnabled={activeStatus !== 'playing'}
         showsVerticalScrollIndicator={false}

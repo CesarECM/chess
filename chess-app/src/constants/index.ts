@@ -24,3 +24,15 @@ export const SUBSCRIPTION_PRICE_USD = 2.99;
 export const REFERRAL_MIN_PUZZLES = 10;
 
 export const AD_FREQUENCY = 5; // mostrar ad cada N puzzles
+
+export const PROGRESS_CARDS_ENABLED = true;
+
+export const MILESTONE_THRESHOLDS = [1, 5, 10, 25, 50, 100, 250, 500, 1000] as const;
+
+export const RANK_THRESHOLDS = [
+  { elo: 800,  rankKey: 'knight', piece: '♞' },
+  { elo: 1200, rankKey: 'bishop', piece: '♝' },
+  { elo: 1500, rankKey: 'rook',   piece: '♜' },
+  { elo: 1800, rankKey: 'queen',  piece: '♛' },
+  { elo: 2200, rankKey: 'king',   piece: '♚' },
+] as const;

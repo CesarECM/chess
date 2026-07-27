@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Puzzle, PuzzleId, FSRSRating } from '@/types';
+import type { Puzzle, PuzzleId, FSRSRating, FeedItem, ProgressMessage } from '@/types';
 import { applyMove } from '@/services/chess';
 
 export type PuzzleStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'complete';
@@ -12,40 +12,45 @@ export type SubmitMoveResult =
 interface PuzzleState {
   // ── Feed ──────────────────────────────────────────────────────
   currentPuzzle:    Puzzle | null;
-  feed:             Puzzle[];
+  feed:             FeedItem[];
   sessionHistory:   PuzzleId[];
   setCurrentPuzzle: (puzzle: Puzzle) => void;
-  setFeed:          (puzzles: Puzzle[]) => void;
-  appendToFeed:     (puzzles: Puzzle[]) => void;
+  setFeed:          (items: FeedItem[]) => void;
+  appendToFeed:     (items: FeedItem[]) => void;
+  insertMessagesAfterIndex: (index: number, messages: ProgressMessage[]) => void;
   addToHistory:     (puzzleId: PuzzleId) => void;
+
+  // ── Pending progress messages (consumed by FeedScreen) ────────
+  pendingMessages:        ProgressMessage[];
+  addPendingMessage:      (msg: ProgressMessage) => void;
+  clearPendingMessages:   () => void;
+
+  // ── Session state (not persisted — resets on app restart) ─────
+  sessionStartElo:            number | null;
+  sessionPuzzleCount:         number;
+  consecutiveSolvedInSession: number;
+  consecutiveFailedInSession: number;
+  sessionEloGainShown:        boolean;
+  sessionPerfectRun5Shown:    boolean;
+  sessionPerfectRun10Shown:   boolean;
+  initSession:                (startElo: number) => void;
+  recordSolvedInSession:      () => void;
+  recordFailedInSession:      () => void;
+  markSessionEloGainShown:    () => void;
+  markSessionPerfectRun5Shown:  () => void;
+  markSessionPerfectRun10Shown: () => void;
 
   // ── Solver ────────────────────────────────────────────────────
   currentFen:       string | null;
   currentMoveIndex: number;
   puzzleStatus:     PuzzleStatus;
-  /** FSRS implicit rating computed from solve behavior (set when puzzle ends). */
   lastFsrsRating:   FSRSRating | null;
   setLastFsrsRating: (rating: FSRSRating) => void;
-  /** Load a new puzzle and prepare the solver (status → 'idle'). */
   startPuzzle:      (puzzle: Puzzle) => void;
-  /**
-   * Apply the current move (opponent's turn) to currentFen and advance
-   * the index. Returns the UCI string of the played move, or null on error.
-   */
   playOpponentMove: () => string | null;
-  /**
-   * Validate the user's UCI move against the expected solution move.
-   * On 'correct', the opponent's reply is already applied to currentFen.
-   */
   submitMove:       (uciMove: string) => SubmitMoveResult;
   resetSolver:      () => void;
-  /** Transition failed → reviewing: rewinds to puzzle start so the solution can be replayed. */
   startReview:      () => void;
-  /**
-   * Play the next move in the solution review sequence.
-   * Returns the UCI string of the move played, or null if there are no moves left.
-   * When the last move is played, status transitions to 'complete'.
-   */
   advanceReview:    () => string | null;
 }
 
@@ -60,10 +65,56 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   sessionHistory:   [],
 
   setCurrentPuzzle: (puzzle) => set({ currentPuzzle: puzzle }),
-  setFeed:          (puzzles) => set({ feed: puzzles }),
-  appendToFeed:     (puzzles) => set((s) => ({ feed: [...s.feed, ...puzzles] })),
-  addToHistory:     (puzzleId) =>
+  setFeed:          (items) => set({ feed: items }),
+  appendToFeed:     (items) => set((s) => ({ feed: [...s.feed, ...items] })),
+  insertMessagesAfterIndex: (index, messages) =>
+    set((s) => {
+      const feed = [...s.feed];
+      feed.splice(index + 1, 0, ...messages);
+      return { feed };
+    }),
+  addToHistory: (puzzleId) =>
     set((s) => ({ sessionHistory: [...s.sessionHistory, puzzleId] })),
+
+  // ── Pending messages ──────────────────────────────────────────
+  pendingMessages:      [],
+  addPendingMessage:    (msg) => set((s) => ({ pendingMessages: [...s.pendingMessages, msg] })),
+  clearPendingMessages: () => set({ pendingMessages: [] }),
+
+  // ── Session state ──────────────────────────────────────────────
+  sessionStartElo:            null,
+  sessionPuzzleCount:         0,
+  consecutiveSolvedInSession: 0,
+  consecutiveFailedInSession: 0,
+  sessionEloGainShown:        false,
+  sessionPerfectRun5Shown:    false,
+  sessionPerfectRun10Shown:   false,
+
+  initSession: (startElo) => set({
+    sessionStartElo:            startElo,
+    sessionPuzzleCount:         0,
+    consecutiveSolvedInSession: 0,
+    consecutiveFailedInSession: 0,
+    sessionEloGainShown:        false,
+    sessionPerfectRun5Shown:    false,
+    sessionPerfectRun10Shown:   false,
+  }),
+
+  recordSolvedInSession: () => set((s) => ({
+    sessionPuzzleCount:         s.sessionPuzzleCount + 1,
+    consecutiveSolvedInSession: s.consecutiveSolvedInSession + 1,
+    consecutiveFailedInSession: 0,
+  })),
+
+  recordFailedInSession: () => set((s) => ({
+    sessionPuzzleCount:         s.sessionPuzzleCount + 1,
+    consecutiveFailedInSession: s.consecutiveFailedInSession + 1,
+    consecutiveSolvedInSession: 0,
+  })),
+
+  markSessionEloGainShown:    () => set({ sessionEloGainShown: true }),
+  markSessionPerfectRun5Shown:  () => set({ sessionPerfectRun5Shown: true }),
+  markSessionPerfectRun10Shown: () => set({ sessionPerfectRun10Shown: true }),
 
   // ── Solver state ──────────────────────────────────────────────
   currentFen:        null,
@@ -77,7 +128,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
       currentPuzzle:    puzzle,
       currentFen:       puzzle.fen,
       currentMoveIndex: 0,
-      puzzleStatus:     'idle', // hook animates move[0] then transitions to 'playing'
+      puzzleStatus:     'idle',
       lastFsrsRating:   null,
     }),
 
@@ -104,7 +155,6 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
       return { type: 'fail' };
     }
 
-    // ── User move is correct ──────────────────────────────────
     const fenAfterUser = applyMove(currentFen, uciMove)!;
     const afterUserIdx = currentMoveIndex + 1;
 
@@ -113,7 +163,6 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
       return { type: 'complete' };
     }
 
-    // ── Apply opponent's reply ────────────────────────────────
     const opponentMove      = currentPuzzle.moves[afterUserIdx];
     const fenAfterOpponent  = applyMove(fenAfterUser, opponentMove) ?? fenAfterUser;
     const afterOpponentIdx  = afterUserIdx + 1;

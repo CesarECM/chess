@@ -153,6 +153,45 @@
   "feed": {
     "loadError": "No se pudieron cargar los puzzles. Revisa tu conexión."
   },
+  "message": {
+    "continue": "Continuar",
+    "streak": {
+      "title": "{{days}} días seguidos",
+      "body": "No pares ahora. Tu racha sigue creciendo."
+    },
+    "milestone_solved": {
+      "title": "{{count}} puzzles resueltos",
+      "body": "Cada puzzle te hace más fuerte."
+    },
+    "rank_up": {
+      "title": "¡Nuevo rango!",
+      "body": "Ahora eres {{rankName}} · {{elo}} ELO"
+    },
+    "medal": {
+      "title": "¡Nueva medalla!",
+      "body": "{{medalName}}"
+    },
+    "personal_best_elo": {
+      "title": "Récord personal",
+      "body": "{{elo}} ELO — tu mejor marca hasta ahora."
+    },
+    "perfect_run": {
+      "title": "{{count}} correctos seguidos",
+      "body": "Estás en racha. Mantén el foco."
+    },
+    "comeback": {
+      "title": "¡Remontada!",
+      "body": "Después de {{failedBefore}} fallos, llevas 3 correctos."
+    },
+    "session_elo_gain": {
+      "title": "+{{gained}} ELO en esta sesión",
+      "body": "Buen rendimiento hoy."
+    },
+    "weekly_summary": {
+      "title": "Semana pasada: {{puzzles}} puzzles",
+      "body": "Sigues en {{elo}} ELO. ¡A seguir!"
+    }
+  },
   "gdpr": {
     "title": "Privacidad y cookies",
     "body": "Usamos datos analíticos para mejorar tu experiencia. No compartimos tu información con terceros. Puedes cambiar esto en cualquier momento desde Ajustes.",

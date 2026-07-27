@@ -13,6 +13,8 @@ import { recordViralityEvent, recordSkipEvent } from '@/services/virality';
 import { recordSolveEvent } from '@/services/solveHistory';
 import { trackReferralPuzzle } from '@/services/referral';
 import { analytics } from '@/services/analytics';
+import { PROGRESS_CARDS_ENABLED } from '@/constants';
+import { detectPuzzleEvents } from '@/services/feedMessages';
 
 export type SolverStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'complete';
 
@@ -162,11 +164,71 @@ export function usePuzzleSolverLocal(
     const elapsedMs  = solveStartRef.current ? Date.now() - solveStartRef.current : 0;
     const fsrsRating = deriveFsrsRating(solved, elapsedMs);
 
+    // Snapshot pre-update for event detection (only when solved and feature enabled)
+    const preUser = solved && PROGRESS_CARDS_ENABLED ? {
+      elo:             useUserStore.getState().elo,
+      puzzlesCompleted: useUserStore.getState().puzzlesCompleted,
+      unlockedMedals:  [...useUserStore.getState().unlockedMedals],
+      eloHistory:      useUserStore.getState().eloHistory,
+    } : null;
+
+    const preSession = solved && PROGRESS_CARDS_ENABLED ? {
+      puzzleCount:        usePuzzleStore.getState().sessionPuzzleCount,
+      consecutiveSolved:  usePuzzleStore.getState().consecutiveSolvedInSession,
+      consecutiveFailed:  usePuzzleStore.getState().consecutiveFailedInSession,
+      eloGainShown:       usePuzzleStore.getState().sessionEloGainShown,
+      perfectRun5Shown:   usePuzzleStore.getState().sessionPerfectRun5Shown,
+      perfectRun10Shown:  usePuzzleStore.getState().sessionPerfectRun10Shown,
+      startElo:           usePuzzleStore.getState().sessionStartElo ?? useUserStore.getState().elo,
+    } : null;
+
     setLastFsrsRating(fsrsRating);
     updateElo(puzzleRating, solved);
     incrementCalibration();
     addToHistory(puzzleId);
     incrementPuzzleStats(solved, puzzle?.themes ?? []);
+
+    // Update session counters
+    if (solved) {
+      usePuzzleStore.getState().recordSolvedInSession();
+    } else {
+      usePuzzleStore.getState().recordFailedInSession();
+    }
+
+    // Detect and enqueue progress messages
+    if (solved && PROGRESS_CARDS_ENABLED && preUser && preSession) {
+      const messages = detectPuzzleEvents({
+        eloBefore:                preUser.elo,
+        eloAfter:                 useUserStore.getState().elo,
+        completedBefore:          preUser.puzzlesCompleted,
+        completedAfter:           useUserStore.getState().puzzlesCompleted,
+        medalsBefore:             preUser.unlockedMedals,
+        medalsAfter:              useUserStore.getState().unlockedMedals,
+        eloHistoryBefore:         preUser.eloHistory,
+        sessionPuzzleCountBefore: preSession.puzzleCount,
+        consecutiveSolvedBefore:  preSession.consecutiveSolved,
+        consecutiveFailedBefore:  preSession.consecutiveFailed,
+        consecutiveSolvedAfter:   usePuzzleStore.getState().consecutiveSolvedInSession,
+        sessionStartElo:          preSession.startElo,
+        sessionEloGainShown:      preSession.eloGainShown,
+        sessionPerfectRun5Shown:  preSession.perfectRun5Shown,
+        sessionPerfectRun10Shown: preSession.perfectRun10Shown,
+      });
+
+      for (const msg of messages) {
+        usePuzzleStore.getState().addPendingMessage(msg);
+      }
+
+      if (messages.some((m) => m.type === 'session_elo_gain')) {
+        usePuzzleStore.getState().markSessionEloGainShown();
+      }
+      if (messages.some((m) => m.type === 'perfect_run' && (m.payload.count as number) === 5)) {
+        usePuzzleStore.getState().markSessionPerfectRun5Shown();
+      }
+      if (messages.some((m) => m.type === 'perfect_run' && (m.payload.count as number) === 10)) {
+        usePuzzleStore.getState().markSessionPerfectRun10Shown();
+      }
+    }
 
     const userId = userIdRef.current ?? '';
     recordSolveEvent(userId, {

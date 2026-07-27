@@ -153,6 +153,45 @@
   "feed": {
     "loadError": "Could not load puzzles. Check your connection."
   },
+  "message": {
+    "continue": "Continue",
+    "streak": {
+      "title": "{{days}}-day streak",
+      "body": "Keep it up. Your streak keeps growing."
+    },
+    "milestone_solved": {
+      "title": "{{count}} puzzles solved",
+      "body": "Every puzzle makes you stronger."
+    },
+    "rank_up": {
+      "title": "New rank!",
+      "body": "You are now {{rankName}} · {{elo}} ELO"
+    },
+    "medal": {
+      "title": "New medal!",
+      "body": "{{medalName}}"
+    },
+    "personal_best_elo": {
+      "title": "Personal record",
+      "body": "{{elo}} ELO — your best ever."
+    },
+    "perfect_run": {
+      "title": "{{count}} in a row",
+      "body": "You're on fire. Keep the focus."
+    },
+    "comeback": {
+      "title": "Comeback!",
+      "body": "After {{failedBefore}} misses, you have 3 correct in a row."
+    },
+    "session_elo_gain": {
+      "title": "+{{gained}} ELO this session",
+      "body": "Strong performance today."
+    },
+    "weekly_summary": {
+      "title": "Last week: {{puzzles}} puzzles",
+      "body": "You're at {{elo}} ELO. Keep it up!"
+    }
+  },
   "gdpr": {
     "title": "Privacy & cookies",
     "body": "We use analytics data to improve your experience. We do not share your information with third parties. You can change this at any time in Settings.",

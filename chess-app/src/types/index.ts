@@ -45,3 +45,23 @@ export interface UserPuzzleProgress {
 }
 
 export type FSRSRating = 1 | 2 | 3 | 4;
+
+export type MessageType =
+  | 'streak'
+  | 'milestone_solved'
+  | 'rank_up'
+  | 'medal'
+  | 'personal_best_elo'
+  | 'perfect_run'
+  | 'comeback'
+  | 'session_elo_gain'
+  | 'weekly_summary';
+
+export interface ProgressMessage {
+  id: string;
+  kind: 'progress';
+  type: MessageType;
+  payload: Record<string, unknown>;
+}
+
+export type FeedItem = Puzzle | ProgressMessage;
