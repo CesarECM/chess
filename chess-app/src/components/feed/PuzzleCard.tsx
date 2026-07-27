@@ -116,7 +116,7 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
         {statusLabels[puzzleStatus]}
       </Text>
 
-      {puzzleStatus === 'failed' && (
+      {isActive && puzzleStatus === 'failed' && (
         <View style={[styles.row, { gap: spacing[2] }]}>
           <TouchableOpacity
             style={[styles.btn, styles.btnOutline, { borderColor: colors.border, borderRadius: 8 }]}
@@ -137,7 +137,7 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
         </View>
       )}
 
-      {puzzleStatus === 'reviewing' && (
+      {isActive && puzzleStatus === 'reviewing' && (
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 8 }]}
           onPress={handleAdvanceReview}
@@ -148,7 +148,7 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
         </TouchableOpacity>
       )}
 
-      {puzzleStatus === 'complete' && (
+      {isActive && puzzleStatus === 'complete' && (
         <View style={[styles.row, { gap: spacing[2] }]}>
           {Platform.OS !== 'web' && (
             <TouchableOpacity
@@ -172,7 +172,7 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
         </View>
       )}
 
-      {puzzleStatus === 'complete' && Platform.OS !== 'web' && (
+      {isActive && puzzleStatus === 'complete' && Platform.OS !== 'web' && (
         <ShareCard
           ref={cardRef}
           tactic={puzzle.themes[0] ?? 'other'}

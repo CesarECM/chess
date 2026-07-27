@@ -268,8 +268,10 @@ export default function FeedScreen() {
 
     // ── PuzzleCard ────────────────────────────────────────────────────────
     const puzzle = item as Puzzle;
-    const isCurrentlyActive = position === 'active';
-    const isSolved          = solvedPuzzleIds.includes(puzzle.id);
+    const isSolved = solvedPuzzleIds.includes(puzzle.id);
+    const isDone   = isSolved || failedPuzzleIds.includes(puzzle.id);
+    // A done puzzle is never re-activated, even if the user scrolls back to it
+    const isCurrentlyActive = position === 'active' && !isDone;
 
     return (
       <View style={{ flex: 1 }}>
@@ -283,7 +285,7 @@ export default function FeedScreen() {
           onMessagesEarned={handleMessagesEarned}
         />
 
-        {position === 'past' && (
+        {(isDone || position === 'past') && (
           <PastPuzzleOverlay
             solved={isSolved}
             height={listHeight}
