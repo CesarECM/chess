@@ -260,6 +260,31 @@ export default function SettingsScreen() {
         )}
       </View>
 
+      {/* ── Soporte ──────────────────────────────────────────── */}
+      <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
+        {t('settings.sectionSupport')}
+      </Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+        <TouchableOpacity
+          style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
+          onPress={() => router.push('/faq' as never)}
+        >
+          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
+            {t('settings.faq')}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.size.md }}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => Linking.openURL('mailto:support@ceecm.mx?subject=Chess%20Puzzle%20App')}
+        >
+          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
+            {t('settings.contactSupport')}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.size.md }}>›</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* ── Legal ────────────────────────────────────────────── */}
       <Text style={[styles.section, { color: colors.textSecondary, fontSize: typography.size.xs, marginTop: 24 }]}>
         {t('settings.sectionLegal')}
@@ -275,20 +300,11 @@ export default function SettingsScreen() {
           <Text style={{ color: colors.textSecondary, fontSize: typography.size.md }}>›</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
+          style={styles.row}
           onPress={() => Linking.openURL(process.env.EXPO_PUBLIC_TOS_URL ?? 'https://www.iubenda.com/terms-and-conditions')}
         >
           <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
             {t('settings.termsOfService')}
-          </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: typography.size.md }}>›</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => router.push('/faq' as never)}
-        >
-          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
-            {t('settings.faq')}
           </Text>
           <Text style={{ color: colors.textSecondary, fontSize: typography.size.md }}>›</Text>
         </TouchableOpacity>

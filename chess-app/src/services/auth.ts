@@ -57,6 +57,12 @@ export async function signOut() {
   if (error) throw error;
 }
 
+export async function resetPassword(email: string) {
+  const redirectTo = makeRedirectUri();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
+}
+
 export async function signInWithGoogle() {
   const redirectTo = makeRedirectUri();
 

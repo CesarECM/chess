@@ -25,7 +25,13 @@
     "checkEmail": "Vérifiez votre e-mail",
     "emailSent": "Nous avons envoyé un lien de confirmation à {{email}}. Une fois confirmé, connectez-vous.",
     "goToLogin": "Aller à la connexion",
-    "hasAccount": "Déjà un compte ? Se connecter"
+    "hasAccount": "Déjà un compte ? Se connecter",
+    "forgotPassword": "Mot de passe oublié ?",
+    "resetHint": "Entrez votre e-mail et nous vous enverrons un lien de réinitialisation.",
+    "sendReset": "Envoyer le lien",
+    "resetSent": "Nous avons envoyé un lien à {{email}}. Vérifiez votre boîte de réception.",
+    "backToSignIn": "Retour à la connexion",
+    "errorResetPassword": "Erreur lors de l'envoi du lien"
   },
   "puzzle": {
     "statusIdle": "Adversaire joue…",
@@ -42,7 +48,8 @@
     "nextPuzzle": "Puzzle suivant",
     "loading": "Chargement…",
     "ratingMeta": "Classement {{rating}} · {{theme}}",
-    "share": "Partager"
+    "share": "Partager",
+    "sessionCount": "{{count}} aujourd'hui"
   },
   "elo": {
     "pawn": "Pion",
@@ -130,7 +137,9 @@
     "sectionLegal": "LÉGAL",
     "privacyPolicy": "Politique de confidentialité",
     "termsOfService": "Conditions d'utilisation",
-    "faq": "Aide et questions fréquentes"
+    "faq": "Aide et questions fréquentes",
+    "sectionSupport": "SUPPORT",
+    "contactSupport": "Contacter le support"
   },
   "onboarding": {
     "levelTitle": "Quel est votre niveau ?",
@@ -148,7 +157,8 @@
     "themeTitle": "Personnalisez votre échiquier",
     "themeSubtitle": "Choisissez la couleur de l'échiquier et le set de pièces.",
     "continue": "Continuer",
-    "start": "C'est parti !"
+    "start": "C'est parti !",
+    "skip": "Passer"
   },
   "skipWarning": {
     "title": "Puzzle inachevé",
@@ -202,7 +212,7 @@
   },
   "gdpr": {
     "title": "Confidentialité et cookies",
-    "body": "Nous utilisons des données analytiques pour améliorer votre expérience. Nous ne partageons pas vos informations avec des tiers. Vous pouvez modifier cela à tout moment dans les Paramètres.",
+    "body": "Nous utilisons des données analytiques pour améliorer votre expérience. Nous ne partageons pas vos informations avec des tiers.",
     "acceptAll": "Tout accepter",
     "essentialOnly": "Essentiels uniquement"
   },

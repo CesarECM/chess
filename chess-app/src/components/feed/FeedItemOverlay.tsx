@@ -3,19 +3,36 @@ import { useTheme } from '@/hooks/useTheme';
 
 /**
  * Absolute overlay drawn on top of a past puzzle card.
- * Shows a green tint + ✓ for solved puzzles, gray tint + ✗ otherwise.
+ * - Solved: green tint + ✓
+ * - Failed (viewed solution): red tint + ✗
+ * - Skipped (no attempt): gray tint + →
  */
-export function PastPuzzleOverlay({ solved, height }: { solved: boolean; height: number }) {
+export function PastPuzzleOverlay({
+  solved,
+  skipped = false,
+  height,
+}: {
+  solved: boolean;
+  skipped?: boolean;
+  height: number;
+}) {
   const { colors } = useTheme();
-  const bg = solved ? colors.success + '50' : colors.textSecondary + '40';
+
+  const bg          = solved ? colors.success + '50'
+                    : skipped ? colors.textSecondary + '30'
+                    : colors.error + '30';
+  const badgeColor  = solved ? colors.success
+                    : skipped ? colors.textSecondary
+                    : colors.error;
+  const badgeText   = solved ? '✓' : skipped ? '→' : '✗';
 
   return (
     <View
       style={[styles.overlay, { height, backgroundColor: bg }]}
       pointerEvents="none"
     >
-      <View style={[styles.badge, { backgroundColor: solved ? colors.success : colors.textSecondary }]}>
-        <Text style={styles.badgeText}>{solved ? '✓' : '✗'}</Text>
+      <View style={[styles.badge, { backgroundColor: badgeColor }]}>
+        <Text style={styles.badgeText}>{badgeText}</Text>
       </View>
     </View>
   );

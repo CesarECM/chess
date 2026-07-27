@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { BOARD_THEMES, PIECE_SETS } from '@/constants/boardThemes';
 import { getPieceUrl } from '@/constants/pieceSets';
 import type { BoardThemeId, PieceSetId } from '@/constants/boardThemes';
@@ -22,8 +21,8 @@ type LevelKey = typeof LEVELS[number]['key'];
 export function OnboardingModal() {
   const { colors, typography, radius } = useTheme();
   const { t } = useTranslation();
-  const { isGuest } = useAuthStore();
   const onboardingCompleted = useUserStore((s) => s.onboardingCompleted);
+  const gdprConsentDate     = useUserStore((s) => s.gdprConsentDate);
   const completeOnboarding  = useUserStore((s) => s.completeOnboarding);
   const currentBoardTheme   = useUserStore((s) => s.boardTheme);
   const currentPieceSet     = useUserStore((s) => s.pieceSet);
@@ -33,7 +32,8 @@ export function OnboardingModal() {
   const [selectedTheme, setTheme]   = useState<BoardThemeId>(currentBoardTheme);
   const [selectedPieces, setPieces] = useState<PieceSetId>(currentPieceSet);
 
-  const visible = isGuest && !onboardingCompleted;
+  // Show for every user (guest or registered) after GDPR is accepted
+  const visible = !onboardingCompleted && gdprConsentDate !== null;
 
   function handleContinue() {
     if (step === 0) {
@@ -42,6 +42,10 @@ export function OnboardingModal() {
     }
     const level = LEVELS.find((l) => l.key === selectedLevel)!;
     completeOnboarding(level.elo, selectedTheme, selectedPieces);
+  }
+
+  function handleSkip() {
+    completeOnboarding(currentBoardTheme === 'classic' ? 1000 : 1000, currentBoardTheme, currentPieceSet);
   }
 
   return (
@@ -70,7 +74,7 @@ export function OnboardingModal() {
                 {t('onboarding.levelSubtitle')}
               </Text>
 
-              <ScrollView style={styles.levelList} showsVerticalScrollIndicator={false}>
+              <ScrollView style={styles.levelList} showsVerticalScrollIndicator={true}>
                 {LEVELS.map((level) => {
                   const active = selectedLevel === level.key;
                   return (
@@ -189,6 +193,12 @@ export function OnboardingModal() {
               {step === 0 ? t('onboarding.continue') : t('onboarding.start')}
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
+            <Text style={[styles.skipText, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+              {t('onboarding.skip')}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -204,7 +214,7 @@ const styles = StyleSheet.create({
   subtitle:     { lineHeight: 20, marginBottom: 20 },
   sectionLabel: { fontWeight: '600', letterSpacing: 0.5, marginBottom: 10 },
   // Level step
-  levelList:    { maxHeight: 280 },
+  levelList:    { maxHeight: 300 },
   levelRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, padding: 14, marginBottom: 8 },
   levelText:    { flex: 1, gap: 2 },
   levelName:    { fontWeight: '600' },
@@ -223,4 +233,6 @@ const styles = StyleSheet.create({
   // CTA
   btn:          { paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   btnText:      { fontWeight: '700' },
+  skipBtn:      { alignItems: 'center', paddingVertical: 8, marginTop: 4 },
+  skipText:     {},
 });

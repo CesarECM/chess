@@ -38,12 +38,14 @@ export default function FeedScreen() {
   const initSession              = usePuzzleStore((s) => s.initSession);
   const solvedPuzzleIds          = usePuzzleStore((s) => s.solvedPuzzleIds);
   const failedPuzzleIds          = usePuzzleStore((s) => s.failedPuzzleIds);
+  const skippedPuzzleIds         = usePuzzleStore((s) => s.skippedPuzzleIds);
 
-  const [isLoading,    setIsLoading]    = useState(true);
-  const [hasError,     setHasError]     = useState(false);
-  const [activeIndex,  setActiveIndex]  = useState(0);
-  const [listHeight,   setListHeight]   = useState(Dimensions.get('window').height - 80);
-  const [activeStatus, setActiveStatus] = useState<SolverStatus>('idle');
+  const [isLoading,          setIsLoading]          = useState(true);
+  const [hasError,           setHasError]           = useState(false);
+  const [activeIndex,        setActiveIndex]        = useState(0);
+  const [listHeight,         setListHeight]         = useState(Dimensions.get('window').height - 80);
+  const [activeStatus,       setActiveStatus]       = useState<SolverStatus>('idle');
+  const [waitingForBuffer,   setWaitingForBuffer]   = useState(false);
 
   const listRef           = useRef<FlashListRef<FeedItem> | null>(null);
   const prefetching       = useRef(false);
@@ -139,6 +141,7 @@ export default function FeedScreen() {
             if (next) {
               usePuzzleStore.getState().insertBeforeLockedSlot([next]);
               setActiveStatus('idle');
+              setWaitingForBuffer(false);
             }
           }
         }
@@ -241,8 +244,10 @@ export default function FeedScreen() {
     const next = puzzleBufferRef.current.shift();
     if (next) {
       usePuzzleStore.getState().insertBeforeLockedSlot([next]);
+      setWaitingForBuffer(false);
     } else {
       pendingNextPuzzleRef.current = true;
+      setWaitingForBuffer(true);
     }
     scrollToNext();
   }, [scrollToNext]);
@@ -252,7 +257,7 @@ export default function FeedScreen() {
 
     // ── LockedSlot ────────────────────────────────────────────────────────
     if ('kind' in item && item.kind === 'locked-slot') {
-      return <LockedSlot height={listHeight} />;
+      return <LockedSlot height={listHeight} isLoading={waitingForBuffer} />;
     }
 
     // ── MessageCard (progress card) ───────────────────────────────────────
@@ -267,9 +272,11 @@ export default function FeedScreen() {
     }
 
     // ── PuzzleCard ────────────────────────────────────────────────────────
-    const puzzle = item as Puzzle;
-    const isSolved = solvedPuzzleIds.includes(puzzle.id);
-    const isDone   = isSolved || failedPuzzleIds.includes(puzzle.id);
+    const puzzle    = item as Puzzle;
+    const isSolved  = solvedPuzzleIds.includes(puzzle.id);
+    const isFailed  = failedPuzzleIds.includes(puzzle.id);
+    const isSkipped = skippedPuzzleIds.includes(puzzle.id);
+    const isDone    = isSolved || isFailed || isSkipped;
     // A done puzzle is never re-activated, even if the user scrolls back to it
     const isCurrentlyActive = position === 'active' && !isDone;
 
@@ -288,13 +295,14 @@ export default function FeedScreen() {
         {(isDone || position === 'past') && (
           <PastPuzzleOverlay
             solved={isSolved}
+            skipped={isSkipped}
             height={listHeight}
           />
         )}
       </View>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listHeight, activeIndex, solvedPuzzleIds, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned]);
+  }, [listHeight, activeIndex, solvedPuzzleIds, waitingForBuffer, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned]);
 
   if (isLoading) {
     return (
@@ -326,11 +334,11 @@ export default function FeedScreen() {
       <FlashList
         ref={listRef}
         data={feed}
-        extraData={{ activeIndex, solvedPuzzleIds, failedPuzzleIds }}
+        extraData={{ activeIndex, solvedPuzzleIds, failedPuzzleIds, skippedPuzzleIds }}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         pagingEnabled
-        scrollEnabled={Platform.OS === 'web' || activeStatus !== 'playing'}
+        scrollEnabled={Platform.OS === 'web' || activeStatus === 'idle' || activeStatus === 'complete'}
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}

@@ -23,11 +23,13 @@ interface PuzzleState {
   insertBeforeLockedSlot:   (items: FeedItem[]) => void;
   addToHistory:     (puzzleId: PuzzleId) => void;
 
-  // ── Solved/failed puzzle tracking (for feed visual state) ───────
-  solvedPuzzleIds: string[];
-  failedPuzzleIds: string[];
-  markPuzzleSolved: (id: string) => void;
-  markPuzzleFailed: (id: string) => void;
+  // ── Solved/failed/skipped puzzle tracking (for feed visual state) ──
+  solvedPuzzleIds:  string[];
+  failedPuzzleIds:  string[];
+  skippedPuzzleIds: string[];
+  markPuzzleSolved:  (id: string) => void;
+  markPuzzleFailed:  (id: string) => void;
+  markPuzzleSkipped: (id: string) => void;
 
 
   // ── Session state (not persisted — resets on app restart) ─────
@@ -88,11 +90,13 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   addToHistory: (puzzleId) =>
     set((s) => ({ sessionHistory: [...s.sessionHistory, puzzleId] })),
 
-  // ── Solved/failed tracking ────────────────────────────────────
-  solvedPuzzleIds: [],
-  failedPuzzleIds: [],
-  markPuzzleSolved: (id) => set((s) => ({ solvedPuzzleIds: [...s.solvedPuzzleIds, id] })),
-  markPuzzleFailed: (id) => set((s) => ({ failedPuzzleIds: [...s.failedPuzzleIds, id] })),
+  // ── Solved/failed/skipped tracking ───────────────────────────
+  solvedPuzzleIds:  [],
+  failedPuzzleIds:  [],
+  skippedPuzzleIds: [],
+  markPuzzleSolved:  (id) => set((s) => ({ solvedPuzzleIds:  [...s.solvedPuzzleIds, id] })),
+  markPuzzleFailed:  (id) => set((s) => ({ failedPuzzleIds:  [...s.failedPuzzleIds, id] })),
+  markPuzzleSkipped: (id) => set((s) => ({ skippedPuzzleIds: [...s.skippedPuzzleIds, id] })),
 
   // ── Session state ──────────────────────────────────────────────
   sessionStartElo:            null,

@@ -25,7 +25,13 @@
     "checkEmail": "Check your email",
     "emailSent": "We sent a confirmation link to {{email}}. Once confirmed, sign in.",
     "goToLogin": "Go to sign in",
-    "hasAccount": "Already have an account? Sign in"
+    "hasAccount": "Already have an account? Sign in",
+    "forgotPassword": "Forgot your password?",
+    "resetHint": "Enter your email and we'll send you a reset link.",
+    "sendReset": "Send link",
+    "resetSent": "We sent a link to {{email}}. Check your inbox.",
+    "backToSignIn": "Back to sign in",
+    "errorResetPassword": "Error sending the reset link"
   },
   "puzzle": {
     "statusIdle": "Opponent moves…",
@@ -42,7 +48,8 @@
     "nextPuzzle": "Next puzzle",
     "loading": "Loading…",
     "ratingMeta": "Rating {{rating}} · {{theme}}",
-    "share": "Share"
+    "share": "Share",
+    "sessionCount": "{{count}} today"
   },
   "elo": {
     "pawn": "Pawn",
@@ -130,7 +137,9 @@
     "sectionLegal": "LEGAL",
     "privacyPolicy": "Privacy policy",
     "termsOfService": "Terms of service",
-    "faq": "Help & FAQ"
+    "faq": "Help & FAQ",
+    "sectionSupport": "SUPPORT",
+    "contactSupport": "Contact support"
   },
   "onboarding": {
     "levelTitle": "What's your level?",
@@ -148,7 +157,8 @@
     "themeTitle": "Customize your board",
     "themeSubtitle": "Pick the board color and piece set you like most.",
     "continue": "Continue",
-    "start": "Let's play!"
+    "start": "Let's play!",
+    "skip": "Skip"
   },
   "skipWarning": {
     "title": "Puzzle unfinished",
@@ -202,7 +212,7 @@
   },
   "gdpr": {
     "title": "Privacy & cookies",
-    "body": "We use analytics data to improve your experience. We do not share your information with third parties. You can change this at any time in Settings.",
+    "body": "We use analytics data to improve your experience. We do not share your information with third parties.",
     "acceptAll": "Accept all",
     "essentialOnly": "Essential only"
   },

@@ -1,6 +1,6 @@
 {
   "tab": {
-    "feed": "Feed",
+    "feed": "Inicio",
     "profile": "Perfil",
     "progress": "Progreso",
     "settings": "Ajustes"
@@ -25,7 +25,13 @@
     "checkEmail": "Revisa tu email",
     "emailSent": "Te enviamos un link de confirmación a {{email}}. Una vez confirmado, inicia sesión.",
     "goToLogin": "Ir al inicio de sesión",
-    "hasAccount": "¿Ya tienes cuenta? Inicia sesión"
+    "hasAccount": "¿Ya tienes cuenta? Inicia sesión",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "resetHint": "Ingresa tu email y te enviaremos un link para restablecer tu contraseña.",
+    "sendReset": "Enviar link",
+    "resetSent": "Te enviamos un link a {{email}}. Revisa tu bandeja de entrada.",
+    "backToSignIn": "Volver al inicio de sesión",
+    "errorResetPassword": "Error al enviar el link de recuperación"
   },
   "puzzle": {
     "statusIdle": "Oponente mueve…",
@@ -42,7 +48,8 @@
     "nextPuzzle": "Siguiente puzzle",
     "loading": "Cargando…",
     "ratingMeta": "Rating {{rating}} · {{theme}}",
-    "share": "Compartir"
+    "share": "Compartir",
+    "sessionCount": "{{count}} hoy"
   },
   "elo": {
     "pawn": "Peón",
@@ -130,7 +137,9 @@
     "sectionLegal": "LEGAL",
     "privacyPolicy": "Política de privacidad",
     "termsOfService": "Términos de servicio",
-    "faq": "Ayuda y preguntas frecuentes"
+    "faq": "Ayuda y preguntas frecuentes",
+    "sectionSupport": "SOPORTE",
+    "contactSupport": "Contactar soporte"
   },
   "onboarding": {
     "levelTitle": "¿Cuál es tu nivel?",
@@ -148,7 +157,8 @@
     "themeTitle": "Personaliza tu tablero",
     "themeSubtitle": "Elige el color del tablero y el set de piezas que más te guste.",
     "continue": "Continuar",
-    "start": "¡Empezar!"
+    "start": "¡Empezar!",
+    "skip": "Saltar"
   },
   "skipWarning": {
     "title": "Puzzle sin terminar",
@@ -202,7 +212,7 @@
   },
   "gdpr": {
     "title": "Privacidad y cookies",
-    "body": "Usamos datos analíticos para mejorar tu experiencia. No compartimos tu información con terceros. Puedes cambiar esto en cualquier momento desde Ajustes.",
+    "body": "Usamos datos analíticos para mejorar tu experiencia. No compartimos tu información con terceros.",
     "acceptAll": "Aceptar todo",
     "essentialOnly": "Solo esenciales"
   },

@@ -116,6 +116,7 @@ export function usePuzzleSolverLocal(
     prevIsActiveRef.current = isActive;
     if (wasActive && !isActive && puzzle && !hasAttemptedRef.current) {
       recordSkipEvent(puzzle.id).catch(console.error);
+      usePuzzleStore.getState().markPuzzleSkipped(puzzle.id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);

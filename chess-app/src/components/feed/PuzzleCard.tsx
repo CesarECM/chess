@@ -5,6 +5,7 @@ import { ChessBoard } from '@/components/chess/ChessBoard';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
+import { usePuzzleStore } from '@/stores/usePuzzleStore';
 import { usePuzzleSolverLocal, type SolverStatus } from '@/hooks/usePuzzleSolverLocal';
 import { useShareCard } from '@/hooks/useShareCard';
 import { RangeBadge } from '@/components/ui/RangeBadge';
@@ -34,9 +35,10 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
   const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
   const boardRef = useRef<ChessboardRef>(null);
-  const elo             = useUserStore((s) => s.elo);
-  const streakDays      = useUserStore((s) => s.streakDays);
+  const elo              = useUserStore((s) => s.elo);
+  const streakDays       = useUserStore((s) => s.streakDays);
   const puzzlesCompleted = useUserStore((s) => s.puzzlesCompleted);
+  const sessionCount     = usePuzzleStore((s) => s.sessionPuzzleCount);
 
   const { cardRef, isSharing, captureAndShare } = useShareCard();
 
@@ -76,7 +78,14 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
   return (
     <View style={[styles.card, { height, backgroundColor: colors.background }]}>
       {isCalibrated ? (
-        <RangeBadge elo={elo} />
+        <View style={styles.topRow}>
+          <RangeBadge elo={elo} />
+          {sessionCount > 0 && (
+            <Text style={[styles.sessionCount, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+              {t('puzzle.sessionCount', { count: sessionCount })}
+            </Text>
+          )}
+        </View>
       ) : (
         <View style={[styles.calibBar, { backgroundColor: colors.accent + '22', borderColor: colors.accent + '44' }]}>
           <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
@@ -189,7 +198,9 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
 export const PuzzleCard = memo(PuzzleCardComponent);
 
 const styles = StyleSheet.create({
-  card:       { alignItems: 'center', justifyContent: 'center', gap: 12 },
+  card:         { alignItems: 'center', justifyContent: 'center', gap: 12 },
+  topRow:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sessionCount: { fontWeight: '600' },
   calibBar:   { width: '88%', borderRadius: 8, borderWidth: 1, padding: 10, gap: 6 },
   calibText:  { fontWeight: '600', textAlign: 'center' },
   calibTrack: { height: 4, borderRadius: 2, width: '100%', overflow: 'hidden' },

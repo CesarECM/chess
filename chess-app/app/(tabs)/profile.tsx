@@ -13,7 +13,6 @@ import { ReferralShare } from '@/components/ui/ReferralShare';
 import { getOrCreateGuestId } from '@/services/identity';
 
 const PAGE_SIZE = 10;
-const BAR_MAX_H = 48;
 
 export default function ProfileScreen() {
   const { colors, typography } = useTheme();
@@ -27,7 +26,6 @@ export default function ProfileScreen() {
     streakLongest,
     weeklyPuzzleCount,
     unlockedMedals,
-    eloHistory,
   } = useUserStore();
 
   const total      = puzzlesCompleted + puzzlesFailed;
@@ -61,11 +59,6 @@ export default function ProfileScreen() {
     loadReferralStats(user.id).then(setReferralStats).catch(console.error);
   }, [user?.id]);
 
-  const chartData = eloHistory.slice(-14);
-  const chartMin  = chartData.length > 0 ? Math.min(...chartData.map((s) => s.elo)) : 0;
-  const chartMax  = chartData.length > 0 ? Math.max(...chartData.map((s) => s.elo)) : 0;
-  const chartRange = chartMax - chartMin || 1;
-
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
@@ -74,7 +67,7 @@ export default function ProfileScreen() {
     >
       <View style={styles.identity}>
         <Text style={[styles.displayName, { color: colors.text, fontSize: typography.size.xl }]}>
-          {isGuest ? t('profile.guestName') : (user?.email ?? t('profile.guestName'))}
+          {isGuest ? t('profile.guestName') : (user?.email?.split('@')[0] ?? t('profile.guestName'))}
         </Text>
         {isGuest && (
           <Text style={[styles.guestHint, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
@@ -103,37 +96,6 @@ export default function ProfileScreen() {
           streakLongest={streakLongest}
           weeklyPuzzleCount={weeklyPuzzleCount}
         />
-      </Section>
-
-      <Section label={t('profile.sectionEloHistory')} colors={colors} typography={typography}>
-        {chartData.length < 2 ? (
-          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[{ color: colors.textSecondary, fontSize: typography.size.sm, textAlign: 'center' }]}>
-              {t('profile.eloChartEmpty')}
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.chartRow}>
-              {chartData.map((snap, i) => {
-                const barH = Math.max(6, Math.round(((snap.elo - chartMin) / chartRange) * BAR_MAX_H));
-                const isLast = i === chartData.length - 1;
-                return (
-                  <View key={snap.date} style={styles.barWrap}>
-                    <View style={[styles.bar, { height: barH, backgroundColor: isLast ? colors.tabBarActive : colors.tabBarInactive }]} />
-                    <Text style={[styles.barDate, { color: colors.textSecondary, fontSize: 9 }]}>
-                      {snap.date.slice(5)}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-            <View style={styles.chartLegend}>
-              <Text style={[{ color: colors.textSecondary, fontSize: typography.size.xs }]}>{chartMin}</Text>
-              <Text style={[{ color: colors.textSecondary, fontSize: typography.size.xs }]}>{chartMax}</Text>
-            </View>
-          </View>
-        )}
       </Section>
 
       {user?.id && (

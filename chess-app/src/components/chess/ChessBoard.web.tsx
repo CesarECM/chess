@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useState, useCallback, useRef } from 'react';
-import { Animated, Easing, View, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { Animated, Easing, Modal, View, TouchableOpacity, StyleSheet, Image, Text, useWindowDimensions } from 'react-native';
 import { Chess } from 'chess.js';
 import type { Square, PieceSymbol, Move } from 'chess.js';
 
@@ -29,8 +29,12 @@ interface ChessBoardProps {
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'];
-const SIZE  = 350;
-const SQ    = SIZE / 8;
+
+const PROMO_PIECES: PieceSymbol[] = ['q', 'r', 'b', 'n'];
+const PROMO_SYMBOLS: Record<string, string> = {
+  wq: '♕', wr: '♖', wb: '♗', wn: '♘',
+  bq: '♛', br: '♜', bb: '♝', bn: '♞',
+};
 
 function parseFen(fen: string): Record<string, string> {
   try {
@@ -51,17 +55,21 @@ function toPieceKey(colorType: string): string {
   return colorType[0] + colorType[1].toUpperCase();
 }
 
-function squareToPos(sq: Square, flipped: boolean): { x: number; y: number } {
+function squareToPos(sq: Square, flipped: boolean, sqSize: number): { x: number; y: number } {
   const fileIndex = FILES.indexOf(sq[0]);
   const rankIndex = RANKS.indexOf(sq[1]);
   return {
-    x: (flipped ? 7 - fileIndex : fileIndex) * SQ,
-    y: (flipped ? 7 - rankIndex : rankIndex) * SQ,
+    x: (flipped ? 7 - fileIndex : fileIndex) * sqSize,
+    y: (flipped ? 7 - rankIndex : rankIndex) * sqSize,
   };
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
   ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true }, ref) => {
+    const { width }    = useWindowDimensions();
+    const SIZE         = Math.min(Math.floor(width) - 32, 420);
+    const SQ           = SIZE / 8;
+
     const boardThemeId = useUserStore((s) => s.boardTheme);
     const pieceSet     = useUserStore((s) => s.pieceSet);
     const theme        = BOARD_THEMES[boardThemeId];
@@ -75,6 +83,8 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
     const [selected,     setSelected]     = useState<Square | null>(null);
     const [lastMove,     setLastMove]     = useState<{ from: Square; to: Square } | null>(null);
     const [legalDests,   setLegalDests]   = useState<ReadonlySet<string>>(new Set());
+
+    const [promotionPending, setPromotionPending] = useState<{ from: Square; to: Square } | null>(null);
 
     const [hiddenSquare, setHiddenSquare] = useState<Square | null>(null);
     const [animState, setAnimState] = useState<{
@@ -102,8 +112,8 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
 
       const rawType   = promotion ? `${pieceType[0]}${promotion}` : pieceType;
       const pieceKey  = toPieceKey(rawType);
-      const fromPos   = squareToPos(from, flippedRef.current);
-      const toPos     = squareToPos(to,   flippedRef.current);
+      const fromPos   = squareToPos(from, flippedRef.current, SQ);
+      const toPos     = squareToPos(to,   flippedRef.current, SQ);
 
       const anim = new Animated.ValueXY(fromPos);
       animRef.current = anim;
@@ -184,22 +194,24 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
 
       const base       = `${selected}${sq}`;
       const newFenBase = applyMove(fenNow, base);
-      const newFen     = newFenBase ?? applyMove(fenNow, `${base}q`);
-      const uci        = newFenBase ? base : `${base}q`;
-      const promotion  = newFenBase ? undefined : 'q' as PieceSymbol;
       const pieceType  = piecesNow[selected];
 
-      if (newFen) {
-        currentFenRef.current = newFen;
+      if (newFenBase) {
+        currentFenRef.current = newFenBase;
         setSelected(null);
         setLegalDests(new Set());
-        onMove?.(uci, newFen);
+        onMove?.(base, newFenBase);
         if (pieceType) {
-          playMoveAnim(selected, sq, newFen, pieceType, promotion);
+          playMoveAnim(selected, sq, newFenBase, pieceType, undefined);
         } else {
-          setCurrentFen(newFen);
+          setCurrentFen(newFenBase);
           setLastMove({ from: selected, to: sq });
         }
+      } else if (applyMove(fenNow, `${base}q`)) {
+        // Pawn promotion — let user pick the piece
+        setSelected(null);
+        setLegalDests(new Set());
+        setPromotionPending({ from: selected, to: sq });
       } else {
         onIllegalMove?.(selected, sq);
         const sideToMove = fenNow.split(' ')[1];
@@ -214,8 +226,26 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
       }
     }, [enabled, selected, onMove, onIllegalMove]);
 
+    const handlePromotion = useCallback((piece: PieceSymbol) => {
+      if (!promotionPending) return;
+      const { from, to } = promotionPending;
+      const uci     = `${from}${to}${piece}`;
+      const newFen  = applyMove(currentFenRef.current, uci);
+      const ptBefore = parseFen(currentFenRef.current)[from];
+      setPromotionPending(null);
+      if (newFen) {
+        currentFenRef.current = newFen;
+        onMove?.(uci, newFen);
+        if (ptBefore) playMoveAnim(from, to, newFen, ptBefore, piece);
+        else { setCurrentFen(newFen); setLastMove({ from, to }); }
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [promotionPending, onMove]);
+
+    const promoColor = currentFenRef.current.split(' ')[1] as 'w' | 'b';
+
     return (
-      <View style={styles.board}>
+      <View style={{ width: SIZE, height: SIZE }}>
         {ranks.map((rank, ri) => (
           <View key={rank} style={styles.row}>
             {files.map((file, fi) => {
@@ -239,16 +269,32 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
                   key={sq}
                   onPress={() => handleTap(sq)}
                   activeOpacity={0.85}
-                  style={[styles.square, { backgroundColor: bgColor }]}
+                  style={{ width: SQ, height: SQ, alignItems: 'center', justifyContent: 'center', backgroundColor: bgColor }}
                 >
                   {piece && (
                     <Image
                       source={{ uri: getPieceUrl(pieceSet, toPieceKey(piece)) }}
-                      style={styles.piece}
+                      style={{ width: SQ * 0.88, height: SQ * 0.88 }}
                     />
                   )}
-                  {isDest && !isCapture && <View style={styles.dot} />}
-                  {isDest && isCapture  && <View style={styles.captureRing} />}
+                  {isDest && !isCapture && (
+                    <View style={{
+                      position: 'absolute',
+                      width: SQ * 0.33, height: SQ * 0.33,
+                      borderRadius: SQ * 0.165,
+                      backgroundColor: 'rgba(0,0,0,0.22)',
+                    }} />
+                  )}
+                  {isDest && isCapture && (
+                    <View style={{
+                      position: 'absolute',
+                      width: SQ - 2, height: SQ - 2,
+                      borderRadius: (SQ - 2) / 2,
+                      borderWidth: SQ * 0.09,
+                      borderColor: 'rgba(0,0,0,0.22)',
+                      backgroundColor: 'transparent',
+                    }} />
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -258,13 +304,32 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
         {animState && (
           <Animated.View
             pointerEvents="none"
-            style={[styles.animPiece, animState.anim.getLayout()]}
+            style={[{
+              position: 'absolute',
+              width: SQ, height: SQ,
+              alignItems: 'center', justifyContent: 'center',
+              zIndex: 10,
+            }, animState.anim.getLayout()]}
           >
             <Image
               source={{ uri: getPieceUrl(pieceSet, animState.pieceKey) }}
-              style={styles.piece}
+              style={{ width: SQ * 0.88, height: SQ * 0.88 }}
             />
           </Animated.View>
+        )}
+
+        {promotionPending && (
+          <View style={[styles.promoOverlay, { width: SIZE, height: SIZE }]}>
+            <View style={styles.promoBox}>
+              {PROMO_PIECES.map((p) => (
+                <TouchableOpacity key={p} style={styles.promoPiece} onPress={() => handlePromotion(p)}>
+                  <Text style={styles.promoSymbol}>
+                    {PROMO_SYMBOLS[`${promoColor}${p}`]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         )}
       </View>
     );
@@ -272,32 +337,20 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
 );
 
 const styles = StyleSheet.create({
-  board:  { width: SIZE, height: SIZE },
-  row:    { flexDirection: 'row' },
-  square: { width: SQ, height: SQ, alignItems: 'center', justifyContent: 'center' },
-  piece:  { width: SQ * 0.88, height: SQ * 0.88 },
-  dot: {
-    position:        'absolute',
-    width:           SQ * 0.33,
-    height:          SQ * 0.33,
-    borderRadius:    SQ * 0.165,
-    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+  row:         { flexDirection: 'row' },
+  promoOverlay: {
+    position: 'absolute', top: 0, left: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 20,
   },
-  captureRing: {
-    position:        'absolute',
-    width:           SQ - 2,
-    height:          SQ - 2,
-    borderRadius:    (SQ - 2) / 2,
-    borderWidth:     SQ * 0.09,
-    borderColor:     'rgba(0, 0, 0, 0.22)',
-    backgroundColor: 'transparent',
+  promoBox:    {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 8,
   },
-  animPiece: {
-    position:       'absolute',
-    width:          SQ,
-    height:         SQ,
-    alignItems:     'center',
-    justifyContent: 'center',
-    zIndex:         10,
-  },
+  promoPiece:  { padding: 14, alignItems: 'center', justifyContent: 'center' },
+  promoSymbol: { fontSize: 36 },
 });

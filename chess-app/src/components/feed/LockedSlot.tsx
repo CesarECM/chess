@@ -1,17 +1,23 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 
-export function LockedSlot({ height }: { height: number }) {
+export function LockedSlot({ height, isLoading = false }: { height: number; isLoading?: boolean }) {
   const { colors, typography } = useTheme();
   const { t } = useTranslation();
 
   return (
     <View style={[styles.container, { height, backgroundColor: colors.background }]}>
-      <Text style={[styles.icon, { color: colors.textSecondary }]}>♟</Text>
-      <Text style={[styles.label, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
-        {t('feed.lockedSlot')}
-      </Text>
+      {isLoading ? (
+        <ActivityIndicator size="large" color={colors.accent} />
+      ) : (
+        <>
+          <Text style={[styles.icon, { color: colors.textSecondary }]}>♟</Text>
+          <Text style={[styles.label, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+            {t('feed.lockedSlot')}
+          </Text>
+        </>
+      )}
     </View>
   );
 }
