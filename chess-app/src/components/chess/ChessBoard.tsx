@@ -68,7 +68,7 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
         colors={{
           white: boardTheme.light,
           black: boardTheme.dark,
-          lastMoveHighlight: 'rgba(20, 85, 30, 0.5)',
+          lastMoveHighlight: `rgba(${boardTheme.highlight[0]},${boardTheme.highlight[1]},${boardTheme.highlight[2]},0.55)`,
           checkmateHighlight: '#E53E3E',
           promotionPieceButton: colors.accent,
         }}

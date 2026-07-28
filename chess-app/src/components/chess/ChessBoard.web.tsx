@@ -76,6 +76,10 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
     const boardThemeId = useUserStore((s) => s.boardTheme);
     const pieceSet     = useUserStore((s) => s.pieceSet);
     const theme        = BOARD_THEMES[boardThemeId];
+    const [hr, hg, hb] = theme.highlight;
+    const hlSelected   = `rgba(${hr},${hg},${hb},0.78)`;
+    const hlLastLight  = `rgba(${hr},${hg},${hb},0.48)`;
+    const hlLastDark   = `rgba(${hr},${hg},${hb},0.68)`;
 
     const currentFenRef = useRef(fen);
     const [currentFen, setCurrentFen] = useState(fen);
@@ -262,9 +266,9 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
               const isCapture  = isDest && !!pieces[sq];
 
               const bgColor = isSelected
-                ? 'rgba(20,85,30,0.75)'
+                ? hlSelected
                 : hlColor ?? (isLastMove
-                  ? (isLight ? 'rgba(20,85,30,0.45)' : 'rgba(20,85,30,0.65)')
+                  ? (isLight ? hlLastLight : hlLastDark)
                   : (isLight ? theme.light : theme.dark));
 
               return (
