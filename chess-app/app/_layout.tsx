@@ -2,7 +2,7 @@ import '@/i18n'; // inicializa i18next con los recursos bundleados
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { AppState, Platform, useColorScheme, View, type AppStateStatus, type ViewStyle } from 'react-native';
+import { AppState, Platform, useColorScheme, useWindowDimensions, View, type AppStateStatus, type ViewStyle } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { GDPRConsentModal } from '@/components/ui/GDPRConsentModal';
@@ -126,18 +126,32 @@ function ThemedApp() {
 }
 
 export default function RootLayout() {
-  const scheme   = useColorScheme();
-  const isWeb    = Platform.OS === 'web';
-  const gutterBg = scheme === 'dark' ? '#0a0a0a' : '#d8d8d0';
+  const scheme    = useColorScheme();
+  const { width } = useWindowDimensions();
+  const isWeb     = Platform.OS === 'web';
+  const isDesktop = isWeb && width >= 640;
+  const gutterBg  = scheme === 'dark' ? '#0a0a0a' : '#d8d8d0';
+
+  // Desktop: full-width, no shell — the tab/content layout owns its own spacing.
+  // Mobile web: 480px centered shell with gutter + shadow.
+  // Native: no wrapper.
+  const outerStyle = isWeb && !isDesktop
+    ? { flex: 1, backgroundColor: gutterBg, alignItems: 'center' as const }
+    : { flex: 1 };
+
+  const shellStyle = [
+    { flex: 1 },
+    isWeb && !isDesktop && ({
+      width: '100%',
+      maxWidth: 480,
+      overflow: 'hidden',
+      boxShadow: '0 0 80px rgba(0,0,0,0.45)',
+    } as ViewStyle),
+  ];
 
   return (
-    <View style={isWeb ? { flex: 1, backgroundColor: gutterBg, alignItems: 'center' } : { flex: 1 }}>
-      <GestureHandlerRootView
-        style={[
-          { flex: 1 },
-          isWeb && ({ width: '100%', maxWidth: 480, overflow: 'hidden', boxShadow: '0 0 80px rgba(0,0,0,0.45)' } as ViewStyle),
-        ]}
-      >
+    <View style={outerStyle}>
+      <GestureHandlerRootView style={shellStyle}>
         <ErrorBoundary>
           <ThemedApp />
         </ErrorBoundary>

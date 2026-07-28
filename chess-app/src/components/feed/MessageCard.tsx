@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 import type { MessageType, ProgressMessage } from '@/types';
 
 interface Props {
@@ -47,13 +48,18 @@ function useTranslatedPayload(message: ProgressMessage): Record<string, unknown>
 
 function MessageCardComponent({ message, height, onComplete }: Props) {
   const { colors, typography, spacing } = useTheme();
-  const { t } = useTranslation();
-  const payload = useTranslatedPayload(message);
-  const icon    = getIcon(message);
+  const { t }       = useTranslation();
+  const isDesktop   = useIsDesktop();
+  const payload     = useTranslatedPayload(message);
+  const icon        = getIcon(message);
 
   return (
     <View style={[styles.card, { height, backgroundColor: colors.background }]}>
-      <View style={[styles.inner, { backgroundColor: colors.accent + '14', borderColor: colors.accent + '30', borderRadius: 20 }]}>
+      <View style={[
+        styles.inner,
+        { backgroundColor: colors.accent + '14', borderColor: colors.accent + '30', borderRadius: 20 },
+        isDesktop && styles.innerDesktop,
+      ]}>
         <Text style={[styles.icon, { color: message.type === 'rank_up' ? colors.accent : undefined }]}>
           {icon}
         </Text>
@@ -82,8 +88,9 @@ function MessageCardComponent({ message, height, onComplete }: Props) {
 export const MessageCard = memo(MessageCardComponent);
 
 const styles = StyleSheet.create({
-  card:    { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  inner:   { width: '100%', alignItems: 'center', paddingVertical: 40, paddingHorizontal: 28, borderWidth: 1, gap: 12 },
+  card:          { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  inner:         { width: '100%', alignItems: 'center', paddingVertical: 40, paddingHorizontal: 28, borderWidth: 1, gap: 12 },
+  innerDesktop:  { maxWidth: 480 },
   icon:    { fontSize: 56 },
   title:   { fontWeight: '700', textAlign: 'center' },
   body:    { textAlign: 'center', lineHeight: 22 },

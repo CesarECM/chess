@@ -69,7 +69,8 @@ function squareToPos(sq: Square, flipped: boolean, sqSize: number): { x: number;
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
   ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true, maxSize }, ref) => {
     const { width }    = useWindowDimensions();
-    const rawSize      = Math.min(Math.floor(width), 480); // fills shell, never exceeds 480px
+    // On desktop (≥640px) the shell is removed; board may grow up to 640px before maxSize clips it.
+    const rawSize      = Math.min(Math.floor(width), width >= 640 ? 640 : 480);
     const SIZE         = maxSize !== undefined ? Math.min(rawSize, maxSize) : rawSize;
     const SQ           = SIZE / 8;
 

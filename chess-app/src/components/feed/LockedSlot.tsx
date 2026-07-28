@@ -1,6 +1,7 @@
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 
 interface Props {
   height: number;
@@ -36,11 +37,14 @@ function BoardPreview({ size }: { size: number }) {
 
 export function LockedSlot({ height, isLoading = false, onNext, onGoToPuzzle }: Props) {
   const { colors, typography, spacing } = useTheme();
-  const { t } = useTranslation();
-  const { width } = useWindowDimensions();
-  // On web: board fills the shell (max 480px). On native: fills screen width.
-  const containerWidth = Platform.OS === 'web' ? Math.min(Math.floor(width), 480) : Math.floor(width);
-  const boardSize = Math.min(containerWidth, Math.floor(height * 0.55));
+  const { t }         = useTranslation();
+  const { width }     = useWindowDimensions();
+  const isDesktop     = useIsDesktop();
+  // Desktop: board can grow taller (height-limited). Mobile web: fills shell width.
+  const containerWidth = Platform.OS === 'web'
+    ? (isDesktop ? Math.min(Math.floor(width) - 360, 540) : Math.min(Math.floor(width), 480))
+    : Math.floor(width);
+  const boardSize = Math.min(containerWidth, Math.floor(height * (isDesktop ? 0.72 : 0.55)));
 
   if (isLoading) {
     return (
