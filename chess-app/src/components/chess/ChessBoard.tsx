@@ -20,15 +20,17 @@ interface ChessBoardProps {
   onIllegalMove?: (from: string, to: string) => void;
   /** Disable user interaction (e.g. while the engine is responding). */
   enabled?: boolean;
+  /** Hard cap on board size in px — passed from PuzzleCard for height-aware sizing. */
+  maxSize?: number;
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
-  ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true }, ref) => {
+  ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true, maxSize }, ref) => {
     const { colors } = useTheme();
     const { width } = useWindowDimensions();
     const boardThemeId = useUserStore((s) => s.boardTheme);
     const boardTheme   = BOARD_THEMES[boardThemeId];
-    const boardSize = Math.min(width, 480);
+    const boardSize = Math.min(width, maxSize ?? 480);
 
     // getSideToMove(fen) is the OPPONENT's color (moves[0] belongs to them).
     // Player is the opposite color → flip when opponent is white (player is black).

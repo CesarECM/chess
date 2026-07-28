@@ -38,6 +38,9 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
   const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
   const boardRef = useRef<ChessboardRef>(null);
+  // On web, reserve ~220px for non-board UI (badge, meta, status, buttons, gaps).
+  // This prevents the board from pushing buttons off-screen on shorter viewports.
+  const boardMaxSize = Platform.OS === 'web' ? Math.max(height - 220, 200) : undefined;
   const elo              = useUserStore((s) => s.elo);
   const streakDays       = useUserStore((s) => s.streakDays);
   const puzzlesCompleted = useUserStore((s) => s.puzzlesCompleted);
@@ -132,6 +135,7 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
           orientation="auto"
           enabled={puzzleStatus === 'playing' && isActive}
           onMove={onUserMove}
+          maxSize={boardMaxSize}
         />
         {eloDelta !== null && (
           <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />

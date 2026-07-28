@@ -1,4 +1,4 @@
-import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -37,7 +37,10 @@ function BoardPreview({ size }: { size: number }) {
 export function LockedSlot({ height, isLoading = false, onNext, onGoToPuzzle }: Props) {
   const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
-  const boardSize = Math.min(height * 0.55, 400);
+  const { width } = useWindowDimensions();
+  // On web: board fills the shell (max 480px). On native: fills screen width.
+  const containerWidth = Platform.OS === 'web' ? Math.min(Math.floor(width), 480) : Math.floor(width);
+  const boardSize = Math.min(containerWidth, Math.floor(height * 0.55));
 
   if (isLoading) {
     return (

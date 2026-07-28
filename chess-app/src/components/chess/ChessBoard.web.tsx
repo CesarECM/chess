@@ -25,6 +25,8 @@ interface ChessBoardProps {
   onMove?: (uciMove: string, newFen: string) => void;
   onIllegalMove?: (from: string, to: string) => void;
   enabled?: boolean;
+  /** Hard cap on board size in px — used by PuzzleCard to prevent vertical overflow. */
+  maxSize?: number;
 }
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -65,9 +67,10 @@ function squareToPos(sq: Square, flipped: boolean, sqSize: number): { x: number;
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
-  ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true }, ref) => {
+  ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true, maxSize }, ref) => {
     const { width }    = useWindowDimensions();
-    const SIZE         = Math.min(Math.floor(width) - 32, 448);
+    const rawSize      = Math.min(Math.floor(width), 480); // fills shell, never exceeds 480px
+    const SIZE         = maxSize !== undefined ? Math.min(rawSize, maxSize) : rawSize;
     const SQ           = SIZE / 8;
 
     const boardThemeId = useUserStore((s) => s.boardTheme);
