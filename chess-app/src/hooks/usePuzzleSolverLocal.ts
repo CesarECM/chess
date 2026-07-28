@@ -113,16 +113,15 @@ export function usePuzzleSolverLocal(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
 
-  // When this card loses focus: fire skip or mark solved/failed for feed visual state
+  // When this card loses focus: mark solved/failed if a result was recorded.
+  // Skip is no longer detected here — it is handled explicitly by LockedSlot "Ver puzzle".
+  // This prevents false-positive marking when the user scrolls backward (puzzle → future).
   useEffect(() => {
     const wasActive = prevIsActiveRef.current;
     prevIsActiveRef.current = isActive;
     if (!wasActive || isActive || !puzzle) return;
 
-    if (!hasAttemptedRef.current) {
-      recordSkipEvent(puzzle.id).catch(console.error);
-      usePuzzleStore.getState().markPuzzleSkipped(puzzle.id);
-    } else if (solvedResultRef.current !== null) {
+    if (solvedResultRef.current !== null) {
       if (solvedResultRef.current) {
         usePuzzleStore.getState().markPuzzleSolved(puzzle.id);
       } else {
@@ -370,12 +369,23 @@ export function usePuzzleSolverLocal(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
 
+  // Called externally (e.g. LockedSlot "Ver puzzle") to force a failure record.
+  // Idempotent: no-op if a result was already counted.
+  const forceFailure = useCallback(() => {
+    if (!puzzle || countedRef.current === puzzle.id) return;
+    hasAttemptedRef.current = true;
+    solvedResultRef.current = false;
+    recordResult(puzzle.id, puzzle.rating, false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
   return {
     puzzleStatus,
     onUserMove,
     startReview,
     handleAdvanceReview,
     onRetry,
+    forceFailure,
     isCalibrated,
     calibrationCount,
     eloDelta,

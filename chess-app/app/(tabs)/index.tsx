@@ -46,18 +46,20 @@ export default function FeedScreen() {
   const [activeStatus,       setActiveStatus]       = useState<SolverStatus>('idle');
   const [waitingForBuffer,   setWaitingForBuffer]   = useState(false);
 
-  const listRef           = useRef<FlashListRef<FeedItem> | null>(null);
-  const prefetching       = useRef(false);
-  const userIdRef         = useRef<string | null>(null);
-  const eloRef            = useRef(elo);
-  const feedRef           = useRef(feed);
-  const sessionHistoryRef = useRef(sessionHistory);
-  const activeIndexRef    = useRef(activeIndex);
-  const listHeightRef     = useRef(listHeight);
+  const listRef                = useRef<FlashListRef<FeedItem> | null>(null);
+  const prefetching            = useRef(false);
+  const userIdRef              = useRef<string | null>(null);
+  const eloRef                 = useRef(elo);
+  const feedRef                = useRef(feed);
+  const sessionHistoryRef      = useRef(sessionHistory);
+  const activeIndexRef         = useRef(activeIndex);
+  const listHeightRef          = useRef(listHeight);
+  const activePuzzleForceFailRef = useRef<(() => void) | null>(null);
+  const atLockedSlotRef          = useRef(false); // true when LockedSlot is visually active
 
   // Puzzle buffer: pre-fetched puzzles not yet in the feed
   const puzzleBufferRef      = useRef<Puzzle[]>([]);
-  const pendingNextPuzzleRef = useRef(false); // true when onComplete fired but buffer was empty
+  const pendingNextPuzzleRef = useRef(false); // true when complete fired but buffer was empty
 
   const profileHintAnim   = useRef(new Animated.Value(0)).current;
   const profileHintActive = useRef(false);
@@ -138,7 +140,14 @@ export default function FeedScreen() {
             pendingNextPuzzleRef.current = false;
             const next = puzzleBufferRef.current.shift();
             if (next) {
+              const lockedSlotIdx = usePuzzleStore.getState().feed.length - 1;
               usePuzzleStore.getState().insertBeforeLockedSlot([next]);
+              // If the user is visually at the LockedSlot, advance to the new puzzle
+              if (atLockedSlotRef.current) {
+                atLockedSlotRef.current = false;
+                activeIndexRef.current  = lockedSlotIdx;
+                setActiveIndex(lockedSlotIdx);
+              }
               setActiveStatus('idle');
               setWaitingForBuffer(false);
             }
@@ -207,6 +216,17 @@ export default function FeedScreen() {
 
   const onActiveStatusChange = useCallback((status: SolverStatus) => {
     setActiveStatus(status);
+    if (status === 'complete') {
+      // Pre-insert next puzzle immediately so button + swipe do the same thing
+      const next = puzzleBufferRef.current.shift();
+      if (next) {
+        usePuzzleStore.getState().insertBeforeLockedSlot([next]);
+        setWaitingForBuffer(false);
+      } else {
+        pendingNextPuzzleRef.current = true;
+        setWaitingForBuffer(true);
+      }
+    }
   }, []);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 51 }).current;
@@ -217,6 +237,13 @@ export default function FeedScreen() {
       if (first?.index !== null && first?.index !== undefined) {
         const newIndex = first.index as number;
         const item     = feedRef.current[newIndex];
+
+        // LockedSlot: keep activeIndex on the current puzzle so it stays active
+        if (item && 'kind' in item && item.kind === 'locked-slot') {
+          atLockedSlotRef.current = true;
+          return;
+        }
+        atLockedSlotRef.current = false;
 
         // Scrolling backward into a past MessageCard — skip to nearest puzzle
         if (newIndex < activeIndexRef.current && item && 'kind' in item && item.kind === 'progress') {
@@ -247,6 +274,25 @@ export default function FeedScreen() {
     }
   }, []);
 
+  // Called by LockedSlot "Ver puzzle": records failure on active puzzle, inserts next
+  const handleSkipFromLockedSlot = useCallback(() => {
+    // Force-fail the currently active puzzle (ELO penalty)
+    activePuzzleForceFailRef.current?.();
+
+    const lockedSlotIdx = feedRef.current.length - 1; // LockedSlot is always last
+    const next = puzzleBufferRef.current.shift();
+    if (next) {
+      usePuzzleStore.getState().insertBeforeLockedSlot([next]);
+      setWaitingForBuffer(false);
+    } else {
+      pendingNextPuzzleRef.current = true;
+      setWaitingForBuffer(true);
+    }
+    // Advance activeIndex to where the new puzzle now sits (old LockedSlot position)
+    activeIndexRef.current = lockedSlotIdx;
+    setActiveIndex(lockedSlotIdx);
+  }, []);
+
   const onScrollEnd = useCallback(() => {
     if (Platform.OS !== 'web') return;
     listRef.current?.scrollToIndex({ index: activeIndexRef.current, animated: false });
@@ -264,16 +310,8 @@ export default function FeedScreen() {
     }
   }, []);
 
-  // Called when a puzzle is resolved (solved or review finished) — inserts next from buffer
+  // Next puzzle is pre-inserted on solve — button and swipe both just scroll
   const handleComplete = useCallback(() => {
-    const next = puzzleBufferRef.current.shift();
-    if (next) {
-      usePuzzleStore.getState().insertBeforeLockedSlot([next]);
-      setWaitingForBuffer(false);
-    } else {
-      pendingNextPuzzleRef.current = true;
-      setWaitingForBuffer(true);
-    }
     scrollToNext();
   }, [scrollToNext]);
 
@@ -282,7 +320,14 @@ export default function FeedScreen() {
 
     // ── LockedSlot ────────────────────────────────────────────────────────
     if ('kind' in item && item.kind === 'locked-slot') {
-      return <LockedSlot height={listHeight} isLoading={waitingForBuffer} onGoToPuzzle={goToActivePuzzle} />;
+      return (
+        <LockedSlot
+          height={listHeight}
+          isLoading={waitingForBuffer}
+          onNext={handleSkipFromLockedSlot}
+          onGoToPuzzle={goToActivePuzzle}
+        />
+      );
     }
 
     // ── MessageCard (progress card) — invisible when past ────────────────
@@ -325,11 +370,12 @@ export default function FeedScreen() {
           onStatusChange={isCurrentlyActive ? onActiveStatusChange : undefined}
           onMessagesEarned={handleMessagesEarned}
           backgroundColor={pastBg}
+          onForceFailRef={isCurrentlyActive ? activePuzzleForceFailRef : undefined}
         />
       </View>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listHeight, activeIndex, solvedPuzzleIds, waitingForBuffer, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned, goToActivePuzzle]);
+  }, [listHeight, activeIndex, solvedPuzzleIds, waitingForBuffer, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned, goToActivePuzzle, handleSkipFromLockedSlot]);
 
   if (isLoading) {
     return (

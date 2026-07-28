@@ -67,7 +67,7 @@ function squareToPos(sq: Square, flipped: boolean, sqSize: number): { x: number;
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
   ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true }, ref) => {
     const { width }    = useWindowDimensions();
-    const SIZE         = Math.min(Math.floor(width) - 32, 420);
+    const SIZE         = Math.min(Math.floor(width) - 32, 448);
     const SQ           = SIZE / 8;
 
     const boardThemeId = useUserStore((s) => s.boardTheme);

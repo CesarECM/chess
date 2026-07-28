@@ -170,7 +170,8 @@
     "loadError": "No se pudieron cargar los puzzles. Revisa tu conexión.",
     "viewProfile": "Ver perfil",
     "lockedSlot": "Resuelve este puzzle para continuar",
-    "goToPuzzle": "← Volver al puzzle"
+    "goToPuzzle": "← Volver al puzzle",
+    "viewPuzzle": "Ver puzzle"
   },
   "message": {
     "continue": "Continuar",

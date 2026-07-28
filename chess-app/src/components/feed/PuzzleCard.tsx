@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ChessBoard } from '@/components/chess/ChessBoard';
@@ -31,9 +31,10 @@ interface Props {
   onStatusChange?: (status: SolverStatus) => void;
   onMessagesEarned?: (messages: ProgressMessage[], feedIndex: number) => void;
   backgroundColor?: string;
+  onForceFailRef?: MutableRefObject<(() => void) | null>;
 }
 
-function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, onStatusChange, onMessagesEarned, backgroundColor }: Props) {
+function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, onStatusChange, onMessagesEarned, backgroundColor, onForceFailRef }: Props) {
   const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
   const boardRef = useRef<ChessboardRef>(null);
@@ -55,11 +56,18 @@ function PuzzleCardComponent({ puzzle, height, isActive, feedIndex, onComplete, 
     startReview,
     handleAdvanceReview,
     onRetry,
+    forceFailure,
     isCalibrated,
     calibrationCount,
     eloDelta,
     clearEloDelta,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
+
+  useEffect(() => {
+    if (!onForceFailRef) return;
+    onForceFailRef.current = forceFailure;
+    return () => { onForceFailRef.current = null; };
+  }, [forceFailure, onForceFailRef]);
 
   // fen.split(' ')[1] is the opponent's color (they play moves[0]).
   // Player is the opposite side.
