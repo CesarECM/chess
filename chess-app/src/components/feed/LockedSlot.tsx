@@ -92,7 +92,7 @@ export function LockedSlot({ height, isLoading = false, onNext, onGoToPuzzle }: 
 }
 
 const styles = StyleSheet.create({
-  container:    { alignItems: 'center', justifyContent: 'flex-start', paddingTop: 0 },
+  container:    { alignItems: 'center', justifyContent: 'flex-start', paddingTop: 80 },
   boardWrapper: { position: 'relative', overflow: 'hidden' },
   boardOverlay: { backgroundColor: 'rgba(0,0,0,0.62)' },
   lockCenter:   { alignItems: 'center', justifyContent: 'center' },

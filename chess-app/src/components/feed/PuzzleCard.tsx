@@ -151,7 +151,7 @@ function PuzzleCardComponent({
       {isActive && puzzleStatus === 'failed' && (
         <View style={[styles.row, { gap: spacing[2] }]}>
           <TouchableOpacity
-            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, borderRadius: 8, flex: isDesktop ? 1 : 0 }]}
+            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, borderRadius: 8, flex: 1 }]}
             onPress={onRetry}
           >
             <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
@@ -159,7 +159,7 @@ function PuzzleCardComponent({
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 8, flex: isDesktop ? 1 : 0 }]}
+            style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 8, flex: 1 }]}
             onPress={startReview}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
@@ -170,7 +170,7 @@ function PuzzleCardComponent({
       )}
       {isActive && puzzleStatus === 'reviewing' && (
         <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 8, alignSelf: isDesktop ? 'stretch' : 'auto' }]}
+          style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 8, alignSelf: 'stretch' }]}
           onPress={handleAdvanceReview}
         >
           <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
@@ -192,7 +192,7 @@ function PuzzleCardComponent({
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: colors.success, borderRadius: 8, flex: isDesktop ? 1 : 0 }]}
+            style={[styles.btn, { backgroundColor: colors.success, borderRadius: 8, flex: 1 }]}
             onPress={onComplete}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   meta:         { marginBottom: 2 },
   playerColor:  { marginBottom: 6, fontWeight: '600' },
   status:       { marginTop: 12, fontWeight: '500' },
-  row:          { flexDirection: 'row' },
+  row:          { flexDirection: 'row', alignSelf: 'stretch' },
   btn:          { paddingHorizontal: 20, paddingVertical: 10, alignItems: 'center' },
   btnOutline:   { borderWidth: 1 },
   btnText:      { fontWeight: '600' },
