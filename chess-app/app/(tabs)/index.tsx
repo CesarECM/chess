@@ -322,8 +322,8 @@ export default function FeedScreen() {
     scrollToNext();
   }, [scrollToNext]);
 
-  // ── pager enabled: allow scroll only when not mid-puzzle ─────────────────
-  const pagerEnabled = activeStatus === 'idle' || activeStatus === 'complete';
+  // ── pager enabled: web always scrollable; native blocked while mid-puzzle ─
+  const pagerEnabled = Platform.OS === 'web' || activeStatus === 'idle' || activeStatus === 'complete';
 
   const renderFeedItem = useCallback((item: FeedItem, index: number) => {
     const position = index < activeIndex ? 'past' : index === activeIndex ? 'active' : 'future';
