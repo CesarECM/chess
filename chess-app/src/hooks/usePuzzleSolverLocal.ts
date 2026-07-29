@@ -137,6 +137,12 @@ export function usePuzzleSolverLocal(
 
     boardRef.current?.resetBoard(puzzle.fen);
 
+    // Validate moves[0] against the stored FEN — logs a warning if the puzzle is malformed
+    const opponentUCICheck = puzzle.moves[0];
+    if (opponentUCICheck && !applyMove(puzzle.fen, opponentUCICheck)) {
+      console.warn(`[PUZZLE INVÁLIDO] id=${puzzle.id} rating=${puzzle.rating} moves[0]="${opponentUCICheck}" ilegal en FEN="${puzzle.fen}"`);
+    }
+
     const t = setTimeout(() => {
       const opponentUCI = puzzle.moves[0];
       if (!opponentUCI) return;
@@ -196,6 +202,18 @@ export function usePuzzleSolverLocal(
       startElo:           usePuzzleStore.getState().sessionStartElo ?? useUserStore.getState().elo,
     } : null;
 
+    const preFsrs = solved && PROGRESS_CARDS_ENABLED && progressRef.current ? {
+      state:            progressRef.current.state,
+      reps:             progressRef.current.repetitions,
+      stabilityBefore:  progressRef.current.stability,
+      reviewsInSession: usePuzzleStore.getState().fsrsReviewsInSession,
+      review5Shown:     usePuzzleStore.getState().sessionFsrsReview5Shown,
+    } : null;
+
+    const updatedProgress = progressRef.current
+      ? reviewProgress(progressRef.current, fsrsRating)
+      : null;
+
     setLastFsrsRating(fsrsRating);
     const delta = updateElo(puzzleRating, solved);
     setEloDelta(delta);
@@ -226,10 +244,16 @@ export function usePuzzleSolverLocal(
         consecutiveSolvedBefore:  preSession.consecutiveSolved,
         consecutiveFailedBefore:  preSession.consecutiveFailed,
         consecutiveSolvedAfter:   usePuzzleStore.getState().consecutiveSolvedInSession,
-        sessionStartElo:          preSession.startElo,
-        sessionEloGainShown:      preSession.eloGainShown,
-        sessionPerfectRun5Shown:  preSession.perfectRun5Shown,
-        sessionPerfectRun10Shown: preSession.perfectRun10Shown,
+        sessionStartElo:             preSession.startElo,
+        sessionEloGainShown:         preSession.eloGainShown,
+        sessionPerfectRun5Shown:     preSession.perfectRun5Shown,
+        sessionPerfectRun10Shown:    preSession.perfectRun10Shown,
+        fsrsStateBefore:             preFsrs?.state ?? 0,
+        fsrsRepsBefore:              preFsrs?.reps ?? 0,
+        fsrsStabilityBefore:         preFsrs?.stabilityBefore ?? 0,
+        fsrsStabilityAfter:          updatedProgress?.stability ?? 0,
+        fsrsReviewsInSessionBefore:  preFsrs?.reviewsInSession ?? 0,
+        sessionFsrsReview5Shown:     preFsrs?.review5Shown ?? false,
       });
 
       if (messages.length > 0) {
@@ -245,6 +269,12 @@ export function usePuzzleSolverLocal(
       if (messages.some((m) => m.type === 'perfect_run' && (m.payload.count as number) === 10)) {
         usePuzzleStore.getState().markSessionPerfectRun10Shown();
       }
+      if (messages.some((m) => m.type === 'fsrs_review_session')) {
+        usePuzzleStore.getState().markSessionFsrsReview5Shown();
+      }
+      if (preFsrs && preFsrs.state >= 2) {
+        usePuzzleStore.getState().recordFsrsReviewInSession();
+      }
     }
 
     const userId = userIdRef.current ?? '';
@@ -257,10 +287,9 @@ export function usePuzzleSolverLocal(
       eloAfter: useUserStore.getState().elo,
     }).catch(console.error);
 
-    if (progressRef.current) {
-      const updated = reviewProgress(progressRef.current, fsrsRating);
-      progressRef.current = updated;
-      saveProgress(updated).catch(console.error);
+    if (updatedProgress) {
+      progressRef.current = updatedProgress;
+      saveProgress(updatedProgress).catch(console.error);
     }
 
     recordViralityEvent(puzzleId, solved, elapsedMs).catch(console.error);

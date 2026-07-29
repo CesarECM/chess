@@ -20,6 +20,13 @@ export interface PuzzleEventSnapshot {
   sessionEloGainShown:        boolean;
   sessionPerfectRun5Shown:    boolean;
   sessionPerfectRun10Shown:   boolean;
+  // FSRS state before this review
+  fsrsStateBefore:            number;   // 0=New 1=Learning 2=Review 3=Relearning
+  fsrsRepsBefore:             number;
+  fsrsStabilityBefore:        number;
+  fsrsStabilityAfter:         number;
+  fsrsReviewsInSessionBefore: number;
+  sessionFsrsReview5Shown:    boolean;
 }
 
 export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
@@ -109,6 +116,47 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       kind:    'progress',
       type:    'session_elo_gain',
       payload: { gained: sessionEloGain },
+    });
+  }
+
+  // 8. First scheduled FSRS review (state=Review, first return after initial learning)
+  if (s.fsrsStateBefore === 2 && s.fsrsRepsBefore === 1) {
+    messages.push({
+      id:      'fsrs_first_review',
+      kind:    'progress',
+      type:    'fsrs_first_review',
+      payload: {},
+    });
+  }
+
+  // 9. Pattern mastered — stability crosses 21 days (long-term memory threshold)
+  if (s.fsrsStabilityAfter >= 21 && s.fsrsStabilityBefore < 21) {
+    messages.push({
+      id:      `fsrs_mastered_${Math.round(s.fsrsStabilityAfter)}`,
+      kind:    'progress',
+      type:    'fsrs_mastered',
+      payload: { days: Math.round(s.fsrsStabilityAfter) },
+    });
+  }
+
+  // 10. Relearned after lapse (state=Relearning means ≥1 previous lapse)
+  if (s.fsrsStateBefore === 3) {
+    messages.push({
+      id:      `fsrs_relearned_${Date.now()}`,
+      kind:    'progress',
+      type:    'fsrs_relearned',
+      payload: {},
+    });
+  }
+
+  // 11. FSRS review session milestone: 5 successful reviews in one session
+  const fsrsReviewsAfter = s.fsrsReviewsInSessionBefore + (s.fsrsStateBefore >= 2 ? 1 : 0);
+  if (!s.sessionFsrsReview5Shown && fsrsReviewsAfter === 5) {
+    messages.push({
+      id:      'fsrs_review_session_5',
+      kind:    'progress',
+      type:    'fsrs_review_session',
+      payload: { count: 5 },
     });
   }
 

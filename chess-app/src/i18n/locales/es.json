@@ -210,6 +210,22 @@
     "weekly_summary": {
       "title": "Semana pasada: {{puzzles}} puzzles",
       "body": "Sigues en {{elo}} ELO. ¡A seguir!"
+    },
+    "fsrs_first_review": {
+      "title": "De vuelta",
+      "body": "Este patrón regresó justo cuando debía. Tu memoria está funcionando."
+    },
+    "fsrs_mastered": {
+      "title": "Patrón dominado",
+      "body": "Estabilidad de {{days}} días. Ya está en tu memoria a largo plazo."
+    },
+    "fsrs_relearned": {
+      "title": "Recuperado del olvido",
+      "body": "Este patrón te había costado antes. Esta vez lo resolviste."
+    },
+    "fsrs_review_session": {
+      "title": "{{count}} repasos completados",
+      "body": "Llevas {{count}} repasos programados en esta sesión. El algoritmo está haciendo su trabajo."
     }
   },
   "gdpr": {

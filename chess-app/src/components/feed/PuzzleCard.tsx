@@ -35,11 +35,12 @@ interface Props {
   onMessagesEarned?: (messages: ProgressMessage[], feedIndex: number) => void;
   backgroundColor?: string;
   onForceFailRef?: MutableRefObject<(() => void) | null>;
+  onDebugLog?: (tag: string, msg: string) => void;
 }
 
 function PuzzleCardComponent({
   puzzle, height, isActive, feedIndex,
-  onComplete, onStatusChange, onMessagesEarned, backgroundColor, onForceFailRef,
+  onComplete, onStatusChange, onMessagesEarned, backgroundColor, onForceFailRef, onDebugLog,
 }: Props) {
   const { colors, typography, spacing } = useTheme();
   const { t }        = useTranslation();
@@ -69,6 +70,12 @@ function PuzzleCardComponent({
     onForceFailRef.current = forceFailure;
     return () => { onForceFailRef.current = null; };
   }, [forceFailure, onForceFailRef]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    onDebugLog?.('PUZZLE', `id=${puzzle.id} r=${puzzle.rating} moves=${puzzle.moves.slice(0,3).join(' ')} fen="${puzzle.fen.split(' ').slice(0,2).join(' ')}"`);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, puzzle.id]);
 
   const playerColor = puzzle.fen.split(' ')[1] === 'w' ? 'black' : 'white';
 
@@ -210,6 +217,7 @@ function PuzzleCardComponent({
             <ChessBoard
               ref={boardRef}
               fen={puzzle.fen}
+              resetKey={puzzle.id}
               orientation="auto"
               enabled={puzzleStatus === 'playing' && isActive}
               onMove={onUserMove}
@@ -256,6 +264,7 @@ function PuzzleCardComponent({
         <ChessBoard
           ref={boardRef}
           fen={puzzle.fen}
+          resetKey={puzzle.id}
           orientation="auto"
           enabled={puzzleStatus === 'playing' && isActive}
           onMove={onUserMove}

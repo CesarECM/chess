@@ -210,6 +210,22 @@
     "weekly_summary": {
       "title": "Last week: {{puzzles}} puzzles",
       "body": "You're at {{elo}} ELO. Keep it up!"
+    },
+    "fsrs_first_review": {
+      "title": "Back again",
+      "body": "This pattern returned right on schedule. Your memory is working."
+    },
+    "fsrs_mastered": {
+      "title": "Pattern mastered",
+      "body": "{{days}}-day stability. This one is locked into long-term memory."
+    },
+    "fsrs_relearned": {
+      "title": "Recovered from forgetting",
+      "body": "This pattern had tripped you up before. You solved it this time."
+    },
+    "fsrs_review_session": {
+      "title": "{{count}} reviews done",
+      "body": "You've completed {{count}} scheduled reviews this session. The algorithm is doing its job."
     }
   },
   "gdpr": {

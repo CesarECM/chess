@@ -12,15 +12,19 @@ interface Props {
 }
 
 const ICONS: Record<MessageType, string> = {
-  streak:            '🔥',
-  milestone_solved:  '🏆',
-  rank_up:           '',    // from payload.piece
-  medal:             '🏅',
-  personal_best_elo: '⭐',
-  perfect_run:       '🎯',
-  comeback:          '💪',
-  session_elo_gain:  '📈',
-  weekly_summary:    '📊',
+  streak:              '🔥',
+  milestone_solved:    '🏆',
+  rank_up:             '',    // from payload.piece
+  medal:               '🏅',
+  personal_best_elo:   '⭐',
+  perfect_run:         '🎯',
+  comeback:            '💪',
+  session_elo_gain:    '📈',
+  weekly_summary:      '📊',
+  fsrs_first_review:   '🧠',
+  fsrs_mastered:       '🎓',
+  fsrs_relearned:      '♻️',
+  fsrs_review_session: '📅',
 };
 
 function getIcon(message: ProgressMessage): string {

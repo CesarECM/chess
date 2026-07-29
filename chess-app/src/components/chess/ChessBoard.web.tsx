@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState, useCallback, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { Animated, Easing, Modal, View, TouchableOpacity, StyleSheet, Image, Text, useWindowDimensions } from 'react-native';
 import { Chess } from 'chess.js';
 import type { Square, PieceSymbol, Move } from 'chess.js';
@@ -27,6 +27,11 @@ interface ChessBoardProps {
   enabled?: boolean;
   /** Hard cap on board size in px — used by PuzzleCard to prevent vertical overflow. */
   maxSize?: number;
+  /**
+   * Change this value to force a synchronous board reset to `fen`.
+   * Pass `puzzle.id` so FlashList view recycling never leaves stale board state.
+   */
+  resetKey?: string;
 }
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -67,7 +72,7 @@ function squareToPos(sq: Square, flipped: boolean, sqSize: number): { x: number;
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
-  ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true, maxSize }, ref) => {
+  ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true, maxSize, resetKey }, ref) => {
     const { width }    = useWindowDimensions();
     // On desktop (≥640px) the shell is removed; board may grow up to 640px before maxSize clips it.
     const rawSize      = Math.min(Math.floor(width), width >= 640 ? 640 : 480);
@@ -105,6 +110,26 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
       (orientation === 'auto' && fen.split(' ')[1] === 'w');
     const flippedRef = useRef(flipped);
     flippedRef.current = flipped;
+
+    // Synchronous reset when the puzzle changes (resetKey = puzzle.id).
+    // useLayoutEffect fires after React commits the DOM but before paint, so
+    // by the time any animation timer fires, the board state is guaranteed correct.
+    useLayoutEffect(() => {
+      if (!resetKey) return;
+      if (animRef.current) {
+        animRef.current.stopAnimation();
+        animRef.current = null;
+      }
+      currentFenRef.current = fen;
+      setCurrentFen(fen);
+      setHighlights({});
+      setLastMove(null);
+      setSelected(null);
+      setLegalDests(new Set());
+      setHiddenSquare(null);
+      setAnimState(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resetKey]);
 
     const ranks = flipped ? [...RANKS].reverse() : RANKS;
     const files = flipped ? [...FILES].reverse() : FILES;

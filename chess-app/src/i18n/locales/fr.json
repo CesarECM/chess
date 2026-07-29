@@ -210,6 +210,22 @@
     "weekly_summary": {
       "title": "Semaine passée : {{puzzles}} puzzles",
       "body": "Vous êtes à {{elo}} ELO. Continuez !"
+    },
+    "fsrs_first_review": {
+      "title": "De retour",
+      "body": "Ce schéma est revenu exactement au bon moment. Votre mémoire fonctionne."
+    },
+    "fsrs_mastered": {
+      "title": "Schéma maîtrisé",
+      "body": "Stabilité de {{days}} jours. Ce schéma est ancré dans votre mémoire à long terme."
+    },
+    "fsrs_relearned": {
+      "title": "Récupéré après un oubli",
+      "body": "Ce schéma vous avait posé problème avant. Cette fois, vous l'avez résolu."
+    },
+    "fsrs_review_session": {
+      "title": "{{count}} révisions effectuées",
+      "body": "Vous avez complété {{count}} révisions programmées cette session. L'algorithme fait son travail."
     }
   },
   "gdpr": {

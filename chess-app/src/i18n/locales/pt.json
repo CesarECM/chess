@@ -210,6 +210,22 @@
     "weekly_summary": {
       "title": "Semana passada: {{puzzles}} puzzles",
       "body": "Você está em {{elo}} ELO. Continue!"
+    },
+    "fsrs_first_review": {
+      "title": "De volta",
+      "body": "Este padrão voltou exatamente na hora certa. Sua memória está funcionando."
+    },
+    "fsrs_mastered": {
+      "title": "Padrão dominado",
+      "body": "Estabilidade de {{days}} dias. Já está na sua memória de longo prazo."
+    },
+    "fsrs_relearned": {
+      "title": "Recuperado do esquecimento",
+      "body": "Este padrão tinha te dado trabalho antes. Desta vez você resolveu."
+    },
+    "fsrs_review_session": {
+      "title": "{{count}} revisões concluídas",
+      "body": "Você completou {{count}} revisões programadas nesta sessão. O algoritmo está fazendo seu trabalho."
     }
   },
   "gdpr": {

@@ -40,12 +40,16 @@ interface PuzzleState {
   sessionEloGainShown:        boolean;
   sessionPerfectRun5Shown:    boolean;
   sessionPerfectRun10Shown:   boolean;
+  fsrsReviewsInSession:       number;
+  sessionFsrsReview5Shown:    boolean;
   initSession:                (startElo: number) => void;
   recordSolvedInSession:      () => void;
   recordFailedInSession:      () => void;
   markSessionEloGainShown:    () => void;
   markSessionPerfectRun5Shown:  () => void;
   markSessionPerfectRun10Shown: () => void;
+  recordFsrsReviewInSession:  () => void;
+  markSessionFsrsReview5Shown: () => void;
 
   // ── Solver ────────────────────────────────────────────────────
   currentFen:       string | null;
@@ -106,6 +110,8 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   sessionEloGainShown:        false,
   sessionPerfectRun5Shown:    false,
   sessionPerfectRun10Shown:   false,
+  fsrsReviewsInSession:       0,
+  sessionFsrsReview5Shown:    false,
 
   initSession: (startElo) => set({
     sessionStartElo:            startElo,
@@ -115,6 +121,8 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     sessionEloGainShown:        false,
     sessionPerfectRun5Shown:    false,
     sessionPerfectRun10Shown:   false,
+    fsrsReviewsInSession:       0,
+    sessionFsrsReview5Shown:    false,
   }),
 
   recordSolvedInSession: () => set((s) => ({
@@ -132,6 +140,8 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   markSessionEloGainShown:    () => set({ sessionEloGainShown: true }),
   markSessionPerfectRun5Shown:  () => set({ sessionPerfectRun5Shown: true }),
   markSessionPerfectRun10Shown: () => set({ sessionPerfectRun10Shown: true }),
+  recordFsrsReviewInSession:  () => set((s) => ({ fsrsReviewsInSession: s.fsrsReviewsInSession + 1 })),
+  markSessionFsrsReview5Shown: () => set({ sessionFsrsReview5Shown: true }),
 
   // ── Solver state ──────────────────────────────────────────────
   currentFen:        null,
