@@ -319,8 +319,25 @@ export default function FeedScreen() {
   }, []);
 
   const handleComplete = useCallback(() => {
+    // If the next feed item is the LockedSlot the buffer was never consumed
+    // (happens when the user clicks "Siguiente puzzle" while still in reviewing state).
+    const nextItem = feedRef.current[activeIndexRef.current + 1];
+    const nextIsLocked = nextItem && 'kind' in nextItem && nextItem.kind === 'locked-slot';
+    if (nextIsLocked) {
+      const bufLen = puzzleBufferRef.current.length;
+      const next   = puzzleBufferRef.current.shift();
+      if (next) {
+        addLog('SOLVE', `early-exit review — inserting ${next.id} — buf: ${bufLen} → ${puzzleBufferRef.current.length}`);
+        usePuzzleStore.getState().insertBeforeLockedSlot([next]);
+        setWaitingForBuffer(false);
+      } else {
+        addLog('SOLVE', `early-exit review — buffer EMPTY (${bufLen}) → pendingNextPuzzle=true`);
+        pendingNextPuzzleRef.current = true;
+        setWaitingForBuffer(true);
+      }
+    }
     scrollToNext();
-  }, [scrollToNext]);
+  }, [scrollToNext, addLog]);
 
   // ── pager enabled: web always scrollable; native blocked while mid-puzzle ─
   const pagerEnabled = Platform.OS === 'web' || activeStatus === 'idle' || activeStatus === 'complete' || activeStatus === 'reviewed';
