@@ -122,7 +122,7 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
   // 8. First scheduled FSRS review (state=Review, first return after initial learning)
   if (s.fsrsStateBefore === 2 && s.fsrsRepsBefore === 1) {
     messages.push({
-      id:      'fsrs_first_review',
+      id:      `fsrs_first_review_${Date.now()}`,
       kind:    'progress',
       type:    'fsrs_first_review',
       payload: {},
