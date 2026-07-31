@@ -227,7 +227,18 @@
     },
     "session_elo_gain": {
       "title": "+{{gained}} ELO nesta sessão",
-      "body": "Bom desempenho hoje."
+      "bodies": [
+        "Bom desempenho hoje.",
+        "{{gained}} pontos que ficaram. É assim que se sobe de nível.",
+        "Sessão produtiva. Seu ELO reflete o trabalho.",
+        "Você ganhou {{gained}} pontos hoje. O esforço tem recompensa.",
+        "Desempenho sólido. Continue assim amanhã.",
+        "{{gained}} ELO a mais. O trabalho constante se nota.",
+        "Seu nível está subindo. O que você faz hoje importa.",
+        "Ganhos reais em uma única sessão. Você está no caminho certo.",
+        "{{gained}} pontos a mais. Cada sessão conta.",
+        "O tabuleiro foi bom com você hoje. Volte amanhã."
+      ]
     },
     "weekly_summary": {
       "title": "Semana passada: {{puzzles}} puzzles",
@@ -285,7 +296,18 @@
     },
     "fsrs_relearned": {
       "title": "Recuperado do esquecimento",
-      "body": "Este padrão tinha te dado trabalho antes. Desta vez você resolveu."
+      "bodies": [
+        "Este padrão tinha te dado trabalho antes. Desta vez você resolveu.",
+        "Esquecido e recuperado. É assim que funciona o aprendizado real.",
+        "O esquecimento faz parte do processo. O importante é que você voltou.",
+        "Segunda chance aproveitada. Este padrão agora é seu.",
+        "Você perdeu, você recuperou. É isso que conta.",
+        "O algoritmo sabia que você precisava desta revisão. E você passou.",
+        "Recuperado do esquecimento. Sua memória está sendo reconstruída.",
+        "Você caiu, voltou e resolveu. O ciclo completo de aprendizado.",
+        "Este padrão te venceu uma vez. Desta vez foi diferente.",
+        "Você esqueceu, mas recuperou. É assim que se aprende de verdade."
+      ]
     },
     "fsrs_review_session": {
       "title": "{{count}} revisões concluídas",

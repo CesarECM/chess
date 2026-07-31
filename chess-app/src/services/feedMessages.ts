@@ -115,7 +115,7 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       id:      'session_elo_gain',
       kind:    'progress',
       type:    'session_elo_gain',
-      payload: { gained: sessionEloGain },
+      payload: { gained: sessionEloGain, bodyIndex: Math.floor(Math.random() * 10) },
     });
   }
 
@@ -145,7 +145,7 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       id:      `fsrs_relearned_${Date.now()}`,
       kind:    'progress',
       type:    'fsrs_relearned',
-      payload: {},
+      payload: { bodyIndex: Math.floor(Math.random() * 10) },
     });
   }
 

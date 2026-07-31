@@ -227,7 +227,18 @@
     },
     "session_elo_gain": {
       "title": "+{{gained}} ELO cette session",
-      "body": "Belle performance aujourd'hui."
+      "bodies": [
+        "Belle performance aujourd'hui.",
+        "{{gained}} points bien mérités. C'est comme ça qu'on progresse.",
+        "Session productive. Votre ELO reflète le travail accompli.",
+        "Vous avez gagné {{gained}} points aujourd'hui. L'effort paie.",
+        "Performance solide. Continuez ainsi demain.",
+        "{{gained}} ELO de plus. Le travail régulier se voit.",
+        "Votre niveau monte. Ce que vous faites aujourd'hui compte.",
+        "Des gains réels en une seule session. Vous êtes sur la bonne voie.",
+        "{{gained}} points de plus. Chaque session compte.",
+        "L'échiquier vous a souri aujourd'hui. Revenez demain."
+      ]
     },
     "weekly_summary": {
       "title": "Semaine passée : {{puzzles}} puzzles",
@@ -285,7 +296,18 @@
     },
     "fsrs_relearned": {
       "title": "Récupéré après un oubli",
-      "body": "Ce schéma vous avait posé problème avant. Cette fois, vous l'avez résolu."
+      "bodies": [
+        "Ce schéma vous avait posé problème avant. Cette fois, vous l'avez résolu.",
+        "Oublié et récupéré. C'est ainsi que fonctionne l'apprentissage réel.",
+        "L'oubli fait partie du processus. Ce qui compte, c'est que vous êtes revenu.",
+        "Deuxième chance saisie. Ce schéma est maintenant le vôtre.",
+        "Vous l'avez perdu, vous l'avez récupéré. C'est ce qui compte.",
+        "L'algorithme savait que vous aviez besoin de cette révision. Et vous l'avez réussi.",
+        "Récupéré après l'oubli. Votre mémoire se reconstruit.",
+        "Vous êtes tombé, revenu, et vous avez résolu. Le cycle d'apprentissage complet.",
+        "Ce schéma vous avait battu une fois. Cette fois, c'était différent.",
+        "Vous l'avez oublié, mais vous l'avez récupéré. C'est ainsi qu'on apprend vraiment."
+      ]
     },
     "fsrs_review_session": {
       "title": "{{count}} révisions effectuées",

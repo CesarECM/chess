@@ -38,6 +38,8 @@ const MULTI_BODY_TYPES: Partial<Record<MessageType, true>> = {
   streak:            true,
   fsrs_first_review: true,
   comeback:          true,
+  session_elo_gain:  true,
+  fsrs_relearned:    true,
 };
 
 function getBodyKey(message: ProgressMessage): string {

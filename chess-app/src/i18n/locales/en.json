@@ -227,7 +227,18 @@
     },
     "session_elo_gain": {
       "title": "+{{gained}} ELO this session",
-      "body": "Strong performance today."
+      "bodies": [
+        "Strong performance today.",
+        "{{gained}} points that stuck. That's how you level up.",
+        "Productive session. Your ELO reflects the work.",
+        "You gained {{gained}} points today. Effort pays off.",
+        "Solid performance. Keep it up tomorrow.",
+        "{{gained}} ELO up. Consistent work shows.",
+        "Your level is climbing. What you do today matters.",
+        "Real gains in a single session. You're on the right track.",
+        "{{gained}} more points. Every session counts.",
+        "The board was good to you today. Come back tomorrow."
+      ]
     },
     "weekly_summary": {
       "title": "Last week: {{puzzles}} puzzles",
@@ -285,7 +296,18 @@
     },
     "fsrs_relearned": {
       "title": "Recovered from forgetting",
-      "body": "This pattern had tripped you up before. You solved it this time."
+      "bodies": [
+        "This pattern had tripped you up before. You solved it this time.",
+        "Forgotten and recovered. That's how real learning works.",
+        "Forgetting is part of the process. What matters is you came back.",
+        "Second chance taken. This pattern is yours now.",
+        "You lost it, you got it back. That's what counts.",
+        "The algorithm knew you needed this review. And you nailed it.",
+        "Recovered from forgetting. Your memory is being rebuilt.",
+        "You fell, came back, and solved it. The full learning cycle.",
+        "This pattern beat you once. This time was different.",
+        "You forgot it, but you recovered it. That's how real learning works."
+      ]
     },
     "fsrs_review_session": {
       "title": "{{count}} reviews done",
