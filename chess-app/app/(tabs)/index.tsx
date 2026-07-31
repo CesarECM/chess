@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore, LOCKED_SLOT } from '@/stores/usePuzzleStore';
-import { buildReviewQueue } from '@/services/reviewQueue';
+import { buildReviewQueue, buildCalibrationQueue } from '@/services/reviewQueue';
 import { getOrCreateGuestId } from '@/services/identity';
 import { cachePuzzles, getCachedPuzzles } from '@/services/puzzleCache';
 import { PuzzleCard } from '@/components/feed/PuzzleCard';
@@ -28,6 +28,8 @@ export default function FeedScreen() {
   const { colors, typography } = useTheme();
   const { t } = useTranslation();
   const elo            = useUserStore((s) => s.elo);
+  const preEloLow      = useUserStore((s) => s.preEloLow);
+  const preEloHigh     = useUserStore((s) => s.preEloHigh);
   const feed           = usePuzzleStore((s) => s.feed);
   const setFeed        = usePuzzleStore((s) => s.setFeed);
   const sessionHistory = usePuzzleStore((s) => s.sessionHistory);
@@ -84,11 +86,17 @@ export default function FeedScreen() {
   const profileHintAnim   = useRef(new Animated.Value(0)).current;
   const profileHintActive = useRef(false);
 
+  const preEloLowRef  = useRef(preEloLow);
+  const preEloHighRef = useRef(preEloHigh);
+  const recalibrationCheckedRef = useRef(false);
+
   eloRef.current            = elo;
   feedRef.current           = feed;
   sessionHistoryRef.current = sessionHistory;
   activeIndexRef.current    = activeIndex;
   listHeightRef.current     = listHeight;
+  preEloLowRef.current      = preEloLow;
+  preEloHighRef.current     = preEloHigh;
 
   // ── Initial feed load ────────────────────────────────────────────────────
   useEffect(() => {
@@ -97,7 +105,30 @@ export default function FeedScreen() {
       try {
         const userId = await getOrCreateGuestId();
         userIdRef.current = userId;
-        const puzzles = await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, sessionHistoryRef.current);
+
+        // ── Recalibration check (once per session) ───────────────────────
+        let calibrationStarted = false;
+        if (!recalibrationCheckedRef.current) {
+          recalibrationCheckedRef.current = true;
+          const { checkRecalibrationNeeded, startRecalibration, preEloLow: currentLow } = useUserStore.getState();
+          if (currentLow === null && checkRecalibrationNeeded()) {
+            startRecalibration();
+            calibrationStarted = true;
+          }
+        }
+
+        // ── Choose queue strategy ────────────────────────────────────────
+        const { preEloLow: low, preEloHigh: high, firstPuzzleRating, clearFirstPuzzleRating } = useUserStore.getState();
+        const isCalibrating = low !== null;
+
+        let puzzles: import('@/types').Puzzle[];
+        if (isCalibrating) {
+          const target = firstPuzzleRating ?? Math.round((low! + high!) / 2);
+          if (firstPuzzleRating) clearFirstPuzzleRating();
+          puzzles = await buildCalibrationQueue(target, BATCH_SIZE, sessionHistoryRef.current);
+        } else {
+          puzzles = await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, sessionHistoryRef.current);
+        }
         if (!cancelled) {
           if (puzzles.length) {
             cachePuzzles(puzzles);
@@ -106,17 +137,27 @@ export default function FeedScreen() {
             if (PROGRESS_CARDS_ENABLED) {
               const { streakDays, weekStartDate, weeklyPuzzleCount } = useUserStore.getState();
               initSession(eloRef.current);
-              const sessionMessages = detectSessionStartEvents({
-                streakDays,
-                weekStartDate,
-                weeklyPuzzleCount,
-                elo: eloRef.current,
-              });
-              if (sessionMessages.length > 0) {
-                feedItems = [puzzles[0], ...sessionMessages];
-              }
-              if (sessionMessages.length > 0) {
-                addLog('INIT', `Session msgs: ${sessionMessages.length} (${sessionMessages.map((m) => m.type).join(', ')})`);
+
+              if (calibrationStarted) {
+                const calibMsg: ProgressMessage = {
+                  id:      `calibration_start_${Date.now()}`,
+                  kind:    'progress',
+                  type:    'calibration_start',
+                  payload: { bodyIndex: Math.floor(Math.random() * 5) },
+                };
+                feedItems = [calibMsg, puzzles[0]];
+                addLog('INIT', 'Recalibration triggered — inserted calibration_start card');
+              } else {
+                const sessionMessages = detectSessionStartEvents({
+                  streakDays,
+                  weekStartDate,
+                  weeklyPuzzleCount,
+                  elo: eloRef.current,
+                });
+                if (sessionMessages.length > 0) {
+                  feedItems = [puzzles[0], ...sessionMessages];
+                  addLog('INIT', `Session msgs: ${sessionMessages.length} (${sessionMessages.map((m) => m.type).join(', ')})`);
+                }
               }
             }
 
@@ -168,7 +209,11 @@ export default function FeedScreen() {
     (async () => {
       try {
         const userId = userIdRef.current ?? await getOrCreateGuestId();
-        const more   = await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, excludeIds);
+        const { preEloLow: pLow, preEloHigh: pHigh } = useUserStore.getState();
+        const isPrefetchCalibrating = pLow !== null;
+        const more = isPrefetchCalibrating
+          ? await buildCalibrationQueue(Math.round((pLow! + pHigh!) / 2), BATCH_SIZE, excludeIds)
+          : await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, excludeIds);
         addLog('PREFETCH', `Got ${more.length} puzzles — buf before: ${puzzleBufferRef.current.length}`);
         if (more.length) {
           cachePuzzles(more);

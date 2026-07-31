@@ -52,6 +52,10 @@
     "share": "Compartilhar",
     "sessionCount": "{{count}} hoje"
   },
+  "calibration": {
+    "estimating": "Calibrando seu nível…",
+    "narrowing": "Ajustando: {{low}} — {{high}}"
+  },
   "elo": {
     "pawn": "Peão",
     "knight": "Cavalo",
@@ -313,6 +317,16 @@
     "fsrs_review_session": {
       "title": "{{count}} revisões concluídas",
       "body": "Você completou {{count}} revisões programadas nesta sessão. O algoritmo está fazendo seu trabalho."
+    },
+    "calibration_start": {
+      "title": "Recalibrando seu nível",
+      "bodies": [
+        "Detectamos que seu nível pode ter mudado. Alguns puzzles vão nos ajudar a recalibrar.",
+        "Faz um tempo. Vamos re-estimar seu nível com alguns puzzles.",
+        "Seu desempenho sugere que seu nível precisa de ajuste. Recalibrando agora.",
+        "Hora de atualizar seu nível. O algoritmo detectou uma diferença.",
+        "Recalibração em andamento. Alguns puzzles vão nos dizer exatamente onde você está."
+      ]
     }
   },
   "gdpr": {

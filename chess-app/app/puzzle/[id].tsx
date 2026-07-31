@@ -12,7 +12,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { fetchPuzzleById, fetchFirstPuzzle } from '@/services/puzzles';
 import { fetchNextPuzzle } from '@/services/reviewQueue';
 import { getOrCreateGuestId } from '@/services/identity';
-import { CALIBRATION_PUZZLES } from '@/constants';
+import { PRE_ELO_NUMERIC_THRESHOLD } from '@/constants';
 import { RangeBadge } from '@/components/ui/RangeBadge';
 
 const STATUS_COLOR: Record<string, keyof ReturnType<typeof useTheme>['colors']> = {
@@ -32,16 +32,19 @@ export default function PuzzleScreen() {
   const resetSolver = usePuzzleStore((s) => s.resetSolver);
   const currentPuzzle = usePuzzleStore((s) => s.currentPuzzle);
   const [loadingNext, setLoadingNext] = useState(false);
-  const elo = useUserStore((s) => s.elo);
+  const elo       = useUserStore((s) => s.elo);
+  const preEloLow  = useUserStore((s) => s.preEloLow);
+  const preEloHigh = useUserStore((s) => s.preEloHigh);
 
   const {
     puzzleStatus,
     onUserMove,
     startReview,
     handleAdvanceReview,
-    isCalibrated,
-    calibrationCount,
   } = usePuzzleSolver(boardRef);
+
+  const isCalibrating = preEloLow !== null;
+  const preEloRange   = isCalibrating ? preEloHigh! - preEloLow! : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -76,12 +79,14 @@ export default function PuzzleScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {isCalibrated && <RangeBadge elo={elo} />}
+      {!isCalibrating && <RangeBadge elo={elo} />}
 
-      {!isCalibrated && (
+      {isCalibrating && (
         <View style={[styles.calibrationBar, { backgroundColor: colors.accent + '22', borderColor: colors.accent + '44' }]}>
           <Text style={[styles.calibrationText, { color: colors.accent, fontSize: typography.size.xs }]}>
-            {t('puzzle.calibrating', { count: calibrationCount, total: CALIBRATION_PUZZLES })}
+            {preEloRange <= PRE_ELO_NUMERIC_THRESHOLD
+              ? t('calibration.narrowing', { low: preEloLow, high: preEloHigh })
+              : t('calibration.estimating')}
           </Text>
           <View style={[styles.calibrationTrack, { backgroundColor: colors.accent + '33' }]}>
             <View
@@ -89,7 +94,7 @@ export default function PuzzleScreen() {
                 styles.calibrationFill,
                 {
                   backgroundColor: colors.accent,
-                  width: `${(calibrationCount / CALIBRATION_PUZZLES) * 100}%` as `${number}%`,
+                  width: `${Math.max(0, Math.min(100, (1 - preEloRange / 2900) * 100))}%` as `${number}%`,
                 },
               ]}
             />

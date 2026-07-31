@@ -52,6 +52,10 @@
     "share": "Share",
     "sessionCount": "{{count}} today"
   },
+  "calibration": {
+    "estimating": "Calibrating your level…",
+    "narrowing": "Narrowing: {{low}} — {{high}}"
+  },
   "elo": {
     "pawn": "Pawn",
     "knight": "Knight",
@@ -313,6 +317,16 @@
     "fsrs_review_session": {
       "title": "{{count}} reviews done",
       "body": "You've completed {{count}} scheduled reviews this session. The algorithm is doing its job."
+    },
+    "calibration_start": {
+      "title": "Re-calibrating your level",
+      "bodies": [
+        "We noticed your level may have shifted. A few puzzles will help us recalibrate.",
+        "It's been a while. Let's re-estimate your current level with a few puzzles.",
+        "Your performance suggests your level needs an update. Recalibrating now.",
+        "Time to refresh your level. The algorithm detected a shift.",
+        "Recalibration in progress. A few puzzles will tell us exactly where you stand."
+      ]
     }
   },
   "gdpr": {

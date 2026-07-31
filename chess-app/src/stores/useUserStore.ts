@@ -1,14 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { CALIBRATION_PUZZLES } from '@/constants';
+import {
+  PRE_ELO_LOWER,
+  PRE_ELO_UPPER,
+  K_MIN,
+  K_DIVISOR,
+  PRE_ELO_CONVERGENCE,
+  RECALIBRATION_DAYS,
+  DRIFT_SAMPLE_SIZE,
+  DRIFT_THRESHOLD,
+  RECALIBRATION_RANGE,
+} from '@/constants';
 import { calculateElo } from '@/services/elo';
 import { evaluateNewMedals } from '@/services/medals';
 import type { Profile } from '@/services/auth';
 import type { TacticType } from '@/types';
 import type { BoardThemeId, PieceSetId } from '@/constants/boardThemes';
 
-const K_CALIBRATING = 32;
 const K_ESTABLISHED = 16;
 
 function getMondayISO(dateStr: string): string {
@@ -24,44 +33,56 @@ export interface EloSnapshot {
   elo: number;
 }
 
+interface DriftSample {
+  expected: number;
+  actual: number; // 1 = solved, 0 = failed
+}
+
 interface UserState {
   elo: number;
-  isCalibrated: boolean;
-  calibrationCount: number;
+  preEloLow: number | null;   // null = calibrated
+  preEloHigh: number | null;  // null = calibrated
+  recentDriftSamples: DriftSample[];
+  declaredLevel: string | null;
+  firstPuzzleRating: number | null;
+  calibrationBounds: { low: number; high: number };
   streakDays: number;
   streakLongest: number;
   lastActiveDate: string | null;
   weekStartDate: string | null;
   weeklyPuzzleCount: number;
   isPremium: boolean;
-  premiumUntil: string | null; // ISO date — referral reward expiry
+  premiumUntil: string | null;
   puzzlesCompleted: number;
   puzzlesFailed: number;
   unlockedMedals: string[];
   solvedByTheme: Partial<Record<TacticType, number>>;
   failedByTheme: Partial<Record<TacticType, number>>;
   eloHistory: EloSnapshot[];
-  notificationStreakHour: number; // hora local (0-23) para el recordatorio de racha
-  preferredLanguage: string | null; // null = auto (device locale)
-  gdprConsentDate: string | null; // ISO date cuando el usuario dio consentimiento
-  analyticsConsent: boolean; // true = acepta analytics (PostHog)
+  notificationStreakHour: number;
+  preferredLanguage: string | null;
+  gdprConsentDate: string | null;
+  analyticsConsent: boolean;
   boardTheme: BoardThemeId;
   pieceSet: PieceSetId;
   onboardingCompleted: boolean;
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => number;
-  incrementCalibration: () => void;
+  updatePreElo: (puzzleRating: number, solved: boolean) => void;
+  checkRecalibrationNeeded: () => boolean;
+  startRecalibration: () => void;
+  setCalibrationBounds: (low: number, high: number) => void;
+  clearFirstPuzzleRating: () => void;
   updateStreak: () => void;
   setNotificationStreakHour: (hour: number) => void;
   setPreferredLanguage: (lang: string | null) => void;
   setBoardTheme: (theme: BoardThemeId) => void;
   setPieceSet: (set: PieceSetId) => void;
-  completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId) => void;
+  completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId, levelKey: string) => void;
   setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
   setPremiumUntil: (date: string) => void;
-  /** Consolidated per-puzzle stats update: streak, counts, tactic tracking, medals. */
   incrementPuzzleStats: (solved: boolean, themes: TacticType[]) => void;
   hydrate: (profile: Profile) => void;
   reset: () => void;
@@ -75,8 +96,12 @@ export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
       elo: 800,
-      isCalibrated: false,
-      calibrationCount: 0,
+      preEloLow: PRE_ELO_LOWER,
+      preEloHigh: PRE_ELO_UPPER,
+      recentDriftSamples: [],
+      declaredLevel: null,
+      firstPuzzleRating: null,
+      calibrationBounds: { low: PRE_ELO_LOWER, high: PRE_ELO_UPPER },
       streakDays: 0,
       streakLongest: 0,
       lastActiveDate: null,
@@ -101,17 +126,76 @@ export const useUserStore = create<UserState>()(
       setElo: (elo) => set({ elo }),
 
       updateElo: (puzzleRating, solved) => {
-        const { elo, isCalibrated } = get();
-        const kFactor = isCalibrated ? K_ESTABLISHED : K_CALIBRATING;
-        const { newElo } = calculateElo(elo, puzzleRating, solved, kFactor);
-        set({ elo: newElo });
+        const { elo } = get();
+        const { newElo } = calculateElo(elo, puzzleRating, solved, K_ESTABLISHED);
+        const expected = 1 / (1 + Math.pow(10, (puzzleRating - elo) / 400));
+        const { recentDriftSamples } = get();
+        const updatedSamples = [
+          ...recentDriftSamples,
+          { expected, actual: solved ? 1 : 0 },
+        ].slice(-DRIFT_SAMPLE_SIZE);
+        set({ elo: newElo, recentDriftSamples: updatedSamples });
         return newElo - elo;
       },
 
-      incrementCalibration: () => {
-        const count = get().calibrationCount + 1;
-        set({ calibrationCount: count, isCalibrated: count >= CALIBRATION_PUZZLES });
+      updatePreElo: (puzzleRating, solved) => {
+        const { preEloLow, preEloHigh, calibrationBounds } = get();
+        if (preEloLow === null || preEloHigh === null) return;
+
+        const range = preEloHigh - preEloLow;
+        const K = Math.max(K_MIN, range / K_DIVISOR);
+        const actual = solved ? 1 : 0;
+
+        const eLow  = 1 / (1 + Math.pow(10, (puzzleRating - preEloLow)  / 400));
+        const eHigh = 1 / (1 + Math.pow(10, (puzzleRating - preEloHigh) / 400));
+
+        let newLow  = Math.round(preEloLow  + K * (actual - eLow));
+        let newHigh = Math.round(preEloHigh + K * (actual - eHigh));
+
+        newLow  = Math.max(calibrationBounds.low,  newLow);
+        newHigh = Math.min(calibrationBounds.high, newHigh);
+        newLow  = Math.min(newLow, newHigh - 1);
+
+        if (newHigh - newLow < PRE_ELO_CONVERGENCE) {
+          const finalElo = Math.round((newLow + newHigh) / 2);
+          set({ preEloLow: null, preEloHigh: null, elo: finalElo, recentDriftSamples: [], firstPuzzleRating: null });
+          return;
+        }
+
+        set({ preEloLow: newLow, preEloHigh: newHigh });
       },
+
+      checkRecalibrationNeeded: () => {
+        const { preEloLow, lastActiveDate, recentDriftSamples } = get();
+        if (preEloLow !== null) return false; // still calibrating
+
+        if (lastActiveDate) {
+          const daysSince = (Date.now() - new Date(lastActiveDate + 'T00:00:00').getTime()) / 86400000;
+          if (daysSince >= RECALIBRATION_DAYS) return true;
+        }
+
+        if (recentDriftSamples.length >= DRIFT_SAMPLE_SIZE) {
+          const deviations = recentDriftSamples.filter(
+            ({ expected, actual }) => (expected > 0.5 && actual === 0) || (expected < 0.5 && actual === 1),
+          ).length;
+          if (deviations / recentDriftSamples.length > DRIFT_THRESHOLD) return true;
+        }
+
+        return false;
+      },
+
+      startRecalibration: () => {
+        const { elo, calibrationBounds } = get();
+        set({
+          preEloLow:  Math.max(calibrationBounds.low,  elo - RECALIBRATION_RANGE),
+          preEloHigh: Math.min(calibrationBounds.high, elo + RECALIBRATION_RANGE),
+          recentDriftSamples: [],
+        });
+      },
+
+      setCalibrationBounds: (low, high) => set({ calibrationBounds: { low, high } }),
+
+      clearFirstPuzzleRating: () => set({ firstPuzzleRating: null }),
 
       updateStreak: () => {
         const today = new Date().toISOString().split('T')[0];
@@ -130,7 +214,6 @@ export const useUserStore = create<UserState>()(
         const state = get();
         const today = new Date().toISOString().split('T')[0];
 
-        // ── Streak ──────────────────────────────────────────────
         let { streakDays } = state;
         let lastActiveDate = state.lastActiveDate;
         if (lastActiveDate !== today) {
@@ -140,18 +223,15 @@ export const useUserStore = create<UserState>()(
         }
         const streakLongest = Math.max(state.streakLongest, streakDays);
 
-        // ── Weekly count ─────────────────────────────────────────
         const monday = getMondayISO(today);
         const isNewWeek = state.weekStartDate !== monday;
         const weeklyPuzzleCount = solved
           ? (isNewWeek ? 1 : state.weeklyPuzzleCount + 1)
           : (isNewWeek ? 0 : state.weeklyPuzzleCount);
 
-        // ── Puzzle counts ─────────────────────────────────────────
         const puzzlesCompleted = solved ? state.puzzlesCompleted + 1 : state.puzzlesCompleted;
         const puzzlesFailed    = !solved ? state.puzzlesFailed + 1 : state.puzzlesFailed;
 
-        // ── Tactic counts ─────────────────────────────────────────
         const solvedByTheme = { ...state.solvedByTheme };
         const failedByTheme = { ...state.failedByTheme };
         if (solved) {
@@ -164,8 +244,6 @@ export const useUserStore = create<UserState>()(
           }
         }
 
-        // ── ELO daily snapshot ────────────────────────────────────
-        // get().elo reflects the value AFTER updateElo() ran before this call
         const currentElo = get().elo;
         const eloHistory = [...state.eloHistory];
         if (eloHistory.length === 0 || eloHistory[eloHistory.length - 1].date !== today) {
@@ -175,7 +253,6 @@ export const useUserStore = create<UserState>()(
           eloHistory[eloHistory.length - 1] = { date: today, elo: currentElo };
         }
 
-        // ── Medals ───────────────────────────────────────────────
         const newMedals = evaluateNewMedals({
           puzzlesCompleted,
           streakDays,
@@ -206,15 +283,19 @@ export const useUserStore = create<UserState>()(
       setPreferredLanguage: (lang) => set({ preferredLanguage: lang }),
       setBoardTheme: (theme) => set({ boardTheme: theme }),
       setPieceSet: (s) => set({ pieceSet: s }),
-      completeOnboarding: (levelElo, theme, pieces) => {
-        const { puzzlesCompleted } = get();
+
+      completeOnboarding: (levelElo, theme, pieces, levelKey) => {
+        const { calibrationBounds } = get();
+        const clampedTarget = Math.max(calibrationBounds.low, Math.min(calibrationBounds.high, levelElo));
         set({
           boardTheme: theme,
           pieceSet: pieces,
           onboardingCompleted: true,
-          ...(puzzlesCompleted === 0 ? { elo: levelElo } : {}),
+          declaredLevel: levelKey,
+          firstPuzzleRating: clampedTarget,
         });
       },
+
       setGdprConsent: (analytics) => set({
         gdprConsentDate: new Date().toISOString(),
         analyticsConsent: analytics,
@@ -224,8 +305,8 @@ export const useUserStore = create<UserState>()(
 
       hydrate: (profile) => set({
         elo: profile.elo,
-        isCalibrated: profile.isCalibrated,
-        calibrationCount: profile.isCalibrated ? CALIBRATION_PUZZLES : 0,
+        preEloLow:  profile.preEloLow  ?? (profile.isCalibrated ? null : PRE_ELO_LOWER),
+        preEloHigh: profile.preEloHigh ?? (profile.isCalibrated ? null : PRE_ELO_UPPER),
         streakDays: profile.streakCurrent,
         streakLongest: profile.streakLongest,
         isPremium: profile.isPremium,
@@ -233,8 +314,12 @@ export const useUserStore = create<UserState>()(
 
       reset: () => set({
         elo: 800,
-        isCalibrated: false,
-        calibrationCount: 0,
+        preEloLow: PRE_ELO_LOWER,
+        preEloHigh: PRE_ELO_UPPER,
+        recentDriftSamples: [],
+        declaredLevel: null,
+        firstPuzzleRating: null,
+        calibrationBounds: { low: PRE_ELO_LOWER, high: PRE_ELO_UPPER },
         streakDays: 0,
         streakLongest: 0,
         lastActiveDate: null,
@@ -250,16 +335,37 @@ export const useUserStore = create<UserState>()(
         eloHistory: [],
         notificationStreakHour: 20,
         preferredLanguage: null,
-        // GDPR no se resetea al hacer logout — el usuario ya consintió
+        // GDPR no se resetea al hacer logout
       }),
     }),
     {
       name: 'user-store',
+      version: 1,
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (persisted, version) => {
+        const state = persisted as Record<string, unknown>;
+        if (version < 1) {
+          const wasCalibrated = state.isCalibrated as boolean | undefined;
+          return {
+            ...state,
+            preEloLow:  wasCalibrated ? null : PRE_ELO_LOWER,
+            preEloHigh: wasCalibrated ? null : PRE_ELO_UPPER,
+            recentDriftSamples: [],
+            declaredLevel: null,
+            firstPuzzleRating: null,
+            calibrationBounds: { low: PRE_ELO_LOWER, high: PRE_ELO_UPPER },
+          };
+        }
+        return state;
+      },
       partialize: (state) => ({
         elo: state.elo,
-        isCalibrated: state.isCalibrated,
-        calibrationCount: state.calibrationCount,
+        preEloLow: state.preEloLow,
+        preEloHigh: state.preEloHigh,
+        recentDriftSamples: state.recentDriftSamples,
+        declaredLevel: state.declaredLevel,
+        firstPuzzleRating: state.firstPuzzleRating,
+        calibrationBounds: state.calibrationBounds,
         streakDays: state.streakDays,
         streakLongest: state.streakLongest,
         lastActiveDate: state.lastActiveDate,

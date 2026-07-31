@@ -10,20 +10,17 @@ export interface Profile {
   email: string | null;
   elo: number;
   isCalibrated: boolean;
+  preEloLow: number | null;
+  preEloHigh: number | null;
   isPremium: boolean;
   streakCurrent: number;
   streakLongest: number;
 }
 
-export async function getSession() {
-  const { data } = await supabase.auth.getSession();
-  return data.session;
-}
-
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, elo, is_calibrated, is_premium, streak_current, streak_longest')
+    .select('id, email, elo, is_calibrated, pre_elo_low, pre_elo_high, is_premium, streak_current, streak_longest')
     .eq('id', userId)
     .single();
 
@@ -34,6 +31,8 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     email: data.email,
     elo: data.elo,
     isCalibrated: data.is_calibrated,
+    preEloLow:  (data.pre_elo_low  as number | null) ?? (data.is_calibrated ? null : 400),
+    preEloHigh: (data.pre_elo_high as number | null) ?? (data.is_calibrated ? null : 3300),
     isPremium: data.is_premium,
     streakCurrent: data.streak_current,
     streakLongest: data.streak_longest,

@@ -100,6 +100,48 @@ async function fetchPuzzlesByIds(ids: string[]): Promise<Puzzle[]> {
 }
 
 /**
+ * Build a calibration batch: no FSRS, no lifecycle, no virality.
+ * Queries Supabase around `mid ± 50`, widening to ±100 → ±200 → closest if pool is thin.
+ */
+export async function buildCalibrationQueue(
+  mid: number,
+  count: number,
+  excludeIds: string[] = [],
+): Promise<Puzzle[]> {
+  const excluded = new Set(excludeIds);
+  const windows = [50, 100, 200];
+
+  for (const window of windows) {
+    const { data } = await supabase
+      .from('puzzles')
+      .select('*')
+      .gte('rating', mid - window)
+      .lte('rating', mid + window);
+
+    const candidates = ((data ?? []) as Record<string, unknown>[])
+      .map(rowToPuzzle)
+      .filter((p) => !excluded.has(p.id));
+
+    if (candidates.length >= count) {
+      return shuffled(candidates).slice(0, count);
+    }
+  }
+
+  // Fallback: closest puzzles to mid regardless of window
+  const { data: fallback } = await supabase
+    .from('puzzles')
+    .select('*')
+    .order('rating');
+
+  const all = ((fallback ?? []) as Record<string, unknown>[])
+    .map(rowToPuzzle)
+    .filter((p) => !excluded.has(p.id));
+
+  all.sort((a, b) => Math.abs(a.rating - mid) - Math.abs(b.rating - mid));
+  return all.slice(0, count);
+}
+
+/**
  * Return the next puzzle for a single-puzzle flow (non-feed contexts).
  * Priority: most-overdue FSRS repaso → new puzzle calibrated to ELO.
  */

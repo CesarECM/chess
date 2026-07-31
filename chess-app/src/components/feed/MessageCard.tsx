@@ -25,6 +25,7 @@ const ICONS: Record<MessageType, string> = {
   fsrs_mastered:       '🎓',
   fsrs_relearned:      '♻️',
   fsrs_review_session: '📅',
+  calibration_start:   '🎯',
 };
 
 function getIcon(message: ProgressMessage): string {

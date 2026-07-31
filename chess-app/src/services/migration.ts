@@ -51,13 +51,15 @@ export async function migrateGuestProgress(userId: string): Promise<void> {
     return; // Keep local data intact so the user doesn't lose progress
   }
 
-  // Update profile with the ELO and streak the guest accumulated locally
-  const { elo, isCalibrated, streakDays } = useUserStore.getState();
+  // Update profile with the ELO and preElo bounds the guest accumulated locally
+  const { elo, preEloLow, preEloHigh, streakDays } = useUserStore.getState();
   await supabase
     .from('profiles')
     .update({
       elo,
-      is_calibrated: isCalibrated,
+      is_calibrated: preEloLow === null,
+      pre_elo_low:   preEloLow,
+      pre_elo_high:  preEloHigh,
       streak_current: streakDays,
       streak_longest: streakDays,
     })

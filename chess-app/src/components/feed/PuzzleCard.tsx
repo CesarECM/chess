@@ -12,7 +12,7 @@ import { useShareCard } from '@/hooks/useShareCard';
 import { EloDeltaBadge } from '@/components/feed/EloDeltaBadge';
 import { RangeBadge } from '@/components/ui/RangeBadge';
 import { ShareCard } from '@/components/ui/ShareCard';
-import { CALIBRATION_PUZZLES } from '@/constants';
+import { PRE_ELO_LOWER, PRE_ELO_UPPER, PRE_ELO_NUMERIC_THRESHOLD } from '@/constants';
 import type { Puzzle, ProgressMessage } from '@/types';
 
 const DESKTOP_PANEL_WIDTH = 280;
@@ -52,6 +52,8 @@ function PuzzleCardComponent({
   const [boardColW, setBoardColW] = useState(0);
 
   const elo              = useUserStore((s) => s.elo);
+  const preEloLow        = useUserStore((s) => s.preEloLow);
+  const preEloHigh       = useUserStore((s) => s.preEloHigh);
   const streakDays       = useUserStore((s) => s.streakDays);
   const puzzlesCompleted = useUserStore((s) => s.puzzlesCompleted);
   const sessionCount     = usePuzzleStore((s) => s.sessionPuzzleCount);
@@ -66,8 +68,10 @@ function PuzzleCardComponent({
   const {
     puzzleStatus, hasFailed, reviewMoveIndex,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
-    forceFailure, isCalibrated, calibrationCount, eloDelta, clearEloDelta,
+    forceFailure, eloDelta, clearEloDelta,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
+
+  const isCalibrating = preEloLow !== null;
 
   useEffect(() => {
     if (!onForceFailRef) return;
@@ -110,8 +114,15 @@ function PuzzleCardComponent({
       )
     : (Platform.OS === 'web' ? Math.max(height - 220, 200) : undefined);
 
+  // ── preElo bar (shown during calibration) ────────────────────────────────
+  const preEloRange = (preEloLow !== null && preEloHigh !== null)
+    ? preEloHigh - preEloLow
+    : 0;
+  const initialRange = PRE_ELO_UPPER - PRE_ELO_LOWER;
+  const calibProgress = Math.max(0, Math.min(1, 1 - (preEloRange - 0) / initialRange));
+
   // ── Shared sub-elements ───────────────────────────────────────────────────
-  const badgeRow = isCalibrated ? (
+  const badgeRow = !isCalibrating ? (
     <View style={styles.topRow}>
       <RangeBadge elo={elo} />
       {sessionCount > 0 && (
@@ -122,14 +133,20 @@ function PuzzleCardComponent({
     </View>
   ) : (
     <View style={[styles.calibBar, { backgroundColor: colors.accent + '22', borderColor: colors.accent + '44' }]}>
-      <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
-        {t('puzzle.calibrating', { count: calibrationCount, total: CALIBRATION_PUZZLES })}
-      </Text>
+      {preEloRange <= PRE_ELO_NUMERIC_THRESHOLD ? (
+        <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
+          {t('calibration.narrowing', { low: preEloLow, high: preEloHigh })}
+        </Text>
+      ) : (
+        <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
+          {t('calibration.estimating')}
+        </Text>
+      )}
       <View style={[styles.calibTrack, { backgroundColor: colors.accent + '33' }]}>
         <View
           style={[styles.calibFill, {
             backgroundColor: colors.accent,
-            width: `${(calibrationCount / CALIBRATION_PUZZLES) * 100}%` as `${number}%`,
+            width: `${calibProgress * 100}%` as `${number}%`,
           }]}
         />
       </View>

@@ -32,12 +32,11 @@ export function usePuzzleSolver(boardRef: RefObject<ChessboardRef | null>) {
   const submitMove       = usePuzzleStore((s) => s.submitMove);
   const startReview      = usePuzzleStore((s) => s.startReview);
   const advanceReview    = usePuzzleStore((s) => s.advanceReview);
-  const updateElo             = useUserStore((s) => s.updateElo);
-  const incrementCalibration  = useUserStore((s) => s.incrementCalibration);
-  const incrementPuzzleStats  = useUserStore((s) => s.incrementPuzzleStats);
-  const isCalibrated          = useUserStore((s) => s.isCalibrated);
-  const calibrationCount      = useUserStore((s) => s.calibrationCount);
-  const setLastFsrsRating     = usePuzzleStore((s) => s.setLastFsrsRating);
+  const updateElo            = useUserStore((s) => s.updateElo);
+  const updatePreElo         = useUserStore((s) => s.updatePreElo);
+  const incrementPuzzleStats = useUserStore((s) => s.incrementPuzzleStats);
+  const preEloLow            = useUserStore((s) => s.preEloLow);
+  const setLastFsrsRating    = usePuzzleStore((s) => s.setLastFsrsRating);
 
   // Tracks which puzzle has already had ELO + calibration counted this session.
   // Prevents double-counting when the user retries a failed puzzle.
@@ -118,17 +117,27 @@ export function usePuzzleSolver(boardRef: RefObject<ChessboardRef | null>) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzleStatus, currentPuzzle?.id]);
 
-  /** Called once per puzzle when the result is known. Updates ELO, calibration, and FSRS. */
+  /** Called once per puzzle when the result is known. Updates preElo/ELO and FSRS (gated). */
   function recordResult(puzzleId: string, puzzleRating: number, solved: boolean) {
     if (countedPuzzleRef.current === puzzleId) return;
     countedPuzzleRef.current = puzzleId;
 
-    const elapsedMs  = solveStartRef.current ? Date.now() - solveStartRef.current : 0;
-    const fsrsRating = deriveFsrsRating(solved, elapsedMs);
+    const elapsedMs     = solveStartRef.current ? Date.now() - solveStartRef.current : 0;
+    const isCalibrating = useUserStore.getState().preEloLow !== null;
 
-    setLastFsrsRating(fsrsRating);
-    updateElo(puzzleRating, solved);
-    incrementCalibration();
+    if (isCalibrating) {
+      updatePreElo(puzzleRating, solved);
+    } else {
+      const fsrsRating = deriveFsrsRating(solved, elapsedMs);
+      setLastFsrsRating(fsrsRating);
+      updateElo(puzzleRating, solved);
+      if (progressRef.current) {
+        const updated = reviewProgress(progressRef.current, fsrsRating);
+        progressRef.current = updated;
+        saveProgress(updated).catch(console.error);
+      }
+    }
+
     incrementPuzzleStats(solved, usePuzzleStore.getState().currentPuzzle?.themes ?? []);
 
     const userId = userIdRef.current ?? '';
@@ -140,13 +149,6 @@ export function usePuzzleSolver(boardRef: RefObject<ChessboardRef | null>) {
       rating:   puzzleRating,
       eloAfter: useUserStore.getState().elo,
     }).catch(console.error);
-
-    // Update and persist FSRS state (fire-and-forget)
-    if (progressRef.current) {
-      const updated = reviewProgress(progressRef.current, fsrsRating);
-      progressRef.current = updated;
-      saveProgress(updated).catch(console.error);
-    }
   }
 
   const onUserMove = useCallback(
@@ -163,7 +165,7 @@ export function usePuzzleSolver(boardRef: RefObject<ChessboardRef | null>) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [submitMove, updateElo, incrementCalibration],
+    [submitMove, updateElo, updatePreElo],
   );
 
   const handleAdvanceReview = useCallback(() => {
@@ -189,14 +191,13 @@ export function usePuzzleSolver(boardRef: RefObject<ChessboardRef | null>) {
     if (puzzle) recordResult(puzzle.id, puzzle.rating, false);
     startReview();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startReview, updateElo, incrementCalibration]);
+  }, [startReview, updateElo, updatePreElo]);
 
   return {
     puzzleStatus,
     onUserMove,
     startReview: onStartReview,
     handleAdvanceReview,
-    isCalibrated,
-    calibrationCount,
+    preEloLow,
   };
 }

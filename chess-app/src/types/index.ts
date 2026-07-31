@@ -59,7 +59,8 @@ export type MessageType =
   | 'fsrs_first_review'
   | 'fsrs_mastered'
   | 'fsrs_relearned'
-  | 'fsrs_review_session';
+  | 'fsrs_review_session'
+  | 'calibration_start';
 
 export interface ProgressMessage {
   id: string;

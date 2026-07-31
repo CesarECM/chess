@@ -52,6 +52,10 @@
     "share": "Partager",
     "sessionCount": "{{count}} aujourd'hui"
   },
+  "calibration": {
+    "estimating": "Calibrage de votre niveau…",
+    "narrowing": "Affinage : {{low}} — {{high}}"
+  },
   "elo": {
     "pawn": "Pion",
     "knight": "Cavalier",
@@ -313,6 +317,16 @@
     "fsrs_review_session": {
       "title": "{{count}} révisions effectuées",
       "body": "Vous avez complété {{count}} révisions programmées cette session. L'algorithme fait son travail."
+    },
+    "calibration_start": {
+      "title": "Recalibrage de votre niveau",
+      "bodies": [
+        "Nous avons détecté que votre niveau a peut-être changé. Quelques puzzles suffiront à le recalibrer.",
+        "Un moment s'est écoulé. Estimons à nouveau votre niveau avec quelques puzzles.",
+        "Vos résultats suggèrent que votre niveau nécessite un ajustement. Recalibrage en cours.",
+        "Il est temps de rafraîchir votre niveau. L'algorithme a détecté un écart.",
+        "Recalibrage en cours. Quelques puzzles suffiront à savoir exactement où vous en êtes."
+      ]
     }
   },
   "gdpr": {

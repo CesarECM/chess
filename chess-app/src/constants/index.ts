@@ -7,7 +7,19 @@ export const ELO_RANGES = {
   KING:   { min: 2200,     max: Infinity, label: 'king',   piece: '♚' },
 } as const;
 
-export const CALIBRATION_PUZZLES = 12;
+// ── preElo calibration ──────────────────────────────────────────────────────
+export const PRE_ELO_LOWER              = 400;
+export const PRE_ELO_UPPER              = 3300;
+export const K_MIN                      = 8;
+export const K_DIVISOR                  = 10;
+export const PRE_ELO_CONVERGENCE        = 100;  // range < this → calibrated
+export const PRE_ELO_NUMERIC_THRESHOLD  = 300;  // range ≤ this → show numbers
+
+// ── recalibration ────────────────────────────────────────────────────────────
+export const RECALIBRATION_DAYS   = 30;
+export const DRIFT_SAMPLE_SIZE    = 20;
+export const DRIFT_THRESHOLD      = 0.30;
+export const RECALIBRATION_RANGE  = 200;
 
 export const FSRS_TARGET_RETENTION = 0.9;
 

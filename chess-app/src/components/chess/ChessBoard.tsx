@@ -22,6 +22,8 @@ interface ChessBoardProps {
   enabled?: boolean;
   /** Hard cap on board size in px — passed from PuzzleCard for height-aware sizing. */
   maxSize?: number;
+  /** Ignored on native; accepted to share prop interface with ChessBoard.web.tsx. */
+  resetKey?: string;
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(

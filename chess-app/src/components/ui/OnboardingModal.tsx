@@ -41,11 +41,11 @@ export function OnboardingModal() {
       return;
     }
     const level = LEVELS.find((l) => l.key === selectedLevel)!;
-    completeOnboarding(level.elo, selectedTheme, selectedPieces);
+    completeOnboarding(level.elo, selectedTheme, selectedPieces, selectedLevel);
   }
 
   function handleSkip() {
-    completeOnboarding(currentBoardTheme === 'classic' ? 1000 : 1000, currentBoardTheme, currentPieceSet);
+    completeOnboarding(1000, currentBoardTheme, currentPieceSet, 'intermediate');
   }
 
   return (

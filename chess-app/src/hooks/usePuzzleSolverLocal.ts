@@ -64,12 +64,11 @@ export function usePuzzleSolverLocal(
   onMessagesEarnedRef.current = onMessagesEarned;
   const reviewFensRef = useRef<string[]>([]);
 
-  const updateElo             = useUserStore((s) => s.updateElo);
-  const incrementCalibration  = useUserStore((s) => s.incrementCalibration);
-  const incrementPuzzleStats  = useUserStore((s) => s.incrementPuzzleStats);
-  const isCalibrated          = useUserStore((s) => s.isCalibrated);
-  const calibrationCount      = useUserStore((s) => s.calibrationCount);
-  const addToHistory          = usePuzzleStore((s) => s.addToHistory);
+  const updateElo            = useUserStore((s) => s.updateElo);
+  const updatePreElo         = useUserStore((s) => s.updatePreElo);
+  const incrementPuzzleStats = useUserStore((s) => s.incrementPuzzleStats);
+  const preEloLow            = useUserStore((s) => s.preEloLow);
+  const addToHistory         = usePuzzleStore((s) => s.addToHistory);
   const setLastFsrsRating     = usePuzzleStore((s) => s.setLastFsrsRating);
 
   function setStatus(s: SolverStatus) {
@@ -200,15 +199,48 @@ export function usePuzzleSolverLocal(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzleStatus, puzzle?.id, isActive]);
 
-  // Records ELO + calibration + FSRS once per puzzle; idempotent via countedRef
+  // Records ELO/preElo + FSRS (gated) once per puzzle; idempotent via countedRef
   function recordResult(puzzleId: string, puzzleRating: number, solved: boolean) {
     if (countedRef.current === puzzleId) return;
     countedRef.current = puzzleId;
 
     const elapsedMs  = solveStartRef.current ? Date.now() - solveStartRef.current : 0;
+    const isCalibrating = useUserStore.getState().preEloLow !== null;
+
+    if (isCalibrating) {
+      // ── Calibration path: no FSRS, no progress cards, no ELO badge ────────
+      updatePreElo(puzzleRating, solved);
+      addToHistory(puzzleId);
+      incrementPuzzleStats(solved, puzzle?.themes ?? []);
+      solvedResultRef.current = solved;
+      if (solved) usePuzzleStore.getState().recordSolvedInSession();
+      else        usePuzzleStore.getState().recordFailedInSession();
+
+      const userId = userIdRef.current ?? '';
+      recordSolveEvent(userId, {
+        puzzleId,
+        date:     new Date().toISOString(),
+        solved,
+        tactic:   puzzle?.themes[0] ?? 'other',
+        rating:   puzzleRating,
+        eloAfter: useUserStore.getState().elo,
+      }).catch(console.error);
+
+      recordViralityEvent(puzzleId, solved, elapsedMs).catch(console.error);
+
+      analytics.track(solved ? 'puzzle_completed' : 'puzzle_failed', {
+        puzzle_id:     puzzleId,
+        rating:        puzzleRating,
+        elapsed_ms:    elapsedMs,
+        tactic:        puzzle?.themes[0] ?? 'other',
+        calibrating:   true,
+      });
+      return;
+    }
+
+    // ── Normal path: FSRS + progress cards + ELO badge ──────────────────────
     const fsrsRating = deriveFsrsRating(solved, elapsedMs);
 
-    // Snapshot pre-update for event detection (only when solved and feature enabled)
     const preUser = solved && PROGRESS_CARDS_ENABLED ? {
       elo:             useUserStore.getState().elo,
       puzzlesCompleted: useUserStore.getState().puzzlesCompleted,
@@ -241,12 +273,9 @@ export function usePuzzleSolverLocal(
     setLastFsrsRating(fsrsRating);
     const delta = updateElo(puzzleRating, solved);
     setEloDelta(delta);
-    incrementCalibration();
     addToHistory(puzzleId);
     incrementPuzzleStats(solved, puzzle?.themes ?? []);
 
-    // Session counters (needed immediately for progress card detection below)
-    // markPuzzleSolved/Failed is deferred to when the card loses focus (isActive effect)
     solvedResultRef.current = solved;
     if (solved) {
       usePuzzleStore.getState().recordSolvedInSession();
@@ -254,7 +283,6 @@ export function usePuzzleSolverLocal(
       usePuzzleStore.getState().recordFailedInSession();
     }
 
-    // Detect and deliver progress messages directly to the feed at the correct index
     if (solved && PROGRESS_CARDS_ENABLED && preUser && preSession) {
       const messages = detectPuzzleEvents({
         eloBefore:                preUser.elo,
@@ -326,7 +354,6 @@ export function usePuzzleSolverLocal(
       elo:        useUserStore.getState().elo,
     });
 
-    // Track referral puzzle for authenticated users (fire-and-forget)
     if (!useAuthStore.getState().isGuest && userId) {
       trackReferralPuzzle(userId).catch(console.error);
     }
@@ -484,8 +511,7 @@ export function usePuzzleSolverLocal(
     handleBackReview,
     onRetry,
     forceFailure,
-    isCalibrated,
-    calibrationCount,
+    preEloLow,
     eloDelta,
     clearEloDelta: () => setEloDelta(null),
   };

@@ -99,7 +99,7 @@ export function DebugPanel({ entries, onClose, onClear }: Props) {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'flex-end',
   },
   panel: {

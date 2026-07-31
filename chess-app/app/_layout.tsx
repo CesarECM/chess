@@ -14,6 +14,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { drainSyncQueue } from '@/services/offlineSyncQueue';
+import { fetchCalibrationConfig } from '@/services/calibrationConfig';
 import { initAds } from '@/services/ads';
 import { configurePurchases, syncPremiumStatus } from '@/services/purchases';
 import { registerPendingReferral, syncReferralPremium } from '@/services/referral';
@@ -56,6 +57,9 @@ function AuthGuard() {
     initAds().catch(console.error);
     refreshNotifications(undefined).catch(console.error);
     analytics.track('app_opened');
+    fetchCalibrationConfig().then(({ low, high }) => {
+      useUserStore.getState().setCalibrationBounds(low, high);
+    }).catch(() => {});
     return unsubscribe;
   }, []);
 
