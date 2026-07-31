@@ -135,7 +135,7 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       id:      `fsrs_mastered_${Math.round(s.fsrsStabilityAfter)}`,
       kind:    'progress',
       type:    'fsrs_mastered',
-      payload: { days: Math.round(s.fsrsStabilityAfter) },
+      payload: { days: Math.round(s.fsrsStabilityAfter), bodyIndex: Math.floor(Math.random() * 30) },
     });
   }
 

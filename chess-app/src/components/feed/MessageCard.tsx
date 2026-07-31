@@ -33,6 +33,13 @@ function getIcon(message: ProgressMessage): string {
   return ICONS[message.type];
 }
 
+function getBodyKey(message: ProgressMessage): string {
+  if (message.type === 'fsrs_mastered') {
+    return `message.fsrs_mastered.bodies.${message.payload.bodyIndex ?? 0}`;
+  }
+  return `message.${message.type}.body`;
+}
+
 function useTranslatedPayload(message: ProgressMessage): Record<string, unknown> {
   const { t } = useTranslation();
   if (message.type === 'rank_up') {
@@ -73,7 +80,7 @@ function MessageCardComponent({ message, height, onComplete }: Props) {
         </Text>
 
         <Text style={[styles.body, { color: colors.textSecondary, fontSize: typography.size.md }]}>
-          {t(`message.${message.type}.body`, payload as Record<string, string>)}
+          {t(getBodyKey(message), payload as Record<string, string>)}
         </Text>
 
         <TouchableOpacity
