@@ -132,7 +132,7 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
   // 9. Pattern mastered — stability crosses 21 days (long-term memory threshold)
   if (s.fsrsStabilityAfter >= 21 && s.fsrsStabilityBefore < 21) {
     messages.push({
-      id:      `fsrs_mastered_${Math.round(s.fsrsStabilityAfter)}`,
+      id:      `fsrs_mastered_${Math.round(s.fsrsStabilityAfter)}_${Date.now()}`,
       kind:    'progress',
       type:    'fsrs_mastered',
       payload: { days: Math.round(s.fsrsStabilityAfter), bodyIndex: Math.floor(Math.random() * 30) },
