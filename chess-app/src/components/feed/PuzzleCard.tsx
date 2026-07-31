@@ -16,12 +16,15 @@ import { CALIBRATION_PUZZLES } from '@/constants';
 import type { Puzzle, ProgressMessage } from '@/types';
 
 const DESKTOP_PANEL_WIDTH = 280;
+const PIECE_COLOR_WHITE   = '#f0d9b5';
+const PIECE_COLOR_BLACK   = '#4a3728';
 
 const STATUS_COLOR: Record<SolverStatus, keyof ReturnType<typeof useTheme>['colors']> = {
   idle:      'textSecondary',
   playing:   'textSecondary',
   failed:    'error',
   reviewing: 'textSecondary',
+  reviewed:  'error',
   complete:  'success',
 };
 
@@ -61,7 +64,8 @@ function PuzzleCardComponent({
   );
 
   const {
-    puzzleStatus, onUserMove, startReview, handleAdvanceReview, onRetry,
+    puzzleStatus, hasFailed, reviewMoveIndex,
+    onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
     forceFailure, isCalibrated, calibrationCount, eloDelta, clearEloDelta,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
 
@@ -77,7 +81,10 @@ function PuzzleCardComponent({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, puzzle.id]);
 
-  const playerColor = puzzle.fen.split(' ')[1] === 'w' ? 'black' : 'white';
+  const playerColor    = puzzle.fen.split(' ')[1] === 'w' ? 'black' : 'white';
+  const opponentColor  = playerColor === 'white' ? 'black' : 'white';
+  const playerBarColor   = playerColor   === 'white' ? PIECE_COLOR_WHITE : PIECE_COLOR_BLACK;
+  const opponentBarColor = opponentColor === 'white' ? PIECE_COLOR_WHITE : PIECE_COLOR_BLACK;
 
   useEffect(() => {
     if (isActive) onStatusChange?.(puzzleStatus);
@@ -90,6 +97,7 @@ function PuzzleCardComponent({
     playing:   t('puzzle.statusPlaying'),
     failed:    t('puzzle.statusFailed'),
     reviewing: t('puzzle.statusReviewing'),
+    reviewed:  t('puzzle.statusReviewed'),
     complete:  t('puzzle.statusComplete'),
   }), [t]);
 
@@ -168,13 +176,34 @@ function PuzzleCardComponent({
           </TouchableOpacity>
         </View>
       )}
-      {isActive && puzzleStatus === 'reviewing' && (
+      {isActive && (puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed') && (
+        <View style={styles.reviewNav}>
+          <TouchableOpacity
+            style={[styles.navBtn, { opacity: reviewMoveIndex <= 0 ? 0.25 : 1 }]}
+            onPress={handleBackReview}
+            disabled={reviewMoveIndex <= 0}
+          >
+            <Text style={[styles.navBtnText, { color: colors.text }]}>‹</Text>
+          </TouchableOpacity>
+          <Text style={[styles.reviewCounter, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+            {reviewMoveIndex} / {puzzle.moves.length}
+          </Text>
+          <TouchableOpacity
+            style={[styles.navBtn, { opacity: reviewMoveIndex >= puzzle.moves.length ? 0.25 : 1 }]}
+            onPress={handleAdvanceReview}
+            disabled={reviewMoveIndex >= puzzle.moves.length}
+          >
+            <Text style={[styles.navBtnText, { color: colors.text }]}>›</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {isActive && (puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed') && (
         <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 8, alignSelf: 'stretch' }]}
-          onPress={handleAdvanceReview}
+          style={[styles.btn, styles.btnOutline, { borderColor: colors.border, borderRadius: 8, alignSelf: 'stretch' }]}
+          onPress={onComplete}
         >
-          <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-            {t('puzzle.nextMove')}
+          <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+            {t('puzzle.nextPuzzle')}
           </Text>
         </TouchableOpacity>
       )}
@@ -213,19 +242,26 @@ function PuzzleCardComponent({
           style={styles.boardCol}
           onLayout={e => setBoardColW(e.nativeEvent.layout.width)}
         >
-          <View style={styles.boardWrapper}>
-            <ChessBoard
-              ref={boardRef}
-              fen={puzzle.fen}
-              resetKey={puzzle.id}
-              orientation="auto"
-              enabled={puzzleStatus === 'playing' && isActive}
-              onMove={onUserMove}
-              maxSize={boardMaxSize}
-            />
-            {eloDelta !== null && (
-              <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
-            )}
+          <View style={styles.boardSection}>
+            <View style={[styles.colorBar, { backgroundColor: opponentBarColor, width: boardMaxSize, alignSelf: 'center' }]} />
+            <View style={styles.boardWrapper}>
+              <ChessBoard
+                ref={boardRef}
+                fen={puzzle.fen}
+                resetKey={puzzle.id}
+                orientation="auto"
+                enabled={puzzleStatus === 'playing' && isActive}
+                onMove={onUserMove}
+                maxSize={boardMaxSize}
+              />
+              {eloDelta !== null && (
+                <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
+              )}
+              {hasFailed && (puzzleStatus === 'idle' || puzzleStatus === 'playing') && (
+                <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
+              )}
+            </View>
+            <View style={[styles.colorBar, { backgroundColor: playerBarColor, width: boardMaxSize, alignSelf: 'center' }]} />
           </View>
         </View>
 
@@ -260,19 +296,26 @@ function PuzzleCardComponent({
       {metaText}
       {playerColorText}
 
-      <View style={styles.boardWrapper}>
-        <ChessBoard
-          ref={boardRef}
-          fen={puzzle.fen}
-          resetKey={puzzle.id}
-          orientation="auto"
-          enabled={puzzleStatus === 'playing' && isActive}
-          onMove={onUserMove}
-          maxSize={boardMaxSize}
-        />
-        {eloDelta !== null && (
-          <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
-        )}
+      <View style={styles.boardSection}>
+        <View style={[styles.colorBar, { backgroundColor: opponentBarColor }]} />
+        <View style={styles.boardWrapper}>
+          <ChessBoard
+            ref={boardRef}
+            fen={puzzle.fen}
+            resetKey={puzzle.id}
+            orientation="auto"
+            enabled={puzzleStatus === 'playing' && isActive}
+            onMove={onUserMove}
+            maxSize={boardMaxSize}
+          />
+          {eloDelta !== null && (
+            <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
+          )}
+          {hasFailed && (puzzleStatus === 'idle' || puzzleStatus === 'playing') && (
+            <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
+          )}
+        </View>
+        <View style={[styles.colorBar, { backgroundColor: playerBarColor }]} />
       </View>
 
       {statusText}
@@ -316,7 +359,10 @@ const styles = StyleSheet.create({
   calibText:    { fontWeight: '600', textAlign: 'center' },
   calibTrack:   { height: 4, borderRadius: 2, width: '100%', overflow: 'hidden' },
   calibFill:    { height: 4, borderRadius: 2 },
+  boardSection: { alignSelf: 'stretch', alignItems: 'center' },
+  colorBar:     { height: 4, alignSelf: 'stretch' },
   boardWrapper: { position: 'relative' },
+  retryBorder:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 3, borderRadius: 4 },
   meta:         { marginBottom: 2 },
   playerColor:  { marginBottom: 6, fontWeight: '600' },
   status:       { marginTop: 12, fontWeight: '500' },
@@ -324,4 +370,8 @@ const styles = StyleSheet.create({
   btn:          { paddingHorizontal: 20, paddingVertical: 10, alignItems: 'center' },
   btnOutline:   { borderWidth: 1 },
   btnText:      { fontWeight: '600' },
+  reviewNav:    { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', justifyContent: 'center', gap: 20 },
+  navBtn:       { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  navBtnText:   { fontSize: 30, fontWeight: '300', lineHeight: 36 },
+  reviewCounter: { minWidth: 52, textAlign: 'center', fontWeight: '600' },
 });

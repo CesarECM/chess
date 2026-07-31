@@ -40,6 +40,7 @@
     "playingBlack": "Vous jouez ♚ noir",
     "statusFailed": "✗ Incorrect",
     "statusReviewing": "Révision de la solution…",
+    "statusReviewed": "✗ Solution révisée",
     "statusComplete": "✓ Puzzle résolu !",
     "calibrating": "Calibrage de votre niveau · {{count}}/{{total}}",
     "retry": "Réessayer",

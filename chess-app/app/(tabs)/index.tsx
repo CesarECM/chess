@@ -232,15 +232,15 @@ export default function FeedScreen() {
 
   const onActiveStatusChange = useCallback((status: SolverStatus) => {
     setActiveStatus(status);
-    if (status === 'complete') {
+    if (status === 'complete' || status === 'reviewed') {
       const bufLen = puzzleBufferRef.current.length;
       const next   = puzzleBufferRef.current.shift();
       if (next) {
-        addLog('SOLVE', `complete — inserting ${next.id} — buf: ${bufLen} → ${puzzleBufferRef.current.length}`);
+        addLog('SOLVE', `${status} — inserting ${next.id} — buf: ${bufLen} → ${puzzleBufferRef.current.length}`);
         usePuzzleStore.getState().insertBeforeLockedSlot([next]);
         setWaitingForBuffer(false);
       } else {
-        addLog('SOLVE', `complete — buffer EMPTY (${bufLen}) → pendingNextPuzzle=true, history: ${sessionHistoryRef.current.length}`);
+        addLog('SOLVE', `${status} — buffer EMPTY (${bufLen}) → pendingNextPuzzle=true, history: ${sessionHistoryRef.current.length}`);
         pendingNextPuzzleRef.current = true;
         setWaitingForBuffer(true);
       }
@@ -323,7 +323,7 @@ export default function FeedScreen() {
   }, [scrollToNext]);
 
   // ── pager enabled: web always scrollable; native blocked while mid-puzzle ─
-  const pagerEnabled = Platform.OS === 'web' || activeStatus === 'idle' || activeStatus === 'complete';
+  const pagerEnabled = Platform.OS === 'web' || activeStatus === 'idle' || activeStatus === 'complete' || activeStatus === 'reviewed';
 
   const renderFeedItem = useCallback((item: FeedItem, index: number) => {
     const position = index < activeIndex ? 'past' : index === activeIndex ? 'active' : 'future';

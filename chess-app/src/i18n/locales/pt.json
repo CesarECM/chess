@@ -40,6 +40,7 @@
     "playingBlack": "Você joga com ♚ pretas",
     "statusFailed": "✗ Incorreto",
     "statusReviewing": "Revisando solução…",
+    "statusReviewed": "✗ Solução revisada",
     "statusComplete": "✓ Puzzle resolvido!",
     "calibrating": "Calibrando seu nível · {{count}}/{{total}}",
     "retry": "Tentar novamente",

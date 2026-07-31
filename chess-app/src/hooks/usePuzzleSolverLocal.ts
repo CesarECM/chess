@@ -16,7 +16,7 @@ import { analytics } from '@/services/analytics';
 import { PROGRESS_CARDS_ENABLED } from '@/constants';
 import { detectPuzzleEvents } from '@/services/feedMessages';
 
-export type SolverStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'complete';
+export type SolverStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'reviewed' | 'complete';
 
 const HIGHLIGHT_FROM = 'rgba(255, 165, 0, 0.75)';
 const HIGHLIGHT_TO   = 'rgba(255, 165, 0, 0.50)';
@@ -46,6 +46,8 @@ export function usePuzzleSolverLocal(
 ) {
   const [puzzleStatus, setPuzzleStatus] = useState<SolverStatus>('idle');
   const [eloDelta, setEloDelta] = useState<number | null>(null);
+  const [hasFailed, setHasFailed] = useState(false);
+  const [reviewMoveIndex, setReviewMoveIndex] = useState(0);
 
   // Refs for mutable solver state — avoids stale closures in callbacks
   const fenRef        = useRef(puzzle?.fen ?? '');
@@ -60,6 +62,7 @@ export function usePuzzleSolverLocal(
   const solvedResultRef    = useRef<boolean | null>(null); // null = no result yet
   const onMessagesEarnedRef = useRef(onMessagesEarned);
   onMessagesEarnedRef.current = onMessagesEarned;
+  const reviewFensRef = useRef<string[]>([]);
 
   const updateElo             = useUserStore((s) => s.updateElo);
   const incrementCalibration  = useUserStore((s) => s.incrementCalibration);
@@ -109,6 +112,9 @@ export function usePuzzleSolverLocal(
     solveStartRef.current    = null;
     hasAttemptedRef.current  = false;
     solvedResultRef.current  = null;
+    reviewFensRef.current    = [];
+    setHasFailed(false);
+    setReviewMoveIndex(0);
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -161,18 +167,36 @@ export function usePuzzleSolverLocal(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzleStatus, puzzle?.id, isActive]);
 
-  // Reset board to initial FEN when review mode starts
+  // Review mode: auto-play first move on fresh entry; restore position on re-focus
   useEffect(() => {
     if (puzzleStatus !== 'reviewing' || !puzzle || !isActive) return;
 
-    boardRef.current?.resetBoard(puzzle.fen);
+    const idx = moveIndexRef.current;
     boardRef.current?.resetAllHighlightedSquares();
 
-    const t = setTimeout(() => {
-      if (puzzle.moves[0]) highlightMove(puzzle.moves[0]);
-    }, 300);
+    if (idx === 0) {
+      // Fresh start: reset board then auto-play opponent's first move (like puzzle start)
+      boardRef.current?.resetBoard(puzzle.fen);
+      const t = setTimeout(() => {
+        const firstMove = puzzle.moves[0];
+        if (!firstMove) return;
+        boardRef.current?.move(uciToMove(firstMove));
+        const nextFen = reviewFensRef.current[1] ?? applyMove(puzzle.fen, firstMove);
+        if (nextFen) fenRef.current = nextFen;
+        moveIndexRef.current = 1;
+        setReviewMoveIndex(1);
+        setTimeout(() => { highlightMove(firstMove); }, 400);
+      }, 500);
+      return () => clearTimeout(t);
+    }
 
-    return () => clearTimeout(t);
+    // Re-focus on an in-progress review: restore current position
+    const currentFen = reviewFensRef.current[idx];
+    if (currentFen) boardRef.current?.resetBoard(currentFen);
+    if (idx > 0) {
+      const t = setTimeout(() => { highlightMove(puzzle.moves[idx - 1]); }, 200);
+      return () => clearTimeout(t);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzleStatus, puzzle?.id, isActive]);
 
@@ -317,6 +341,8 @@ export function usePuzzleSolverLocal(
     const expected = puzzle.moves[idx];
 
     if (normalizeUCI(uciMove) !== normalizeUCI(expected)) {
+      recordResult(puzzle.id, puzzle.rating, false);
+      setHasFailed(true);
       setStatus('failed');
       return;
     }
@@ -354,22 +380,37 @@ export function usePuzzleSolverLocal(
   const startReview = useCallback(() => {
     if (!puzzle) return;
     recordResult(puzzle.id, puzzle.rating, false);
+
+    // Pre-compute all FENs for back/forward navigation
+    const fens: string[] = [puzzle.fen];
+    let fen = puzzle.fen;
+    for (const move of puzzle.moves) {
+      const next = applyMove(fen, move);
+      if (!next) break;
+      fens.push(next);
+      fen = next;
+    }
+    reviewFensRef.current = fens;
+
     fenRef.current       = puzzle.fen;
     moveIndexRef.current = 0;
+    setReviewMoveIndex(0);
     setStatus('reviewing');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
 
   const handleAdvanceReview = useCallback(() => {
-    if (statusRef.current !== 'reviewing' || !puzzle) return;
-
-    boardRef.current?.resetAllHighlightedSquares();
+    const s = statusRef.current;
+    if (s !== 'reviewing' && s !== 'reviewed') return;
+    if (!puzzle) return;
 
     const idx = moveIndexRef.current;
     if (idx >= puzzle.moves.length) return;
 
+    boardRef.current?.resetAllHighlightedSquares();
+
     const move   = puzzle.moves[idx];
-    const newFen = applyMove(fenRef.current, move);
+    const newFen = reviewFensRef.current[idx + 1] ?? applyMove(fenRef.current, move);
     if (!newFen) return;
 
     boardRef.current?.move(uciToMove(move));
@@ -379,7 +420,8 @@ export function usePuzzleSolverLocal(
 
     fenRef.current       = newFen;
     moveIndexRef.current = newIdx;
-    setStatus(done ? 'complete' : 'reviewing');
+    setReviewMoveIndex(newIdx);
+    setStatus(done ? 'reviewed' : 'reviewing');
 
     if (!done) {
       setTimeout(() => {
@@ -389,11 +431,35 @@ export function usePuzzleSolverLocal(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
 
+  const handleBackReview = useCallback(() => {
+    const s = statusRef.current;
+    if (s !== 'reviewing' && s !== 'reviewed') return;
+    if (!puzzle) return;
+
+    const idx = moveIndexRef.current;
+    if (idx <= 0) return;
+
+    boardRef.current?.resetAllHighlightedSquares();
+
+    const prevIdx = idx - 1;
+    const prevFen = reviewFensRef.current[prevIdx] ?? puzzle.fen;
+
+    boardRef.current?.resetBoard(prevFen);
+    fenRef.current       = prevFen;
+    moveIndexRef.current = prevIdx;
+    setReviewMoveIndex(prevIdx);
+    setStatus('reviewing');
+
+    if (prevIdx > 0) {
+      setTimeout(() => { highlightMove(puzzle.moves[prevIdx - 1]); }, 200);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
   const onRetry = useCallback(() => {
     if (!puzzle) return;
     fenRef.current        = puzzle.fen;
     moveIndexRef.current  = 0;
-    countedRef.current    = null;
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -410,9 +476,12 @@ export function usePuzzleSolverLocal(
 
   return {
     puzzleStatus,
+    hasFailed,
+    reviewMoveIndex,
     onUserMove,
     startReview,
     handleAdvanceReview,
+    handleBackReview,
     onRetry,
     forceFailure,
     isCalibrated,
