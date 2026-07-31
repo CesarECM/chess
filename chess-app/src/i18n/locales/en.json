@@ -212,7 +212,18 @@
     },
     "comeback": {
       "title": "Comeback!",
-      "body": "After {{failedBefore}} misses, you have 3 correct in a row."
+      "bodies": [
+        "After {{failedBefore}} misses, you have 3 correct in a row. That's resilience.",
+        "{{failedBefore}} fails didn't stop you. 3 correct in a row.",
+        "The rough patch is behind you. 3 puzzles right since you came back.",
+        "That's how you play. You fell {{failedBefore}} times and got back up.",
+        "Cool head after {{failedBefore}} misses. That's what makes the difference.",
+        "Three in a row after {{failedBefore}} errors. The comeback is real.",
+        "You didn't quit. 3 correct after {{failedBefore}} misses proves it.",
+        "The hard part is over. You're on a 3-puzzle streak.",
+        "After {{failedBefore}} stumbles, you found your rhythm again.",
+        "The best players miss too. What matters is what you do next."
+      ]
     },
     "session_elo_gain": {
       "title": "+{{gained}} ELO this session",
@@ -224,7 +235,18 @@
     },
     "fsrs_first_review": {
       "title": "Back again",
-      "body": "This pattern returned right on schedule. Your memory is working."
+      "bodies": [
+        "This pattern returned right on schedule. Your memory is working.",
+        "First scheduled review. The algorithm trusts your memory.",
+        "You learned it before. Now you confirm it.",
+        "Your brain stored this. The algorithm came to check.",
+        "Scheduled review. This is how long-term memory is built.",
+        "This pattern came back because you have it. Prove it.",
+        "The algorithm calculated the exact right moment. And it was right.",
+        "First full review done. You're on the right track.",
+        "Memory tested. If you remember it now, you'll remember it for a long time.",
+        "Review confirmed. Your progress with this pattern is real."
+      ]
     },
     "fsrs_mastered": {
       "title": "Pattern mastered",

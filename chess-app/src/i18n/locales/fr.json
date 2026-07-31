@@ -212,7 +212,18 @@
     },
     "comeback": {
       "title": "Retour en force !",
-      "body": "Après {{failedBefore}} erreurs, vous avez 3 bonnes réponses d'affilée."
+      "bodies": [
+        "Après {{failedBefore}} erreurs, vous avez 3 bonnes réponses d'affilée. C'est de la résilience.",
+        "{{failedBefore}} erreurs ne vous ont pas arrêté. 3 bonnes réponses d'affilée.",
+        "La mauvaise passe est derrière vous. 3 puzzles corrects depuis votre retour.",
+        "C'est comme ça qu'on joue. Vous êtes tombé {{failedBefore}} fois et vous vous êtes relevé.",
+        "Tête froide après {{failedBefore}} erreurs. C'est ce qui fait la différence.",
+        "Trois d'affilée après {{failedBefore}} erreurs. Le retour en force est réel.",
+        "Vous n'avez pas abandonné. 3 bons après {{failedBefore}} erreurs le prouve.",
+        "Le plus dur est passé. Vous êtes sur une série de 3 puzzles.",
+        "Après {{failedBefore}} faux pas, vous avez retrouvé votre rythme.",
+        "Les meilleurs joueurs ratent aussi. Ce qui compte, c'est ce que vous faites ensuite."
+      ]
     },
     "session_elo_gain": {
       "title": "+{{gained}} ELO cette session",
@@ -224,7 +235,18 @@
     },
     "fsrs_first_review": {
       "title": "De retour",
-      "body": "Ce schéma est revenu exactement au bon moment. Votre mémoire fonctionne."
+      "bodies": [
+        "Ce schéma est revenu exactement au bon moment. Votre mémoire fonctionne.",
+        "Première révision programmée. L'algorithme fait confiance à votre mémoire.",
+        "Vous l'avez appris avant. Maintenant vous le confirmez.",
+        "Votre cerveau a stocké ça. L'algorithme est venu vérifier.",
+        "Révision programmée. C'est ainsi que se construit la mémoire à long terme.",
+        "Ce schéma est revenu parce que vous l'avez. Prouvez-le.",
+        "L'algorithme a calculé le moment exact. Et il avait raison.",
+        "Première révision complète. Vous êtes sur la bonne voie.",
+        "Mémoire testée. Si vous vous en souvenez maintenant, vous vous en souviendrez longtemps.",
+        "Révision confirmée. Vos progrès sur ce schéma sont réels."
+      ]
     },
     "fsrs_mastered": {
       "title": "Schéma maîtrisé",

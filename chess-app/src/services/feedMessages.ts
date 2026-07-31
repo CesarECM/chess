@@ -104,7 +104,7 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       id:      `comeback_${Date.now()}`,
       kind:    'progress',
       type:    'comeback',
-      payload: { failedBefore: s.consecutiveFailedBefore },
+      payload: { failedBefore: s.consecutiveFailedBefore, bodyIndex: Math.floor(Math.random() * 10) },
     });
   }
 
@@ -125,7 +125,7 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       id:      `fsrs_first_review_${Date.now()}`,
       kind:    'progress',
       type:    'fsrs_first_review',
-      payload: {},
+      payload: { bodyIndex: Math.floor(Math.random() * 10) },
     });
   }
 

@@ -212,7 +212,18 @@
     },
     "comeback": {
       "title": "Virada!",
-      "body": "Depois de {{failedBefore}} erros, você acertou 3 seguidos."
+      "bodies": [
+        "Depois de {{failedBefore}} erros, você acertou 3 seguidos. Isso é resiliência.",
+        "{{failedBefore}} erros não te pararam. 3 acertos seguidos.",
+        "A fase ruim ficou para trás. 3 puzzles certos desde que voltou.",
+        "É assim que se joga. Você caiu {{failedBefore}} vezes e se levantou.",
+        "Cabeça fria depois de {{failedBefore}} erros. É isso que faz a diferença.",
+        "Três seguidos depois de {{failedBefore}} erros. A virada é real.",
+        "Você não desistiu. 3 certos depois de {{failedBefore}} erros prova isso.",
+        "A parte difícil passou. Você está em uma sequência de 3 puzzles.",
+        "Depois de {{failedBefore}} tropeços, você encontrou seu ritmo de novo.",
+        "Os melhores jogadores também erram. O que importa é o que você faz depois."
+      ]
     },
     "session_elo_gain": {
       "title": "+{{gained}} ELO nesta sessão",
@@ -224,7 +235,18 @@
     },
     "fsrs_first_review": {
       "title": "De volta",
-      "body": "Este padrão voltou exatamente na hora certa. Sua memória está funcionando."
+      "bodies": [
+        "Este padrão voltou exatamente na hora certa. Sua memória está funcionando.",
+        "Primeira revisão programada. O algoritmo confia na sua memória.",
+        "Você aprendeu antes. Agora você confirma.",
+        "Seu cérebro guardou isso. O algoritmo veio verificar.",
+        "Revisão programada. É assim que se constrói a memória de longo prazo.",
+        "Este padrão voltou porque você o tem. Prove.",
+        "O algoritmo calculou o momento exato. E estava certo.",
+        "Primeira revisão completa. Você está no caminho certo.",
+        "Memória testada. Se você lembra agora, vai lembrar por muito tempo.",
+        "Revisão confirmada. Seu progresso com este padrão é real."
+      ]
     },
     "fsrs_mastered": {
       "title": "Padrão dominado",

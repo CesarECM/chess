@@ -212,7 +212,18 @@
     },
     "comeback": {
       "title": "¡Remontada!",
-      "body": "Después de {{failedBefore}} fallos, llevas 3 correctos."
+      "bodies": [
+        "Después de {{failedBefore}} fallos, llevas 3 correctos. Eso es resiliencia.",
+        "{{failedBefore}} fallos no te detuvieron. 3 correctos seguidos.",
+        "La racha mala quedó atrás. 3 puzzles correctos desde que volviste.",
+        "Así se juega. Te caíste {{failedBefore}} veces y te levantaste.",
+        "Mente fría después de {{failedBefore}} fallos. Eso marca la diferencia.",
+        "Tres seguidos después de {{failedBefore}} errores. La remontada es real.",
+        "No te rendiste. 3 correctos después de {{failedBefore}} fallos lo demuestran.",
+        "El peor momento ya pasó. Llevas 3 en racha.",
+        "Después de {{failedBefore}} tropiezos, encontraste el ritmo de nuevo.",
+        "Los mejores jugadores también fallan. Lo que importa es lo que haces después."
+      ]
     },
     "session_elo_gain": {
       "title": "+{{gained}} ELO en esta sesión",
@@ -224,7 +235,18 @@
     },
     "fsrs_first_review": {
       "title": "De vuelta",
-      "body": "Este patrón regresó justo cuando debía. Tu memoria está funcionando."
+      "bodies": [
+        "Este patrón regresó justo cuando debía. Tu memoria está funcionando.",
+        "Primera revisión programada. El algoritmo confía en tu memoria.",
+        "Lo aprendiste antes. Ahora lo confirmas.",
+        "Tu cerebro guardó esto. El algoritmo vino a comprobarlo.",
+        "Revisión programada. Así se construye la memoria a largo plazo.",
+        "Este patrón volvió porque ya lo tienes. Demuéstralo.",
+        "El algoritmo calculó el momento exacto. Y tenía razón.",
+        "Primer repaso completo. Estás en el camino correcto.",
+        "Memoria a prueba. Si lo recuerdas ahora, lo recordarás mucho tiempo.",
+        "Repaso confirmado. Tu progreso con este patrón es real."
+      ]
     },
     "fsrs_mastered": {
       "title": "Patrón dominado",
