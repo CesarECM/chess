@@ -33,9 +33,14 @@ function getIcon(message: ProgressMessage): string {
   return ICONS[message.type];
 }
 
+const MULTI_BODY_TYPES: Partial<Record<MessageType, true>> = {
+  fsrs_mastered: true,
+  streak:        true,
+};
+
 function getBodyKey(message: ProgressMessage): string {
-  if (message.type === 'fsrs_mastered') {
-    return `message.fsrs_mastered.bodies.${message.payload.bodyIndex ?? 0}`;
+  if (MULTI_BODY_TYPES[message.type]) {
+    return `message.${message.type}.bodies.${message.payload.bodyIndex ?? 0}`;
   }
   return `message.${message.type}.body`;
 }

@@ -185,7 +185,7 @@ export function detectSessionStartEvents(params: {
       id:      'streak_session',
       kind:    'progress',
       type:    'streak',
-      payload: { days: params.streakDays },
+      payload: { days: params.streakDays, bodyIndex: Math.floor(Math.random() * 10) },
     });
   }
 

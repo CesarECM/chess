@@ -177,7 +177,18 @@
     "continue": "Continue",
     "streak": {
       "title": "{{days}}-day streak",
-      "body": "Keep it up. Your streak keeps growing."
+      "bodies": [
+        "Keep it up. Your streak keeps growing.",
+        "Every day counts. You're building something real.",
+        "Consistency is your superpower. Keep it up.",
+        "Habit formed. The board is waiting.",
+        "Your brain is changing. Every session matters.",
+        "Streak alive. Don't let it break today.",
+        "What separates good players is consistency.",
+        "One more day at the board. That's how you improve.",
+        "The streak doesn't keep itself. You do.",
+        "Another day, another level. Keep building."
+      ]
     },
     "milestone_solved": {
       "title": "{{count}} puzzles solved",

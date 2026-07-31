@@ -177,7 +177,18 @@
     "continue": "Continuar",
     "streak": {
       "title": "{{days}} días seguidos",
-      "body": "No pares ahora. Tu racha sigue creciendo."
+      "bodies": [
+        "No pares ahora. Tu racha sigue creciendo.",
+        "Cada día cuenta. Estás construyendo algo real.",
+        "La consistencia es tu superpoder. Sigue así.",
+        "Hábito formado. El tablero te espera.",
+        "Tu cerebro está cambiando. Cada sesión importa.",
+        "Racha activa. No dejes que se rompa hoy.",
+        "Lo que separa a los buenos jugadores es la constancia.",
+        "Un día más en el tablero. Así se mejora.",
+        "La racha no se mantiene sola. Tú la mantienes.",
+        "Otro día, otro nivel. Sigue construyendo."
+      ]
     },
     "milestone_solved": {
       "title": "{{count}} puzzles resueltos",

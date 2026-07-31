@@ -177,7 +177,18 @@
     "continue": "Continuer",
     "streak": {
       "title": "{{days}} jours de suite",
-      "body": "Ne vous arrêtez pas. Votre série continue de croître."
+      "bodies": [
+        "Ne vous arrêtez pas. Votre série continue de croître.",
+        "Chaque jour compte. Vous construisez quelque chose de réel.",
+        "La constance est votre superpouvoir. Continuez.",
+        "Habitude formée. L'échiquier vous attend.",
+        "Votre cerveau change. Chaque session compte.",
+        "Série active. Ne la brisez pas aujourd'hui.",
+        "Ce qui distingue les bons joueurs, c'est la régularité.",
+        "Un jour de plus à l'échiquier. C'est comme ça qu'on progresse.",
+        "La série ne se maintient pas toute seule. C'est vous qui la maintenez.",
+        "Un autre jour, un autre niveau. Continuez à construire."
+      ]
     },
     "milestone_solved": {
       "title": "{{count}} puzzles résolus",

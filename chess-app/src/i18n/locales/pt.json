@@ -177,7 +177,18 @@
     "continue": "Continuar",
     "streak": {
       "title": "{{days}} dias seguidos",
-      "body": "Não pare agora. Sua sequência continua crescendo."
+      "bodies": [
+        "Não pare agora. Sua sequência continua crescendo.",
+        "Cada dia conta. Você está construindo algo real.",
+        "Consistência é seu superpoder. Continue assim.",
+        "Hábito formado. O tabuleiro está esperando.",
+        "Seu cérebro está mudando. Cada sessão importa.",
+        "Sequência ativa. Não deixe ela quebrar hoje.",
+        "O que separa os bons jogadores é a constância.",
+        "Mais um dia no tabuleiro. É assim que se melhora.",
+        "A sequência não se mantém sozinha. Você a mantém.",
+        "Mais um dia, mais um nível. Continue construindo."
+      ]
     },
     "milestone_solved": {
       "title": "{{count}} puzzles resolvidos",
