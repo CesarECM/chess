@@ -79,6 +79,12 @@
     "deflection": "Deflection",
     "other": "Other"
   },
+  "analysis": {
+    "title": "Position Analysis",
+    "loading": "Analyzing position…",
+    "unavailable": "Analysis not available for this position",
+    "depth": "Depth {{depth}}"
+  },
   "profile": {
     "guestName": "Guest player",
     "guestHint": "Create an account to save your progress to the cloud",

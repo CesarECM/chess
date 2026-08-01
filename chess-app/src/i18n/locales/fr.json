@@ -79,6 +79,12 @@
     "deflection": "Déviation",
     "other": "Autres"
   },
+  "analysis": {
+    "title": "Analyse de position",
+    "loading": "Analyse en cours…",
+    "unavailable": "Analyse non disponible pour cette position",
+    "depth": "Prof. {{depth}}"
+  },
   "profile": {
     "guestName": "Joueur invité",
     "guestHint": "Créez un compte pour sauvegarder vos progrès dans le cloud",

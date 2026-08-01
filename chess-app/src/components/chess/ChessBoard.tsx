@@ -24,6 +24,8 @@ interface ChessBoardProps {
   maxSize?: number;
   /** Ignored on native; accepted to share prop interface with ChessBoard.web.tsx. */
   resetKey?: string;
+  /** Ignored on native; accepted to share prop interface with ChessBoard.web.tsx. */
+  arrows?: { from: string; to: string; color?: string }[];
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(

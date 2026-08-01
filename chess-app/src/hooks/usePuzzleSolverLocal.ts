@@ -570,5 +570,6 @@ export function usePuzzleSolverLocal(
     preEloLow,
     eloDelta,
     clearEloDelta: () => setEloDelta(null),
+    getCurrentFen: () => fenRef.current,
   };
 }

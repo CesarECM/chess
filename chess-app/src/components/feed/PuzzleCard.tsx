@@ -37,14 +37,15 @@ interface Props {
   onStatusChange?: (status: SolverStatus) => void;
   onMessagesEarned?: (messages: ProgressMessage[], feedIndex: number) => void;
   backgroundColor?: string;
-  onAnalyze?: () => void;
+  onAnalyze?: (fen: string) => void;
+  boardArrow?: { from: string; to: string } | null;
   onForceFailRef?: MutableRefObject<(() => void) | null>;
   onDebugLog?: (tag: string, msg: string) => void;
 }
 
 function PuzzleCardComponent({
   puzzle, height, isActive, feedIndex,
-  onComplete, onStatusChange, onMessagesEarned, backgroundColor, onAnalyze, onForceFailRef, onDebugLog,
+  onComplete, onStatusChange, onMessagesEarned, backgroundColor, onAnalyze, boardArrow, onForceFailRef, onDebugLog,
 }: Props) {
   const { colors, typography } = useTheme();
   const { t }        = useTranslation();
@@ -71,7 +72,7 @@ function PuzzleCardComponent({
   const {
     puzzleStatus, hasFailed, reviewMoveIndex, reviewedAfterSolve,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
-    forceFailure, eloDelta, clearEloDelta,
+    forceFailure, eloDelta, clearEloDelta, getCurrentFen,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
 
   const isCalibrating = preEloLow !== null;
@@ -143,11 +144,13 @@ function PuzzleCardComponent({
     </View>
   );
 
-  const metaText = (
+  const hasBeenPlayed = ['failed', 'reviewing', 'reviewed', 'complete'].includes(puzzleStatus);
+
+  const metaText = hasBeenPlayed ? (
     <Text style={[styles.meta, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-      {t('puzzle.ratingMeta', { rating: puzzle.rating, theme: puzzle.themes[0] })}
+      {t('puzzle.ratingMeta', { rating: puzzle.rating, theme: t(`tactic.${puzzle.themes[0]}`) })}
     </Text>
-  );
+  ) : null;
 
   const playerColorText = (
     <Text style={[styles.playerColor, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
@@ -196,7 +199,7 @@ function PuzzleCardComponent({
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={onAnalyze}
+              onPress={() => onAnalyze?.(getCurrentFen())}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
                 {t('puzzle.analyze')}
@@ -241,7 +244,7 @@ function PuzzleCardComponent({
         <View style={styles.row}>
           <TouchableOpacity
             style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-            onPress={onAnalyze}
+            onPress={() => onAnalyze?.(getCurrentFen())}
           >
             <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
               {t('puzzle.analyze')}
@@ -281,7 +284,7 @@ function PuzzleCardComponent({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={onAnalyze}
+              onPress={() => onAnalyze?.(getCurrentFen())}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
                 {t('puzzle.analyze')}
@@ -334,6 +337,7 @@ function PuzzleCardComponent({
                 enabled={puzzleStatus === 'playing' && isActive}
                 onMove={onUserMove}
                 maxSize={boardMaxSize}
+                arrows={boardArrow ? [{ ...boardArrow, color: 'rgba(50,200,50,0.85)' }] : undefined}
               />
               {eloDelta !== null && (
                 <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
@@ -388,6 +392,7 @@ function PuzzleCardComponent({
             enabled={puzzleStatus === 'playing' && isActive}
             onMove={onUserMove}
             maxSize={boardMaxSize}
+            arrows={boardArrow ? [{ ...boardArrow, color: 'rgba(50,200,50,0.85)' }] : undefined}
           />
           {eloDelta !== null && (
             <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />

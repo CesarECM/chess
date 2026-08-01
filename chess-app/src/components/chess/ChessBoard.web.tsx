@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { Animated, Easing, Modal, View, TouchableOpacity, StyleSheet, Image, Text, useWindowDimensions } from 'react-native';
 import { Chess } from 'chess.js';
 import type { Square, PieceSymbol, Move } from 'chess.js';
@@ -19,6 +19,12 @@ export interface ChessboardRef {
 
 export type Orientation = 'white' | 'black' | 'auto';
 
+export interface BoardArrow {
+  from: string;
+  to: string;
+  color?: string;
+}
+
 interface ChessBoardProps {
   fen: string;
   orientation?: Orientation;
@@ -32,6 +38,8 @@ interface ChessBoardProps {
    * Pass `puzzle.id` so FlashList view recycling never leaves stale board state.
    */
   resetKey?: string;
+  /** Overlay arrows on the board (e.g. best move from analysis). Web-only. */
+  arrows?: BoardArrow[];
 }
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -72,7 +80,7 @@ function squareToPos(sq: Square, flipped: boolean, sqSize: number): { x: number;
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
-  ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true, maxSize, resetKey }, ref) => {
+  ({ fen, orientation = 'auto', onMove, onIllegalMove, enabled = true, maxSize, resetKey, arrows }, ref) => {
     const { width }    = useWindowDimensions();
     // On desktop (≥640px) the shell is removed; board may grow up to 640px before maxSize clips it.
     const rawSize      = Math.min(Math.floor(width), width >= 640 ? 640 : 480);
@@ -349,6 +357,53 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
               style={{ width: SQ * 0.88, height: SQ * 0.88 }}
             />
           </Animated.View>
+        )}
+
+        {arrows && arrows.length > 0 && React.createElement(
+          'svg',
+          { style: { position: 'absolute', top: 0, left: 0, width: SIZE, height: SIZE, pointerEvents: 'none', zIndex: 5 } },
+          React.createElement(
+            'defs',
+            null,
+            ...arrows.map((_, i) => {
+              const color = arrows[i].color ?? 'rgba(50,200,50,0.85)';
+              return React.createElement(
+                'marker',
+                { key: i, id: `arrowhead-${i}`, markerUnits: 'userSpaceOnUse', markerWidth: SQ * 0.45, markerHeight: SQ * 0.45, refX: SQ * 0.45, refY: SQ * 0.225, orient: 'auto' },
+                React.createElement('polygon', { points: `0 0, ${SQ * 0.45} ${SQ * 0.225}, 0 ${SQ * 0.45}`, fill: color }),
+              );
+            }),
+          ),
+          ...arrows.map((arrow, i) => {
+            const from = arrow.from;
+            const to   = arrow.to;
+            if (!FILES.includes(from[0]) || !RANKS.includes(from[1])) return null;
+            if (!FILES.includes(to[0])   || !RANKS.includes(to[1]))   return null;
+            const fp   = squareToPos(from as Square, flipped, SQ);
+            const tp   = squareToPos(to   as Square, flipped, SQ);
+            const fx   = fp.x + SQ / 2;
+            const fy   = fp.y + SQ / 2;
+            const tx   = tp.x + SQ / 2;
+            const ty   = tp.y + SQ / 2;
+            const dx   = tx - fx;
+            const dy   = ty - fy;
+            const len  = Math.sqrt(dx * dx + dy * dy);
+            if (len === 0) return null;
+            const ux   = dx / len;
+            const uy   = dy / len;
+            const color = arrow.color ?? 'rgba(50,200,50,0.85)';
+            return React.createElement('line', {
+              key: i,
+              x1: fx + ux * SQ * 0.3,
+              y1: fy + uy * SQ * 0.3,
+              x2: tx,
+              y2: ty,
+              stroke: color,
+              strokeWidth: SQ * 0.12,
+              strokeLinecap: 'round',
+              markerEnd: `url(#arrowhead-${i})`,
+            });
+          }),
         )}
 
         {promotionPending && (

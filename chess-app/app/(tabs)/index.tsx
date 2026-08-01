@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, ActivityIndicator, Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DebugPanel } from '@/components/debug/DebugPanel';
 import type { DebugEntry } from '@/components/debug/DebugPanel';
+import { AnalysisPanel } from '@/components/chess/AnalysisPanel';
+import { useAnalysis } from '@/services/analysis/useAnalysis';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
@@ -48,6 +50,9 @@ export default function FeedScreen() {
   const [listHeight,       setListHeight]       = useState(Dimensions.get('window').height - 80);
   const [activeStatus,     setActiveStatus]     = useState<SolverStatus>('idle');
   const [waitingForBuffer, setWaitingForBuffer] = useState(false);
+  const [analysisFen,      setAnalysisFen]      = useState<string | null>(null);
+  const [boardArrow,       setBoardArrow]       = useState<{ from: string; to: string } | null>(null);
+  const { state: analysisState, analyze, reset: resetAnalysis } = useAnalysis();
 
   // ── Debug panel ──────────────────────────────────────────────────────────
   const [debugVisible, setDebugVisible] = useState(false);
@@ -296,6 +301,18 @@ export default function FeedScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addLog]);
 
+  // ── Best-move arrow: derive from analysis result ──────────────────────────
+  useEffect(() => {
+    if (analysisState.status === 'ready') {
+      const uci = analysisState.result.pvs[0]?.moves?.split(' ')[0];
+      if (uci && uci.length >= 4) {
+        setBoardArrow({ from: uci.slice(0, 2), to: uci.slice(2, 4) });
+      }
+    } else {
+      setBoardArrow(null);
+    }
+  }, [analysisState]);
+
   // ── Index change from SpringPager ─────────────────────────────────────────
   const handleIndexChange = useCallback((newIndex: number) => {
     const item = feedRef.current[newIndex];
@@ -440,7 +457,8 @@ export default function FeedScreen() {
         onComplete={handleComplete}
         onStatusChange={isCurrentlyActive ? onActiveStatusChange : undefined}
         onMessagesEarned={handleMessagesEarned}
-        onAnalyze={() => { /* MPS A: conectar a Stockfish */ }}
+        onAnalyze={(fen) => { setAnalysisFen(fen); analyze(fen); }}
+        boardArrow={isCurrentlyActive ? boardArrow : null}
         backgroundColor={pastBg}
         onForceFailRef={isCurrentlyActive ? activePuzzleForceFailRef : undefined}
         onDebugLog={addLog}
@@ -528,6 +546,12 @@ export default function FeedScreen() {
           onClear={() => setDebugEntries([])}
         />
       )}
+
+      <AnalysisPanel
+        state={analysisState}
+        isVisible={analysisFen !== null}
+        onClose={() => { setAnalysisFen(null); resetAnalysis(); setBoardArrow(null); }}
+      />
     </View>
   );
 }
