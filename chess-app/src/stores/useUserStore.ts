@@ -5,8 +5,6 @@ import {
   PRE_ELO_LOWER,
   PRE_ELO_UPPER,
   PRE_ELO_ONBOARDING_WINDOW,
-  K_MIN,
-  K_DIVISOR,
   PRE_ELO_CONVERGENCE,
   RECALIBRATION_DAYS,
   DRIFT_SAMPLE_SIZE,
@@ -143,27 +141,21 @@ export const useUserStore = create<UserState>()(
         const { preEloLow, preEloHigh, calibrationBounds } = get();
         if (preEloLow === null || preEloHigh === null) return;
 
-        const range = preEloHigh - preEloLow;
-        const K = Math.max(K_MIN, range / K_DIVISOR);
-        const actual = solved ? 1 : 0;
+        // Pure binary search: clamp rating to current window, then move only one bound.
+        const rating = Math.max(preEloLow, Math.min(preEloHigh, puzzleRating));
+        const newLow  = solved ? rating    : preEloLow;
+        const newHigh = solved ? preEloHigh : rating;
 
-        const eLow  = 1 / (1 + Math.pow(10, (puzzleRating - preEloLow)  / 400));
-        const eHigh = 1 / (1 + Math.pow(10, (puzzleRating - preEloHigh) / 400));
+        const clampedLow  = Math.max(calibrationBounds.low,  newLow);
+        const clampedHigh = Math.min(calibrationBounds.high, newHigh);
 
-        let newLow  = Math.round(preEloLow  + K * (actual - eLow));
-        let newHigh = Math.round(preEloHigh + K * (actual - eHigh));
-
-        newLow  = Math.max(calibrationBounds.low,  newLow);
-        newHigh = Math.min(calibrationBounds.high, newHigh);
-        newLow  = Math.min(newLow, newHigh - 1);
-
-        if (newHigh - newLow < PRE_ELO_CONVERGENCE) {
-          const finalElo = Math.round((newLow + newHigh) / 2);
+        if (clampedHigh - clampedLow < PRE_ELO_CONVERGENCE) {
+          const finalElo = Math.round((clampedLow + clampedHigh) / 2);
           set({ preEloLow: null, preEloHigh: null, elo: finalElo, recentDriftSamples: [], firstPuzzleRating: null });
           return;
         }
 
-        set({ preEloLow: newLow, preEloHigh: newHigh });
+        set({ preEloLow: clampedLow, preEloHigh: clampedHigh });
       },
 
       checkRecalibrationNeeded: () => {
