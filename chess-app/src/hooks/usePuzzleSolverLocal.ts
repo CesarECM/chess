@@ -210,7 +210,7 @@ export function usePuzzleSolverLocal(
     if (isCalibrating) {
       // ── Calibration path: no FSRS, no ELO badge ───────────────────────────
       const { preEloLow: prevLow, preEloHigh: prevHigh } = useUserStore.getState();
-      updatePreElo(puzzleRating, solved);
+      updatePreElo(puzzleRating, solved, elapsedMs);
       const { preEloLow: newLow, preEloHigh: newHigh, elo: calibratedElo } = useUserStore.getState();
 
       addToHistory(puzzleId);

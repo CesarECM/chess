@@ -116,7 +116,9 @@ export async function buildCalibrationQueue(
       .from('puzzles')
       .select('*')
       .gte('rating', mid - window)
-      .lte('rating', mid + window);
+      .lte('rating', mid + window)
+      .gte('popularity', 50)
+      .lte('rating_deviation', 100);
 
     const candidates = ((data ?? []) as Record<string, unknown>[])
       .map(rowToPuzzle)

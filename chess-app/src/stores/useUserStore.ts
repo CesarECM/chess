@@ -9,7 +9,12 @@ import {
   RECALIBRATION_DAYS,
   DRIFT_SAMPLE_SIZE,
   DRIFT_THRESHOLD,
-  RECALIBRATION_RANGE,
+  CALIB_FAST_SOLVE_MS,
+  CALIB_FAST_SOLVE_BONUS,
+  CALIB_MISCLICK_MS,
+  CALIB_MISCLICK_CREDIT,
+  CALIB_SLOW_FAIL_MS,
+  CALIB_SLOW_FAIL_CREDIT,
 } from '@/constants';
 import { calculateElo } from '@/services/elo';
 import { evaluateNewMedals } from '@/services/medals';
@@ -70,7 +75,8 @@ interface UserState {
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => number;
-  updatePreElo: (puzzleRating: number, solved: boolean) => void;
+  calibrationPendingConfirmation: boolean;
+  updatePreElo: (puzzleRating: number, solved: boolean, elapsedMs?: number) => void;
   checkRecalibrationNeeded: () => boolean;
   startRecalibration: () => void;
   setCalibrationBounds: (low: number, high: number) => void;
@@ -125,6 +131,7 @@ export const useUserStore = create<UserState>()(
       boardTheme: 'classic',
       pieceSet: 'cburnett',
       onboardingCompleted: false,
+      calibrationPendingConfirmation: false,
 
       setElo: (elo) => set({ elo }),
 
@@ -141,25 +148,47 @@ export const useUserStore = create<UserState>()(
         return newElo - elo;
       },
 
-      updatePreElo: (puzzleRating, solved) => {
-        const { preEloLow, preEloHigh, calibrationBounds } = get();
+      updatePreElo: (puzzleRating, solved, elapsedMs = 0) => {
+        const { preEloLow, preEloHigh, calibrationBounds, calibrationPendingConfirmation } = get();
         if (preEloLow === null || preEloHigh === null) return;
 
         // Pure binary search: clamp rating to current window, then move only one bound.
         const rating = Math.max(preEloLow, Math.min(preEloHigh, puzzleRating));
-        const newLow  = solved ? rating    : preEloLow;
-        const newHigh = solved ? preEloHigh : rating;
+        let newLow  = solved ? rating     : preEloLow;
+        let newHigh = solved ? preEloHigh : rating;
+
+        // Time signal: adjust bound movement based on solve confidence.
+        if (elapsedMs > 0) {
+          if (solved && elapsedMs < CALIB_FAST_SOLVE_MS) {
+            // Solved very quickly → clearly below their level, push lower bound up.
+            newLow = Math.min(newLow + CALIB_FAST_SOLVE_BONUS, preEloHigh);
+          } else if (!solved) {
+            if (elapsedMs < CALIB_MISCLICK_MS) {
+              // Failed almost instantly → likely misclick, soften upper bound drop.
+              newHigh = Math.min(newHigh + CALIB_MISCLICK_CREDIT, preEloHigh);
+            } else if (elapsedMs > CALIB_SLOW_FAIL_MS) {
+              // Failed after a long attempt → engaged seriously, partial credit.
+              newHigh = Math.min(newHigh + CALIB_SLOW_FAIL_CREDIT, preEloHigh);
+            }
+          }
+        }
 
         const clampedLow  = Math.max(calibrationBounds.low,  newLow);
         const clampedHigh = Math.min(calibrationBounds.high, newHigh);
 
         if (clampedHigh - clampedLow < PRE_ELO_CONVERGENCE) {
+          if (!calibrationPendingConfirmation) {
+            // First time in convergence zone — hold for one more confirmation puzzle.
+            set({ preEloLow: clampedLow, preEloHigh: clampedHigh, calibrationPendingConfirmation: true });
+            return;
+          }
+          // Confirmation done — converge.
           const finalElo = Math.round((clampedLow + clampedHigh) / 2);
-          set({ preEloLow: null, preEloHigh: null, elo: finalElo, recentDriftSamples: [], firstPuzzleRating: null });
+          set({ preEloLow: null, preEloHigh: null, elo: finalElo, recentDriftSamples: [], firstPuzzleRating: null, calibrationPendingConfirmation: false });
           return;
         }
 
-        set({ preEloLow: clampedLow, preEloHigh: clampedHigh });
+        set({ preEloLow: clampedLow, preEloHigh: clampedHigh, calibrationPendingConfirmation: false });
       },
 
       checkRecalibrationNeeded: () => {
@@ -182,16 +211,9 @@ export const useUserStore = create<UserState>()(
       },
 
       startRecalibration: () => {
-        const { elo, calibrationBounds } = get();
-        const startLow  = Math.max(calibrationBounds.low,  elo - RECALIBRATION_RANGE);
-        const startHigh = Math.min(calibrationBounds.high, elo + RECALIBRATION_RANGE);
-        set({
-          preEloLow:       startLow,
-          preEloHigh:      startHigh,
-          preEloStartLow:  startLow,
-          preEloStartHigh: startHigh,
-          recentDriftSamples: [],
-        });
+        // Recalibration restarts Phase 2 (FSRS fine-tuning), not Phase 1 (binary search).
+        // Keep preEloLow/High as null — no binary search, just reset drift tracking.
+        set({ recentDriftSamples: [], calibrationPendingConfirmation: false });
       },
 
       setCalibrationBounds: (low, high) => set({ calibrationBounds: { low, high } }),
@@ -344,6 +366,7 @@ export const useUserStore = create<UserState>()(
         eloHistory: [],
         notificationStreakHour: 20,
         preferredLanguage: null,
+        calibrationPendingConfirmation: false,
         // GDPR no se resetea al hacer logout
       }),
     }),

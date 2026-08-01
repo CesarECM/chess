@@ -14,11 +14,22 @@ export const PRE_ELO_ONBOARDING_WINDOW  = 500;  // ± around declared level to s
 export const PRE_ELO_CONVERGENCE        = 100;  // range < this → calibrated
 export const PRE_ELO_NUMERIC_THRESHOLD  = 300;  // range ≤ this → show numbers
 
+// ── calibration quality filters ──────────────────────────────────────────────
+export const CALIB_MIN_POPULARITY   = 50;
+export const CALIB_MAX_RATING_DEV   = 100;
+
+// ── calibration time signal ───────────────────────────────────────────────────
+export const CALIB_FAST_SOLVE_MS    = 10_000;  // < 10s solve → clearly below their level
+export const CALIB_FAST_SOLVE_BONUS = 100;     // push lower bound up by this many ELO points
+export const CALIB_MISCLICK_MS      = 4_000;   // < 4s fail → likely misclick
+export const CALIB_MISCLICK_CREDIT  = 50;      // soften upper bound drop
+export const CALIB_SLOW_FAIL_MS     = 60_000;  // > 60s fail → engaged seriously, partial credit
+export const CALIB_SLOW_FAIL_CREDIT = 50;
+
 // ── recalibration ────────────────────────────────────────────────────────────
 export const RECALIBRATION_DAYS   = 30;
 export const DRIFT_SAMPLE_SIZE    = 20;
 export const DRIFT_THRESHOLD      = 0.30;
-export const RECALIBRATION_RANGE  = 200;
 
 export const FSRS_TARGET_RETENTION = 0.9;
 
