@@ -440,6 +440,7 @@ export default function FeedScreen() {
         onComplete={handleComplete}
         onStatusChange={isCurrentlyActive ? onActiveStatusChange : undefined}
         onMessagesEarned={handleMessagesEarned}
+        onAnalyze={() => { /* MPS A: conectar a Stockfish */ }}
         backgroundColor={pastBg}
         onForceFailRef={isCurrentlyActive ? activePuzzleForceFailRef : undefined}
         onDebugLog={addLog}

@@ -15,7 +15,7 @@ import { RangeBadge } from '@/components/ui/RangeBadge';
 import { ShareCard } from '@/components/ui/ShareCard';
 import type { Puzzle, ProgressMessage } from '@/types';
 
-const DESKTOP_PANEL_WIDTH = 280;
+const DESKTOP_PANEL_WIDTH = 320;
 const PIECE_COLOR_WHITE   = '#f0d9b5';
 const PIECE_COLOR_BLACK   = '#4a3728';
 
@@ -37,15 +37,16 @@ interface Props {
   onStatusChange?: (status: SolverStatus) => void;
   onMessagesEarned?: (messages: ProgressMessage[], feedIndex: number) => void;
   backgroundColor?: string;
+  onAnalyze?: () => void;
   onForceFailRef?: MutableRefObject<(() => void) | null>;
   onDebugLog?: (tag: string, msg: string) => void;
 }
 
 function PuzzleCardComponent({
   puzzle, height, isActive, feedIndex,
-  onComplete, onStatusChange, onMessagesEarned, backgroundColor, onForceFailRef, onDebugLog,
+  onComplete, onStatusChange, onMessagesEarned, backgroundColor, onAnalyze, onForceFailRef, onDebugLog,
 }: Props) {
-  const { colors, typography, spacing } = useTheme();
+  const { colors, typography } = useTheme();
   const { t }        = useTranslation();
   const isDesktop    = useIsDesktop();
   const boardRef     = useRef<ChessboardRef>(null);
@@ -114,7 +115,7 @@ function PuzzleCardComponent({
         580,
         boardColW > 0 ? boardColW : height - 40,
       )
-    : (Platform.OS === 'web' ? Math.max(height - 220, 200) : undefined);
+    : (Platform.OS === 'web' ? Math.max(height - 248, 200) : undefined);
 
   // ── Shared sub-elements ───────────────────────────────────────────────────
   const badgeRow = !isCalibrating ? (
@@ -159,27 +160,59 @@ function PuzzleCardComponent({
   );
 
   const buttons = (
-    <>
-      {isActive && puzzleStatus === 'failed' && (
-        <View style={[styles.row, { gap: spacing[2] }]}>
-          <TouchableOpacity
-            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, borderRadius: 8, flex: 1 }]}
-            onPress={onRetry}
-          >
-            <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-              {t('puzzle.retry')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 8, flex: 1 }]}
-            onPress={startReview}
-          >
-            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-              {t('puzzle.viewSolution')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.buttonsArea}>
+      {/* playing: válvula de escape ghost */}
+      {isActive && puzzleStatus === 'playing' && (
+        <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={startReview}>
+          <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+            {t('puzzle.viewSolution')}
+          </Text>
+        </TouchableOpacity>
       )}
+
+      {/* failed: reintentar / ver solución + analizar / saltar */}
+      {isActive && puzzleStatus === 'failed' && (
+        <>
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              onPress={onRetry}
+            >
+              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                {t('puzzle.retry')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.accent, flex: 1 }]}
+              onPress={startReview}
+            >
+              <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
+                {t('puzzle.viewSolution')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              onPress={onAnalyze}
+            >
+              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                {t('puzzle.analyze')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              onPress={onComplete}
+            >
+              <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+                {t('puzzle.skip')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      {/* reviewing / reviewed: navegación ‹ N/M › */}
       {isActive && (puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed') && (
         <View style={styles.reviewNav}>
           <TouchableOpacity
@@ -201,40 +234,82 @@ function PuzzleCardComponent({
           </TouchableOpacity>
         </View>
       )}
+      {/* reviewing / reviewed: analizar + siguiente (primario en reviewed) */}
       {isActive && (puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed') && (
-        <TouchableOpacity
-          style={[styles.btn, styles.btnOutline, { borderColor: colors.border, borderRadius: 8, alignSelf: 'stretch' }]}
-          onPress={onComplete}
-        >
-          <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-            {t('puzzle.nextPuzzle')}
-          </Text>
-        </TouchableOpacity>
-      )}
-      {isActive && puzzleStatus === 'complete' && (
-        <View style={[styles.row, { gap: spacing[2] }]}>
-          {Platform.OS !== 'web' && (
-            <TouchableOpacity
-              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, borderRadius: 8, opacity: isSharing ? 0.5 : 1 }]}
-              onPress={captureAndShare}
-              disabled={isSharing}
-            >
-              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-                {isSharing ? '…' : t('puzzle.share')}
-              </Text>
-            </TouchableOpacity>
-          )}
+        <View style={styles.row}>
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: colors.success, borderRadius: 8, flex: 1 }]}
+            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+            onPress={onAnalyze}
+          >
+            <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+              {t('puzzle.analyze')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.btn,
+              { flex: 1 },
+              puzzleStatus === 'reviewed'
+                ? [styles.btnPrimary, { backgroundColor: colors.accent }]
+                : [styles.btnOutline, { borderColor: colors.border }],
+            ]}
             onPress={onComplete}
           >
-            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
+            <Text style={[styles.btnText, {
+              color: puzzleStatus === 'reviewed' ? '#fff' : colors.text,
+              fontSize: typography.size.sm,
+            }]}>
               {t('puzzle.nextPuzzle')}
             </Text>
           </TouchableOpacity>
         </View>
       )}
-    </>
+
+      {/* complete: revisar / analizar + compartir / siguiente */}
+      {isActive && puzzleStatus === 'complete' && (
+        <>
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              onPress={startReview}
+            >
+              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                {t('puzzle.reviewMove')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              onPress={onAnalyze}
+            >
+              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                {t('puzzle.analyze')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.row}>
+            {Platform.OS !== 'web' && (
+              <TouchableOpacity
+                style={[styles.btn, styles.btnOutline, { borderColor: colors.border, opacity: isSharing ? 0.5 : 1 }]}
+                onPress={captureAndShare}
+                disabled={isSharing}
+              >
+                <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                  {isSharing ? '…' : t('puzzle.share')}
+                </Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.success, flex: 1 }]}
+              onPress={onComplete}
+            >
+              <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
+                {t('puzzle.nextPuzzle')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+    </View>
   );
 
   // ── Desktop: board-left / info-right ─────────────────────────────────────
@@ -367,9 +442,13 @@ const styles = StyleSheet.create({
   retryBorder:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 3, borderRadius: 4 },
   meta:         { marginBottom: 2 },
   playerColor:  { marginBottom: 6, fontWeight: '600' },
-  status:       { marginTop: 12, fontWeight: '500' },
-  row:          { flexDirection: 'row', alignSelf: 'stretch' },
-  btn:          { paddingHorizontal: 20, paddingVertical: 10, alignItems: 'center' },
+  status:       { fontWeight: '500' },
+  // Buttons area
+  buttonsArea:  { alignSelf: 'stretch', gap: 8 },
+  row:          { flexDirection: 'row', alignSelf: 'stretch', gap: 8 },
+  btn:          { paddingHorizontal: 20, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  btnPrimary:   { paddingVertical: 12 },
+  btnGhost:     { alignSelf: 'stretch', opacity: 0.4 },
   btnOutline:   { borderWidth: 1 },
   btnText:      { fontWeight: '600' },
   reviewNav:    { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', justifyContent: 'center', gap: 20 },

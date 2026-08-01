@@ -50,7 +50,10 @@
     "loading": "Carregando…",
     "ratingMeta": "Rating {{rating}} · {{theme}}",
     "share": "Compartilhar",
-    "sessionCount": "{{count}} hoje"
+    "sessionCount": "{{count}} hoje",
+    "skip": "Saltar",
+    "reviewMove": "Revisar",
+    "analyze": "Analisar"
   },
   "calibration": {
     "estimating": "Calibrando seu nível…",
