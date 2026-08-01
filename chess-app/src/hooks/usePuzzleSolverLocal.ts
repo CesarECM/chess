@@ -48,6 +48,7 @@ export function usePuzzleSolverLocal(
   const [eloDelta, setEloDelta] = useState<number | null>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const [reviewMoveIndex, setReviewMoveIndex] = useState(0);
+  const [reviewedAfterSolve, setReviewedAfterSolve] = useState(false);
 
   // Refs for mutable solver state — avoids stale closures in callbacks
   const fenRef        = useRef(puzzle?.fen ?? '');
@@ -114,6 +115,7 @@ export function usePuzzleSolverLocal(
     reviewFensRef.current    = [];
     setHasFailed(false);
     setReviewMoveIndex(0);
+    setReviewedAfterSolve(false);
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -457,6 +459,8 @@ export function usePuzzleSolverLocal(
 
   const startReview = useCallback(() => {
     if (!puzzle) return;
+    const alreadySolved = countedRef.current === puzzle.id && solvedResultRef.current === true;
+    setReviewedAfterSolve(alreadySolved);
     recordResult(puzzle.id, puzzle.rating, false);
 
     // Pre-compute all FENs for back/forward navigation
@@ -556,6 +560,7 @@ export function usePuzzleSolverLocal(
     puzzleStatus,
     hasFailed,
     reviewMoveIndex,
+    reviewedAfterSolve,
     onUserMove,
     startReview,
     handleAdvanceReview,

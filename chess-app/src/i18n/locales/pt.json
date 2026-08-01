@@ -41,6 +41,7 @@
     "statusFailed": "✗ Incorreto",
     "statusReviewing": "Revisando solução…",
     "statusReviewed": "✗ Solução revisada",
+    "statusReviewedSolved": "✓ Solução revisada",
     "statusComplete": "✓ Puzzle resolvido!",
     "calibrating": "Calibrando seu nível · {{count}}/{{total}}",
     "retry": "Tentar novamente",

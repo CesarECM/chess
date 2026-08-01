@@ -69,7 +69,7 @@ function PuzzleCardComponent({
   );
 
   const {
-    puzzleStatus, hasFailed, reviewMoveIndex,
+    puzzleStatus, hasFailed, reviewMoveIndex, reviewedAfterSolve,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
     forceFailure, eloDelta, clearEloDelta,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
@@ -97,16 +97,18 @@ function PuzzleCardComponent({
     if (isActive) onStatusChange?.(puzzleStatus);
   }, [puzzleStatus, isActive, onStatusChange]);
 
-  const statusColor = colors[STATUS_COLOR[puzzleStatus]];
+  const statusColor = (puzzleStatus === 'reviewed' && reviewedAfterSolve)
+    ? colors[STATUS_COLOR['complete']]
+    : colors[STATUS_COLOR[puzzleStatus]];
 
   const statusLabels = useMemo<Record<SolverStatus, string>>(() => ({
     idle:      t('puzzle.statusIdle'),
     playing:   t('puzzle.statusPlaying'),
     failed:    t('puzzle.statusFailed'),
     reviewing: t('puzzle.statusReviewing'),
-    reviewed:  t('puzzle.statusReviewed'),
+    reviewed:  reviewedAfterSolve ? t('puzzle.statusReviewedSolved') : t('puzzle.statusReviewed'),
     complete:  t('puzzle.statusComplete'),
-  }), [t]);
+  }), [t, reviewedAfterSolve]);
 
   // Board size: on desktop, height-limited and column-width-limited; on mobile, height-limited.
   const boardMaxSize = isDesktop
