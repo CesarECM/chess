@@ -14,6 +14,8 @@ import { usePuzzleStore } from '@/stores/usePuzzleStore';
 import { usePuzzleSolverLocal, type SolverStatus } from '@/hooks/usePuzzleSolverLocal';
 import { useShareCard } from '@/hooks/useShareCard';
 import { useAnalysis } from '@/services/analysis/useAnalysis';
+import { useBatchEval } from '@/services/analysis/useBatchEval';
+import { EvalHistoryBar } from '@/components/chess/EvalHistoryBar';
 import { EloDeltaBadge } from '@/components/feed/EloDeltaBadge';
 import { CalibrationBar } from '@/components/feed/CalibrationBar';
 import { RangeBadge } from '@/components/ui/RangeBadge';
@@ -132,9 +134,12 @@ function PuzzleCardComponent({
     puzzleStatus, hasFailed, reviewMoveIndex, reviewedAfterSolve,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
     forceFailure, hintLevel, hintFromTo, requestHint,
-    reviewSan,
+    reviewSan, reviewFens, jumpToReviewIndex,
     eloDelta, clearEloDelta, getCurrentFen,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
+
+  const isInReview = puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed';
+  const { evals: reviewEvals } = useBatchEval(reviewFens, isActive && isInReview);
 
   // Keep a stable ref so callbacks always see the latest getCurrentFen
   getCurrentFenRef.current = getCurrentFen;
@@ -268,6 +273,12 @@ function PuzzleCardComponent({
     setExplorationFen(null);
     runAnalysis(returnFen);
   }, [runAnalysis]);
+
+  const wrappedJumpToReviewIndex = useCallback((idx: number) => {
+    setExplorationFen(null);
+    jumpToReviewIndex(idx);
+    if (isAnalysisOpen) analyze(getCurrentFenRef.current());
+  }, [jumpToReviewIndex, isAnalysisOpen, analyze]);
 
   // Review nav wrappers — clear exploration + re-analyze when analysis is open
   const wrappedAdvanceReview = useCallback(() => {
@@ -559,7 +570,15 @@ function PuzzleCardComponent({
 
   // ── Review navigation row ─────────────────────────────────────────────────
   const reviewNav = (puzzleStatus: 'reviewing' | 'reviewed') => (
-    <View style={styles.reviewNav}>
+    <View style={styles.reviewNavWrapper}>
+      {reviewEvals.length > 0 && (
+        <EvalHistoryBar
+          evals={reviewEvals}
+          activeIndex={reviewMoveIndex}
+          onBarPress={(idx) => { stopAutoplay(); wrappedJumpToReviewIndex(idx); }}
+        />
+      )}
+      <View style={styles.reviewNav}>
       <TouchableOpacity
         style={[styles.navBtn, { opacity: reviewMoveIndex <= 0 ? 0.25 : 1 }]}
         onPress={() => { stopAutoplay(); wrappedBackReview(); }}
@@ -596,6 +615,7 @@ function PuzzleCardComponent({
       >
         <Text style={[styles.navBtnText, { color: colors.text }]}>›</Text>
       </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -929,6 +949,7 @@ const styles = StyleSheet.create({
   btnText:        { fontWeight: '600' },
 
   // ── Review nav ───────────────────────────────────────────────────────────
+  reviewNavWrapper: { alignSelf: 'stretch', gap: 6 },
   reviewNav:      { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', justifyContent: 'center', gap: 20 },
   navBtn:         { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   navBtnText:     { fontSize: 30, fontWeight: '300', lineHeight: 36 },

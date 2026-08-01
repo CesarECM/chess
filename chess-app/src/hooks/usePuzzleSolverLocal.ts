@@ -51,6 +51,7 @@ export function usePuzzleSolverLocal(
   const [reviewedAfterSolve, setReviewedAfterSolve] = useState(false);
   const [hintLevel, setHintLevel]   = useState(0);
   const [hintFromTo, setHintFromTo] = useState<{ from: string; to: string } | null>(null);
+  const [reviewFens, setReviewFens] = useState<string[]>([]);
   const hintLevelRef = useRef(0);
 
   // Refs for mutable solver state — avoids stale closures in callbacks
@@ -118,6 +119,7 @@ export function usePuzzleSolverLocal(
     solvedResultRef.current  = null;
     reviewFensRef.current    = [];
     reviewSansRef.current    = [];
+    setReviewFens([]);
     setHasFailed(false);
     setReviewMoveIndex(0);
     setReviewedAfterSolve(false);
@@ -477,6 +479,7 @@ export function usePuzzleSolverLocal(
     const { fens, sans } = computeMoveSequence(puzzle.fen, puzzle.moves);
     reviewFensRef.current = fens;
     reviewSansRef.current = sans;
+    setReviewFens(fens);
 
     fenRef.current       = puzzle.fen;
     moveIndexRef.current = 0;
@@ -560,6 +563,27 @@ export function usePuzzleSolverLocal(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
 
+  const jumpToReviewIndex = useCallback((targetIdx: number) => {
+    const s = statusRef.current;
+    if (s !== 'reviewing' && s !== 'reviewed') return;
+    if (!puzzle) return;
+
+    const clamped = Math.max(0, Math.min(targetIdx, puzzle.moves.length));
+    boardRef.current?.resetAllHighlightedSquares();
+
+    const targetFen = reviewFensRef.current[clamped] ?? puzzle.fen;
+    boardRef.current?.resetBoard(targetFen);
+    fenRef.current       = targetFen;
+    moveIndexRef.current = clamped;
+    setReviewMoveIndex(clamped);
+    setStatus(clamped >= puzzle.moves.length ? 'reviewed' : 'reviewing');
+
+    if (clamped > 0) {
+      setTimeout(() => { highlightMove(puzzle.moves[clamped - 1]); }, 200);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
   // Progressive hint: returns expected UCI only at level 3 (for PuzzleCard to animate + execute).
   // Levels 1-2 are handled internally (board highlight / hint arrow).
   const requestHint = useCallback((): string | null => {
@@ -608,6 +632,8 @@ export function usePuzzleSolverLocal(
     hintFromTo,
     requestHint,
     reviewSan: reviewMoveIndex > 0 ? (reviewSansRef.current[reviewMoveIndex - 1] ?? null) : null,
+    reviewFens,
+    jumpToReviewIndex,
     preEloLow,
     eloDelta,
     clearEloDelta: () => setEloDelta(null),
