@@ -60,6 +60,14 @@
     "hintMore": "More hint",
     "hintShow": "Show move"
   },
+  "vsEngine": {
+    "title": "Playing against the engine",
+    "play": "Play from here",
+    "thinking": "Engine thinking…",
+    "yourTurn": "Your turn",
+    "gameOver": "Game over",
+    "exit": "Back to analysis"
+  },
   "calibration": {
     "estimating": "Calibrating your level…",
     "narrowing": "Narrowing: {{low}} — {{high}}"

@@ -60,6 +60,14 @@
     "hintMore": "Más pista",
     "hintShow": "Mostrar movimiento"
   },
+  "vsEngine": {
+    "title": "Jugando contra el motor",
+    "play": "Jugar desde aquí",
+    "thinking": "Motor pensando…",
+    "yourTurn": "Tu turno",
+    "gameOver": "Partida terminada",
+    "exit": "Volver al análisis"
+  },
   "calibration": {
     "estimating": "Calibrando tu nivel…",
     "narrowing": "Ajustando: {{low}} — {{high}}"

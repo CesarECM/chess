@@ -5,7 +5,7 @@ import type { Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '@/components/chess/ChessBoard';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
 import type { BoardArrow } from '@/components/chess/ChessBoard';
-import { applyMove } from '@/services/chess';
+import { applyMove, isGameOver } from '@/services/chess';
 import { EvalBar } from '@/components/chess/EvalBar';
 import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
@@ -59,6 +59,11 @@ function PuzzleCardComponent({
   const [explorationFen, setExplorationFen]     = useState<string | null>(null);
   const [analyzedFen, setAnalyzedFen]           = useState<string | null>(null);
   const [isAutoplaying, setIsAutoplaying]       = useState(false);
+  const [isVsEngine, setIsVsEngine]             = useState(false);
+  const [vsEngineWaiting, setVsEngineWaiting]   = useState(false);
+  const [vsEngineOver, setVsEngineOver]         = useState(false);
+  const vsEngineFenRef      = useRef('');
+  const vsEngineStartFenRef = useRef('');
   const isAutoplayingRef    = useRef(false);
   const autoplayTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrappedAdvanceReviewRef = useRef<() => void>(() => {});
@@ -88,6 +93,9 @@ function PuzzleCardComponent({
     if (!isActive) {
       setExplorationFen(null);
       setAnalyzedFen(null);
+      setIsVsEngine(false);
+      setVsEngineWaiting(false);
+      setVsEngineOver(false);
       resetAnalysisRaw();
     }
   }, [isActive, puzzle.id, resetAnalysisRaw]);
@@ -95,8 +103,9 @@ function PuzzleCardComponent({
   // Stable ref so callbacks created once always see the latest getCurrentFen
   const getCurrentFenRef = useRef<() => string>(() => '');
 
-  // Derive up to 3 arrows from current analysis pvs (thinking or ready)
+  // Derive up to 3 arrows from current analysis pvs — hidden in vs-engine mode (no peeking)
   const analysisArrows = useMemo<BoardArrow[]>(() => {
+    if (isVsEngine) return [];
     const pvs =
       analysisState.status === 'ready'    ? analysisState.result.pvs :
       analysisState.status === 'thinking' ? analysisState.pvs :
@@ -112,7 +121,7 @@ function PuzzleCardComponent({
       if (!uci || uci.length < 4) return [];
       return [{ from: uci.slice(0, 2), to: uci.slice(2, 4), color: arrowColors[i] }];
     });
-  }, [analysisState]);
+  }, [isVsEngine, analysisState]);
 
   const handleMessagesEarned = useCallback(
     (msgs: ProgressMessage[]) => onMessagesEarned?.(msgs, feedIndex),
@@ -129,6 +138,36 @@ function PuzzleCardComponent({
 
   // Keep a stable ref so callbacks always see the latest getCurrentFen
   getCurrentFenRef.current = getCurrentFen;
+
+  // Engine response: fires when analysis completes while waiting for the engine's move
+  useEffect(() => {
+    if (!isVsEngine || !vsEngineWaiting) return;
+    if (analysisState.status !== 'ready') return;
+
+    const bestMove = analysisState.result.pvs[0]?.moves?.split(' ')[0];
+    if (!bestMove || bestMove.length < 4) {
+      setVsEngineWaiting(false);
+      return;
+    }
+
+    const newFen = applyMove(vsEngineFenRef.current, bestMove);
+    if (!newFen) {
+      setVsEngineWaiting(false);
+      return;
+    }
+
+    setTimeout(() => {
+      boardRef.current?.move({
+        from:      bestMove.slice(0, 2) as Square,
+        to:        bestMove.slice(2, 4) as Square,
+        promotion: bestMove.length === 5 ? (bestMove[4] as PieceSymbol) : undefined,
+      });
+      vsEngineFenRef.current = newFen;
+      setVsEngineWaiting(false);
+      if (isGameOver(newFen)) setVsEngineOver(true);
+    }, 400);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVsEngine, vsEngineWaiting, analysisState]);
 
   const isCalibrating = preEloLow !== null;
 
@@ -178,12 +217,23 @@ function PuzzleCardComponent({
       onUserMove(uci);
       return;
     }
+    if (isVsEngine) {
+      if (isGameOver(newFen)) {
+        vsEngineFenRef.current = newFen;
+        setVsEngineOver(true);
+        return;
+      }
+      vsEngineFenRef.current = newFen;
+      setVsEngineWaiting(true);
+      analyze(newFen);
+      return;
+    }
     if (isAnalysisOpen) {
       setExplorationFen(newFen);
       runAnalysis(newFen);
     }
     // During review without analysis: purely visual — ChessBoard handles it internally
-  }, [puzzleStatus, isAnalysisOpen, onUserMove, runAnalysis]);
+  }, [puzzleStatus, isVsEngine, isAnalysisOpen, onUserMove, analyze, runAnalysis]);
 
   // Trigger analysis — use explorationFen if already exploring, else main line
   const handleAnalyze = useCallback(() => {
@@ -196,6 +246,27 @@ function PuzzleCardComponent({
     setExplorationFen(null);
     boardRef.current?.resetBoard(mainFen);
     runAnalysis(mainFen);
+  }, [runAnalysis]);
+
+  // Enter vs-engine mode from the current analysis position
+  const handleStartVsEngine = useCallback(() => {
+    const startFen = explorationFen ?? getCurrentFenRef.current();
+    vsEngineStartFenRef.current = startFen;
+    vsEngineFenRef.current      = startFen;
+    setIsVsEngine(true);
+    setVsEngineWaiting(false);
+    setVsEngineOver(false);
+  }, [explorationFen]);
+
+  // Exit vs-engine — restore the position we entered from and resume analysis
+  const handleExitVsEngine = useCallback(() => {
+    const returnFen = vsEngineStartFenRef.current;
+    setIsVsEngine(false);
+    setVsEngineWaiting(false);
+    setVsEngineOver(false);
+    boardRef.current?.resetBoard(returnFen);
+    setExplorationFen(null);
+    runAnalysis(returnFen);
   }, [runAnalysis]);
 
   // Review nav wrappers — clear exploration + re-analyze when analysis is open
@@ -318,7 +389,7 @@ function PuzzleCardComponent({
   // S1: board enabled logic
   const boardEnabled = isActive && (
     puzzleStatus === 'playing' ||
-    isAnalysisOpen ||
+    (isAnalysisOpen && !vsEngineWaiting && !vsEngineOver) ||
     puzzleStatus === 'reviewing' ||
     puzzleStatus === 'reviewed'
   );
@@ -374,71 +445,115 @@ function PuzzleCardComponent({
   // ── Analysis inline panel ─────────────────────────────────────────────────
   const analysisPanel = isAnalysisOpen ? (
     <View style={[styles.analysisPanel, { backgroundColor: colors.background, borderColor: colors.border }]}>
-      <View style={styles.analysisHeader}>
-        <Text style={[styles.analysisTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-          {analysisState.status === 'loading'  && t('analysis.loading')}
-          {analysisState.status === 'thinking' && t('analysis.depth', { depth: analysisState.depth })}
-          {analysisState.status === 'ready'    && t('analysis.depth', { depth: analysisState.result.depth })}
-          {analysisState.status === 'error'    && t('analysis.unavailable')}
-        </Text>
-        <View style={styles.analysisHeaderActions}>
-          {/* S1: "Back to main line" — only when user has explored away */}
-          {explorationFen !== null && (
-            <TouchableOpacity
-              onPress={handleBackToMainLine}
-              hitSlop={8}
-              style={[styles.mainLineBtn, { borderColor: colors.border }]}
-            >
-              <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>
-                ← {t('puzzle.mainLine')}
-              </Text>
+
+      {/* ── vs-engine mode ── */}
+      {isVsEngine ? (
+        <>
+          <View style={styles.analysisHeader}>
+            <Text style={[styles.analysisTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+              {t('vsEngine.title')}
+            </Text>
+            <TouchableOpacity onPress={handleExitVsEngine} hitSlop={8}>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>✕</Text>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={handleResetAnalysis} hitSlop={8}>
-            <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>✕</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {analysisState.status === 'loading' && (
-        <ActivityIndicator size="small" color={colors.accent} style={{ alignSelf: 'flex-start' }} />
-      )}
-
-      {(analysisState.status === 'thinking' || analysisState.status === 'ready') && (() => {
-        const pvs     = analysisState.status === 'ready' ? analysisState.result.pvs : analysisState.pvs;
-        const topCp   = pvs[0]?.cp   ?? null;
-        const topMate = pvs[0]?.mate  ?? null;
-        return (
-          <View style={styles.analysisBody}>
-            <EvalBar cp={topCp} mate={topMate} />
-            <View style={{ flex: 1, gap: 4 }}>
-              {pvs.slice(0, 3).map((pv, i) => {
-                const evalStr = pv.mate != null
-                  ? (pv.mate > 0 ? `M${pv.mate}` : `M${-pv.mate}`)
-                  : pv.cp != null
-                    ? `${pv.cp > 0 ? '+' : ''}${(pv.cp / 100).toFixed(1)}`
-                    : '=';
-                const moves     = pv.moves?.split(' ') ?? [];
-                const moveLabel = moves.slice(0, 2).join(' ') || '—';
-                return (
-                  <TouchableOpacity
-                    key={i}
-                    style={styles.pvRow}
-                    activeOpacity={0.5}
-                    onPress={() => pv.moves && handlePvClick(pv.moves)}
-                  >
-                    <Text style={[styles.pvEval, { color: colors.text, fontSize: typography.size.xs }]}>{evalStr}</Text>
-                    <Text style={[styles.pvMoves, { color: colors.textSecondary, fontSize: typography.size.xs }]} numberOfLines={1}>
-                      {moveLabel}
-                    </Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs, opacity: 0.5 }}>›</Text>
-                  </TouchableOpacity>
-                );
-              })}
+          </View>
+          <View style={styles.vsEngineStatus}>
+            {vsEngineOver ? (
+              <Text style={[styles.vsEngineStatusText, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+                {t('vsEngine.gameOver')}
+              </Text>
+            ) : vsEngineWaiting ? (
+              <>
+                <ActivityIndicator size="small" color={colors.accent} />
+                <Text style={[styles.vsEngineStatusText, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+                  {t('vsEngine.thinking')}
+                </Text>
+              </>
+            ) : (
+              <Text style={[styles.vsEngineStatusText, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+                {t('vsEngine.yourTurn')}
+              </Text>
+            )}
+          </View>
+        </>
+      ) : (
+        /* ── normal analysis mode ── */
+        <>
+          <View style={styles.analysisHeader}>
+            <Text style={[styles.analysisTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+              {analysisState.status === 'loading'  && t('analysis.loading')}
+              {analysisState.status === 'thinking' && t('analysis.depth', { depth: analysisState.depth })}
+              {analysisState.status === 'ready'    && t('analysis.depth', { depth: analysisState.result.depth })}
+              {analysisState.status === 'error'    && t('analysis.unavailable')}
+            </Text>
+            <View style={styles.analysisHeaderActions}>
+              {explorationFen !== null && (
+                <TouchableOpacity
+                  onPress={handleBackToMainLine}
+                  hitSlop={8}
+                  style={[styles.mainLineBtn, { borderColor: colors.border }]}
+                >
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>
+                    ← {t('puzzle.mainLine')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handleResetAnalysis} hitSlop={8}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>✕</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        );
-      })()}
+
+          {analysisState.status === 'loading' && (
+            <ActivityIndicator size="small" color={colors.accent} style={{ alignSelf: 'flex-start' }} />
+          )}
+
+          {(analysisState.status === 'thinking' || analysisState.status === 'ready') && (() => {
+            const pvs     = analysisState.status === 'ready' ? analysisState.result.pvs : analysisState.pvs;
+            const topCp   = pvs[0]?.cp   ?? null;
+            const topMate = pvs[0]?.mate  ?? null;
+            return (
+              <View style={styles.analysisBody}>
+                <EvalBar cp={topCp} mate={topMate} />
+                <View style={{ flex: 1, gap: 4 }}>
+                  {pvs.slice(0, 3).map((pv, i) => {
+                    const evalStr = pv.mate != null
+                      ? (pv.mate > 0 ? `M${pv.mate}` : `M${-pv.mate}`)
+                      : pv.cp != null
+                        ? `${pv.cp > 0 ? '+' : ''}${(pv.cp / 100).toFixed(1)}`
+                        : '=';
+                    const moves     = pv.moves?.split(' ') ?? [];
+                    const moveLabel = moves.slice(0, 2).join(' ') || '—';
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.pvRow}
+                        activeOpacity={0.5}
+                        onPress={() => pv.moves && handlePvClick(pv.moves)}
+                      >
+                        <Text style={[styles.pvEval, { color: colors.text, fontSize: typography.size.xs }]}>{evalStr}</Text>
+                        <Text style={[styles.pvMoves, { color: colors.textSecondary, fontSize: typography.size.xs }]} numberOfLines={1}>
+                          {moveLabel}
+                        </Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs, opacity: 0.5 }}>›</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {/* "Play from here" — enters vs-engine mode */}
+                  <TouchableOpacity
+                    style={[styles.vsEngineBtn, { borderColor: colors.border }]}
+                    onPress={handleStartVsEngine}
+                  >
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>
+                      ⚔ {t('vsEngine.play')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })()}
+        </>
+      )}
     </View>
   ) : null;
 
@@ -831,4 +946,7 @@ const styles = StyleSheet.create({
   pvRow:                { flexDirection: 'row', gap: 6, alignItems: 'center' },
   pvEval:               { fontWeight: '700', minWidth: 36 },
   pvMoves:              { flex: 1, fontFamily: 'monospace' as const, opacity: 0.7 },
+  vsEngineStatus:       { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28 },
+  vsEngineStatusText:   { fontWeight: '500' },
+  vsEngineBtn:          { flexDirection: 'row', alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4, alignSelf: 'flex-start' },
 });
