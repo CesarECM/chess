@@ -19,14 +19,25 @@ export function CalibrationBar({ startLow, startHigh, currentLow, currentHigh }:
   const rightFrac  = (startHigh   - currentHigh) / startRange;
 
   const [trackW, setTrackW] = useState(0);
-  const leftAnim  = useRef(new Animated.Value(0)).current;
-  const rightAnim = useRef(new Animated.Value(0)).current;
+  const leftAnim       = useRef(new Animated.Value(0)).current;
+  const rightAnim      = useRef(new Animated.Value(0)).current;
+  const isFirstLayout  = useRef(true);
 
   useEffect(() => {
     if (trackW === 0) return;
+    const targetLeft  = trackW * leftFrac;
+    const targetRight = trackW * rightFrac;
+
+    if (isFirstLayout.current) {
+      isFirstLayout.current = false;
+      leftAnim.setValue(targetLeft);
+      rightAnim.setValue(targetRight);
+      return;
+    }
+
     Animated.parallel([
-      Animated.spring(leftAnim,  { toValue: trackW * leftFrac,  useNativeDriver: false, damping: 20, stiffness: 200 }),
-      Animated.spring(rightAnim, { toValue: trackW * rightFrac, useNativeDriver: false, damping: 20, stiffness: 200 }),
+      Animated.spring(leftAnim,  { toValue: targetLeft,  useNativeDriver: false, damping: 20, stiffness: 200 }),
+      Animated.spring(rightAnim, { toValue: targetRight, useNativeDriver: false, damping: 20, stiffness: 200 }),
     ]).start();
   }, [leftFrac, rightFrac, trackW]);
 
