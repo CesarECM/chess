@@ -327,6 +327,36 @@
         "Il est temps de rafraîchir votre niveau. L'algorithme a détecté un écart.",
         "Recalibrage en cours. Quelques puzzles suffiront à savoir exactement où vous en êtes."
       ]
+    },
+    "calibration_insight": {
+      "title": "Le système apprend",
+      "bodies": [
+        "Chaque réponse que vous donnez révèle quelque chose sur votre niveau. L'algorithme construit votre profil.",
+        "Il n'y a pas de mauvaise réponse en calibration. Ce qui compte, c'est que le système comprenne comment vous jouez.",
+        "À chaque puzzle, l'algorithme affine son estimation. Plus vous jouez, plus votre niveau sera précis.",
+        "La calibration, c'est ce qui sépare un entraînement générique d'un entraînement fait pour vous. Ça vaut le coup.",
+        "Bientôt les puzzles seront parfaitement adaptés à votre niveau. L'algorithme travaille déjà."
+      ]
+    },
+    "calibration_midpoint": {
+      "title": "Votre niveau prend forme",
+      "bodies": [
+        "L'algorithme a déjà une idée assez précise de votre niveau. Les prochains puzzles affineront encore davantage.",
+        "Votre profil d'échecs se dessine. Bientôt chaque puzzle sera conçu spécifiquement pour vous.",
+        "Contrairement à la plupart des applis, vous ne recevrez pas de puzzles génériques ici. Votre niveau est vraiment calibré.",
+        "Comme l'entraînement d'élite, la calibration nécessite quelques rondes supplémentaires. Presque fini.",
+        "Le système a déjà détecté des patterns dans votre façon de jouer. On est à deux doigts de votre niveau exact."
+      ]
+    },
+    "calibration_complete": {
+      "title": "Votre niveau est prêt !",
+      "bodies": [
+        "Votre niveau est déjà supérieur à {{eloFloor}}. Désormais chaque puzzle sera choisi spécifiquement pour vous.",
+        "Calibration terminée. Maintenant le vrai fun commence : puzzles parfaits, séries et répétition espacée.",
+        "Vous êtes au-dessus des {{eloFloor}} de classement. Le système sait maintenant exactement de quels défis vous avez besoin.",
+        "Vous avez dépassé les {{eloFloor}} de classement lors de votre calibration. L'algorithme de répétition espacée commence maintenant.",
+        "C'est fait. Votre niveau dépasse les {{eloFloor}} points. Les meilleurs puzzles vous attendent."
+      ]
     }
   },
   "gdpr": {

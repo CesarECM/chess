@@ -42,6 +42,9 @@ interface PuzzleState {
   sessionPerfectRun10Shown:   boolean;
   fsrsReviewsInSession:       number;
   sessionFsrsReview5Shown:    boolean;
+  calibInsightShown:          boolean;
+  calibMidpointShown:         boolean;
+  sessionCalibInitialRange:   number | null;
   initSession:                (startElo: number) => void;
   recordSolvedInSession:      () => void;
   recordFailedInSession:      () => void;
@@ -50,6 +53,9 @@ interface PuzzleState {
   markSessionPerfectRun10Shown: () => void;
   recordFsrsReviewInSession:  () => void;
   markSessionFsrsReview5Shown: () => void;
+  markCalibInsightShown:      () => void;
+  markCalibMidpointShown:     () => void;
+  setSessionCalibInitialRange: (range: number) => void;
 
   // ── Solver ────────────────────────────────────────────────────
   currentFen:       string | null;
@@ -112,6 +118,9 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   sessionPerfectRun10Shown:   false,
   fsrsReviewsInSession:       0,
   sessionFsrsReview5Shown:    false,
+  calibInsightShown:          false,
+  calibMidpointShown:         false,
+  sessionCalibInitialRange:   null,
 
   initSession: (startElo) => set({
     sessionStartElo:            startElo,
@@ -123,6 +132,9 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     sessionPerfectRun10Shown:   false,
     fsrsReviewsInSession:       0,
     sessionFsrsReview5Shown:    false,
+    calibInsightShown:          false,
+    calibMidpointShown:         false,
+    sessionCalibInitialRange:   null,
   }),
 
   recordSolvedInSession: () => set((s) => ({
@@ -141,7 +153,10 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   markSessionPerfectRun5Shown:  () => set({ sessionPerfectRun5Shown: true }),
   markSessionPerfectRun10Shown: () => set({ sessionPerfectRun10Shown: true }),
   recordFsrsReviewInSession:  () => set((s) => ({ fsrsReviewsInSession: s.fsrsReviewsInSession + 1 })),
-  markSessionFsrsReview5Shown: () => set({ sessionFsrsReview5Shown: true }),
+  markSessionFsrsReview5Shown:  () => set({ sessionFsrsReview5Shown: true }),
+  markCalibInsightShown:        () => set({ calibInsightShown: true }),
+  markCalibMidpointShown:       () => set({ calibMidpointShown: true }),
+  setSessionCalibInitialRange:  (range) => set({ sessionCalibInitialRange: range }),
 
   // ── Solver state ──────────────────────────────────────────────
   currentFen:        null,

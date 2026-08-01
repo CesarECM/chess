@@ -327,6 +327,36 @@
         "Time to refresh your level. The algorithm detected a shift.",
         "Recalibration in progress. A few puzzles will tell us exactly where you stand."
       ]
+    },
+    "calibration_insight": {
+      "title": "The system is learning",
+      "bodies": [
+        "Every move you make reveals something about your skill level. The algorithm is building your chess profile.",
+        "There are no wrong answers in calibration. What matters is that the system understands how you play.",
+        "With each puzzle, the algorithm refines its estimate. The more you play, the more accurate your level will be.",
+        "Calibration is what separates a generic training app from one built for you. It's worth it.",
+        "Soon puzzles will be perfectly matched to your level. The algorithm is already at work."
+      ]
+    },
+    "calibration_midpoint": {
+      "title": "Your level is taking shape",
+      "bodies": [
+        "The algorithm already has a pretty clear picture of where you stand. The next puzzles will refine it further.",
+        "Your chess profile is coming together. Soon every puzzle will be tailored specifically to you.",
+        "Unlike most apps, you won't get generic puzzles here. Your level is being truly calibrated.",
+        "Like elite training, calibration takes a few more rounds to be perfect. Almost there.",
+        "The system has already detected patterns in how you play. We're close to pinpointing your exact level."
+      ]
+    },
+    "calibration_complete": {
+      "title": "Your level is ready!",
+      "bodies": [
+        "Your level is already above {{eloFloor}}. From now on every puzzle will be chosen specifically for you.",
+        "Calibration complete. Now the good stuff begins: perfect puzzles for your level, streaks, and spaced repetition.",
+        "You're above {{eloFloor}} rating. The system now knows exactly what challenges you need.",
+        "You surpassed {{eloFloor}} rating in your calibration. The spaced repetition algorithm starts now.",
+        "Done. Your level exceeds {{eloFloor}} points. The best puzzles for your level are waiting."
+      ]
     }
   },
   "gdpr": {

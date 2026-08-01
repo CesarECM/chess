@@ -24,8 +24,11 @@ const ICONS: Record<MessageType, string> = {
   fsrs_first_review:   '🧠',
   fsrs_mastered:       '🎓',
   fsrs_relearned:      '♻️',
-  fsrs_review_session: '📅',
-  calibration_start:   '🎯',
+  fsrs_review_session:    '📅',
+  calibration_start:      '🎯',
+  calibration_insight:    '🧭',
+  calibration_midpoint:   '📊',
+  calibration_complete:   '🏆',
 };
 
 function getIcon(message: ProgressMessage): string {
@@ -35,12 +38,16 @@ function getIcon(message: ProgressMessage): string {
 }
 
 const MULTI_BODY_TYPES: Partial<Record<MessageType, true>> = {
-  fsrs_mastered:     true,
-  streak:            true,
-  fsrs_first_review: true,
-  comeback:          true,
-  session_elo_gain:  true,
-  fsrs_relearned:    true,
+  fsrs_mastered:          true,
+  streak:                 true,
+  fsrs_first_review:      true,
+  comeback:               true,
+  session_elo_gain:       true,
+  fsrs_relearned:         true,
+  calibration_start:      true,
+  calibration_insight:    true,
+  calibration_midpoint:   true,
+  calibration_complete:   true,
 };
 
 function getBodyKey(message: ProgressMessage): string {

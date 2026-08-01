@@ -327,6 +327,36 @@
         "Es momento de actualizar tu nivel. El algoritmo detectó una desviación.",
         "Recalibración en marcha. En pocos puzzles sabremos exactamente dónde estás."
       ]
+    },
+    "calibration_insight": {
+      "title": "El sistema está aprendiendo",
+      "bodies": [
+        "Cada respuesta que das revela algo sobre tu nivel. El algoritmo está construyendo tu perfil de juego.",
+        "No hay respuesta incorrecta en la calibración. Lo que importa es que el sistema entienda cómo juegas.",
+        "Con cada puzzle, el algoritmo ajusta su estimación. Cuantos más resuelvas, más preciso será tu nivel.",
+        "El proceso de calibración es lo que separa un entrenamiento genérico de uno hecho para ti. Vale la pena.",
+        "Pronto los puzzles se ajustarán exactamente a tu nivel. El algoritmo ya está trabajando."
+      ]
+    },
+    "calibration_midpoint": {
+      "title": "Tu nivel ya está tomando forma",
+      "bodies": [
+        "El algoritmo ya tiene una idea bastante clara de dónde estás. Los siguientes puzzles lo refinarán aún más.",
+        "Tu perfil de ajedrez se está definiendo. Pronto cada puzzle será diseñado específicamente para ti.",
+        "A diferencia de la mayoría de apps, aquí no recibirás puzzles genéricos. Tu nivel se está calibrando de verdad.",
+        "Como el entrenamiento de élite, la calibración requiere unas pocas rondas más para ser perfecta. Ya casi.",
+        "El sistema ya detectó patrones en tu forma de jugar. Estamos a punto de tener tu nivel exacto."
+      ]
+    },
+    "calibration_complete": {
+      "title": "¡Tu nivel está listo!",
+      "bodies": [
+        "Tu nivel ya es superior a {{eloFloor}}. A partir de ahora cada puzzle será elegido específicamente para ti.",
+        "Calibración completa. Ahora empieza lo bueno: puzzles perfectos para tu nivel, streaks y repetición espaciada.",
+        "Estás por encima de los {{eloFloor}} de rating. El sistema ya sabe exactamente qué desafíos necesitas.",
+        "Superaste los {{eloFloor}} de rating en tu calibración. El algoritmo de repetición espaciada empieza ahora.",
+        "Listo. Tu nivel supera los {{eloFloor}} puntos. Los mejores puzzles para tu nivel te están esperando."
+      ]
     }
   },
   "gdpr": {

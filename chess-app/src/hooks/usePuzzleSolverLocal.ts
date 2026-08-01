@@ -208,13 +208,64 @@ export function usePuzzleSolverLocal(
     const isCalibrating = useUserStore.getState().preEloLow !== null;
 
     if (isCalibrating) {
-      // ── Calibration path: no FSRS, no progress cards, no ELO badge ────────
+      // ── Calibration path: no FSRS, no ELO badge ───────────────────────────
+      const { preEloLow: prevLow, preEloHigh: prevHigh } = useUserStore.getState();
       updatePreElo(puzzleRating, solved);
+      const { preEloLow: newLow, preEloHigh: newHigh, elo: calibratedElo } = useUserStore.getState();
+
       addToHistory(puzzleId);
       incrementPuzzleStats(solved, puzzle?.themes ?? []);
       solvedResultRef.current = solved;
       if (solved) usePuzzleStore.getState().recordSolvedInSession();
       else        usePuzzleStore.getState().recordFailedInSession();
+
+      // ── Calibration message cards ────────────────────────────────────────
+      if (PROGRESS_CARDS_ENABLED && onMessagesEarnedRef.current) {
+        const store = usePuzzleStore.getState();
+        const calibMessages: import('@/types').ProgressMessage[] = [];
+        const justCompleted = prevLow !== null && newLow === null;
+
+        if (justCompleted) {
+          const eloFloor = Math.floor(calibratedElo / 100) * 100;
+          calibMessages.push({
+            id:      `calibration_complete_${Date.now()}`,
+            kind:    'progress',
+            type:    'calibration_complete',
+            payload: { bodyIndex: Math.floor(Math.random() * 5), elo: calibratedElo, eloFloor },
+          });
+        } else if (newLow !== null && newHigh !== null) {
+          const currentRange = newHigh - newLow;
+          if (!store.calibInsightShown) {
+            // First calibration puzzle: record initial range + fire insight card
+            if (store.sessionCalibInitialRange === null) {
+              store.setSessionCalibInitialRange(prevHigh! - prevLow!);
+            }
+            calibMessages.push({
+              id:      `calibration_insight_${Date.now()}`,
+              kind:    'progress',
+              type:    'calibration_insight',
+              payload: { bodyIndex: Math.floor(Math.random() * 5) },
+            });
+            store.markCalibInsightShown();
+          } else if (!store.calibMidpointShown) {
+            const initialRange = store.sessionCalibInitialRange ?? (prevHigh! - prevLow!);
+            if (currentRange < initialRange * 0.5) {
+              calibMessages.push({
+                id:      `calibration_midpoint_${Date.now()}`,
+                kind:    'progress',
+                type:    'calibration_midpoint',
+                payload: { bodyIndex: Math.floor(Math.random() * 5) },
+              });
+              store.markCalibMidpointShown();
+            }
+          }
+        }
+
+        if (calibMessages.length > 0) {
+          onMessagesEarnedRef.current(calibMessages);
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────
 
       const userId = userIdRef.current ?? '';
       recordSolveEvent(userId, {
@@ -229,11 +280,11 @@ export function usePuzzleSolverLocal(
       recordViralityEvent(puzzleId, solved, elapsedMs).catch(console.error);
 
       analytics.track(solved ? 'puzzle_completed' : 'puzzle_failed', {
-        puzzle_id:     puzzleId,
-        rating:        puzzleRating,
-        elapsed_ms:    elapsedMs,
-        tactic:        puzzle?.themes[0] ?? 'other',
-        calibrating:   true,
+        puzzle_id:   puzzleId,
+        rating:      puzzleRating,
+        elapsed_ms:  elapsedMs,
+        tactic:      puzzle?.themes[0] ?? 'other',
+        calibrating: true,
       });
       return;
     }
