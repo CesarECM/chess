@@ -10,6 +10,7 @@ export const ELO_RANGES = {
 // ── preElo calibration ──────────────────────────────────────────────────────
 export const PRE_ELO_LOWER              = 400;
 export const PRE_ELO_UPPER              = 3300;
+export const PRE_ELO_ONBOARDING_WINDOW  = 500;  // ± around declared level to seed initial bounds
 export const K_MIN                      = 8;
 export const K_DIVISOR                  = 10;
 export const PRE_ELO_CONVERGENCE        = 100;  // range < this → calibrated

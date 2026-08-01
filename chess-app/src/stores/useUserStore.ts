@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   PRE_ELO_LOWER,
   PRE_ELO_UPPER,
+  PRE_ELO_ONBOARDING_WINDOW,
   K_MIN,
   K_DIVISOR,
   PRE_ELO_CONVERGENCE,
@@ -293,6 +294,8 @@ export const useUserStore = create<UserState>()(
           onboardingCompleted: true,
           declaredLevel: levelKey,
           firstPuzzleRating: clampedTarget,
+          preEloLow:  Math.max(calibrationBounds.low,  clampedTarget - PRE_ELO_ONBOARDING_WINDOW),
+          preEloHigh: Math.min(calibrationBounds.high, clampedTarget + PRE_ELO_ONBOARDING_WINDOW),
         });
       },
 
