@@ -54,7 +54,11 @@
     "sessionCount": "{{count}} hoy",
     "skip": "Saltar",
     "reviewMove": "Revisar",
-    "analyze": "Analizar"
+    "analyze": "Analizar",
+    "mainLine": "Línea principal",
+    "hint": "Pista",
+    "hintMore": "Más pista",
+    "hintShow": "Mostrar movimiento"
   },
   "calibration": {
     "estimating": "Calibrando tu nivel…",

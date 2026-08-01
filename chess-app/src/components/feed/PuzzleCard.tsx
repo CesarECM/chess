@@ -1,9 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import type { Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '@/components/chess/ChessBoard';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
 import type { BoardArrow } from '@/components/chess/ChessBoard';
+import { applyMove } from '@/services/chess';
 import { EvalBar } from '@/components/chess/EvalBar';
 import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
@@ -52,7 +54,14 @@ function PuzzleCardComponent({
   const { t }        = useTranslation();
   const isDesktop    = useIsDesktop();
   const boardRef     = useRef<ChessboardRef>(null);
-  const [boardColW, setBoardColW] = useState(0);
+  const [boardColW, setBoardColW]         = useState(0);
+  const [boardSectionSize, setBoardSectionSize] = useState(0);
+  const [explorationFen, setExplorationFen]     = useState<string | null>(null);
+  const [analyzedFen, setAnalyzedFen]           = useState<string | null>(null);
+  const [isAutoplaying, setIsAutoplaying]       = useState(false);
+  const isAutoplayingRef    = useRef(false);
+  const autoplayTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrappedAdvanceReviewRef = useRef<() => void>(() => {});
 
   const elo              = useUserStore((s) => s.elo);
   const preEloLow        = useUserStore((s) => s.preEloLow);
@@ -64,21 +73,36 @@ function PuzzleCardComponent({
   const sessionCount     = usePuzzleStore((s) => s.sessionPuzzleCount);
 
   const { cardRef, isSharing, captureAndShare } = useShareCard();
-  const { state: analysisState, analyze, reset: resetAnalysis } = useAnalysis();
+  const { state: analysisState, analyze, reset: resetAnalysisRaw } = useAnalysis();
 
-  // Reset analysis when puzzle changes or card becomes inactive
+  const isAnalysisOpen = analysisState.status !== 'idle';
+
+  const handleResetAnalysis = useCallback(() => {
+    setExplorationFen(null);
+    setAnalyzedFen(null);
+    resetAnalysisRaw();
+  }, [resetAnalysisRaw]);
+
+  // Reset analysis + exploration when puzzle changes or card becomes inactive
   useEffect(() => {
-    if (!isActive) resetAnalysis();
-  }, [isActive, puzzle.id, resetAnalysis]);
+    if (!isActive) {
+      setExplorationFen(null);
+      setAnalyzedFen(null);
+      resetAnalysisRaw();
+    }
+  }, [isActive, puzzle.id, resetAnalysisRaw]);
+
+  // Stable ref so callbacks created once always see the latest getCurrentFen
+  const getCurrentFenRef = useRef<() => string>(() => '');
 
   // Derive up to 3 arrows from current analysis pvs (thinking or ready)
   const analysisArrows = useMemo<BoardArrow[]>(() => {
     const pvs =
-      analysisState.status === 'ready'   ? analysisState.result.pvs :
+      analysisState.status === 'ready'    ? analysisState.result.pvs :
       analysisState.status === 'thinking' ? analysisState.pvs :
       null;
     if (!pvs) return [];
-    const colors = [
+    const arrowColors = [
       'rgba(50,200,50,0.85)',
       'rgba(50,200,50,0.50)',
       'rgba(50,200,50,0.25)',
@@ -86,7 +110,7 @@ function PuzzleCardComponent({
     return pvs.slice(0, 3).flatMap((pv, i) => {
       const uci = pv.moves?.split(' ')[0];
       if (!uci || uci.length < 4) return [];
-      return [{ from: uci.slice(0, 2), to: uci.slice(2, 4), color: colors[i] }];
+      return [{ from: uci.slice(0, 2), to: uci.slice(2, 4), color: arrowColors[i] }];
     });
   }, [analysisState]);
 
@@ -98,8 +122,24 @@ function PuzzleCardComponent({
   const {
     puzzleStatus, hasFailed, reviewMoveIndex, reviewedAfterSolve,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
-    forceFailure, eloDelta, clearEloDelta, getCurrentFen,
+    forceFailure, hintLevel, hintFromTo, requestHint,
+    failedMove, failedExpected, reviewSan,
+    eloDelta, clearEloDelta, getCurrentFen,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
+
+  // Keep a stable ref so callbacks always see the latest getCurrentFen
+  getCurrentFenRef.current = getCurrentFen;
+
+  // When the user fails, snap the board back to the pre-move position after a brief delay
+  // so the fail arrows are drawn from the correct square positions
+  useEffect(() => {
+    if (puzzleStatus !== 'failed') return;
+    const t = setTimeout(() => {
+      boardRef.current?.resetBoard(getCurrentFenRef.current());
+    }, 300);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzleStatus]);
 
   const isCalibrating = preEloLow !== null;
 
@@ -137,14 +177,177 @@ function PuzzleCardComponent({
     complete:  t('puzzle.statusComplete'),
   }), [t, reviewedAfterSolve]);
 
-  // Board size: on desktop, height-limited and column-width-limited; on mobile, height-limited.
-  const boardMaxSize = isDesktop
-    ? Math.min(
-        height - 40,
-        580,
-        boardColW > 0 ? boardColW : height - 40,
-      )
-    : (Platform.OS === 'web' ? Math.max(height - 248, 200) : undefined);
+  // Wrapper central: registra el FEN analizado + dispara el motor
+  const runAnalysis = useCallback((fen: string) => {
+    setAnalyzedFen(fen);
+    analyze(fen);
+  }, [analyze]);
+
+  // Unified board move handler
+  const handleBoardMove = useCallback((uci: string, newFen: string) => {
+    if (puzzleStatus === 'playing') {
+      onUserMove(uci);
+      return;
+    }
+    if (isAnalysisOpen) {
+      setExplorationFen(newFen);
+      runAnalysis(newFen);
+    }
+    // During review without analysis: purely visual — ChessBoard handles it internally
+  }, [puzzleStatus, isAnalysisOpen, onUserMove, runAnalysis]);
+
+  // Trigger analysis — use explorationFen if already exploring, else main line
+  const handleAnalyze = useCallback(() => {
+    runAnalysis(explorationFen ?? getCurrentFenRef.current());
+  }, [runAnalysis, explorationFen]);
+
+  // Return to main line from exploration
+  const handleBackToMainLine = useCallback(() => {
+    const mainFen = getCurrentFenRef.current();
+    setExplorationFen(null);
+    boardRef.current?.resetBoard(mainFen);
+    runAnalysis(mainFen);
+  }, [runAnalysis]);
+
+  // Review nav wrappers — clear exploration + re-analyze when analysis is open
+  const wrappedAdvanceReview = useCallback(() => {
+    setExplorationFen(null);
+    handleAdvanceReview();
+    if (isAnalysisOpen) analyze(getCurrentFenRef.current());
+  }, [handleAdvanceReview, isAnalysisOpen, analyze]);
+
+  const wrappedBackReview = useCallback(() => {
+    setExplorationFen(null);
+    handleBackReview();
+    if (isAnalysisOpen) analyze(getCurrentFenRef.current());
+  }, [handleBackReview, isAnalysisOpen, analyze]);
+
+  // Keep stable ref so autoplay timer always calls the latest version
+  wrappedAdvanceReviewRef.current = wrappedAdvanceReview;
+
+  // Autoplay
+  const stopAutoplay = useCallback(() => {
+    isAutoplayingRef.current = false;
+    if (autoplayTimerRef.current) { clearTimeout(autoplayTimerRef.current); autoplayTimerRef.current = null; }
+    setIsAutoplaying(false);
+  }, []);
+
+  const startAutoplay = useCallback(() => {
+    let stepsLeft = puzzle.moves.length - reviewMoveIndex;
+    if (stepsLeft <= 0) return;
+    isAutoplayingRef.current = true;
+    setIsAutoplaying(true);
+
+    const step = () => {
+      if (!isAutoplayingRef.current) return;
+      stepsLeft--;
+      wrappedAdvanceReviewRef.current();
+      if (stepsLeft > 0) {
+        autoplayTimerRef.current = setTimeout(step, 700);
+      } else {
+        isAutoplayingRef.current = false;
+        setIsAutoplaying(false);
+      }
+    };
+    autoplayTimerRef.current = setTimeout(step, 700);
+  }, [puzzle.moves.length, reviewMoveIndex]);
+
+  // Stop autoplay when card loses focus or puzzle changes
+  useEffect(() => {
+    if (!isActive) stopAutoplay();
+  }, [isActive, puzzle.id, stopAutoplay]);
+
+  // Click en un PV: ejecuta los 2 primeros movimientos de la línea (user + rival) con animación
+  const handlePvClick = useCallback((pvMoves: string) => {
+    const baseFen = analyzedFen ?? getCurrentFenRef.current();
+    const [uci1, uci2] = pvMoves.split(' ');
+    if (!uci1 || uci1.length < 4) return;
+
+    const fen1 = applyMove(baseFen, uci1);
+    if (!fen1) return;
+
+    boardRef.current?.move({
+      from:      uci1.slice(0, 2) as Square,
+      to:        uci1.slice(2, 4) as Square,
+      promotion: uci1.length === 5 ? uci1[4] as PieceSymbol : undefined,
+    });
+
+    if (uci2 && uci2.length >= 4) {
+      const fen2 = applyMove(fen1, uci2);
+      if (fen2) {
+        setTimeout(() => {
+          boardRef.current?.move({
+            from:      uci2.slice(0, 2) as Square,
+            to:        uci2.slice(2, 4) as Square,
+            promotion: uci2.length === 5 ? uci2[4] as PieceSymbol : undefined,
+          });
+          setExplorationFen(fen2);
+          runAnalysis(fen2);
+        }, 450);
+        return;
+      }
+    }
+
+    // Solo 1 movimiento disponible (fin de partida o PV corto)
+    setExplorationFen(fen1);
+    runAnalysis(fen1);
+  }, [analyzedFen, runAnalysis]);
+
+  // Hint: level 3 auto-move — PuzzleCard animates board then runs solver
+  const handleHint = useCallback(() => {
+    const autoMoveUCI = requestHint();
+    if (autoMoveUCI && autoMoveUCI.length >= 4) {
+      boardRef.current?.move({
+        from:      autoMoveUCI.slice(0, 2) as Square,
+        to:        autoMoveUCI.slice(2, 4) as Square,
+        promotion: autoMoveUCI.length === 5 ? autoMoveUCI[4] as PieceSymbol : undefined,
+      });
+      onUserMove(autoMoveUCI);
+    }
+  }, [requestHint, onUserMove]);
+
+  const hintLabel = hintLevel === 0 ? t('puzzle.hint')
+                  : hintLevel === 1 ? t('puzzle.hintMore')
+                  : t('puzzle.hintShow');
+
+  // Arrow for the active move in review mode (orange, matches existing square highlights)
+  const reviewArrow = useMemo<BoardArrow | null>(() => {
+    if (puzzleStatus !== 'reviewing' && puzzleStatus !== 'reviewed') return null;
+    if (reviewMoveIndex <= 0) return null;
+    const uci = puzzle.moves[reviewMoveIndex - 1];
+    if (!uci || uci.length < 4) return null;
+    return { from: uci.slice(0, 2), to: uci.slice(2, 4), color: 'rgba(255,165,0,0.75)' };
+  }, [puzzleStatus, reviewMoveIndex, puzzle.moves]);
+
+  // Fail arrows: red (wrong move played) + green (expected move) — only when failed and analysis not open
+  const failArrows = useMemo<BoardArrow[]>(() => {
+    if (puzzleStatus !== 'failed' || isAnalysisOpen) return [];
+    const arrows: BoardArrow[] = [];
+    if (failedMove && failedMove.length >= 4)
+      arrows.push({ from: failedMove.slice(0, 2), to: failedMove.slice(2, 4), color: 'rgba(220,50,50,0.85)' });
+    if (failedExpected && failedExpected.length >= 4)
+      arrows.push({ from: failedExpected.slice(0, 2), to: failedExpected.slice(2, 4), color: 'rgba(50,200,50,0.85)' });
+    return arrows;
+  }, [puzzleStatus, isAnalysisOpen, failedMove, failedExpected]);
+
+  // Merge: hint (yellow) + review (orange) + fail (red+green) + analysis (green)
+  const allArrows = useMemo<BoardArrow[]>(() => {
+    const hint:   BoardArrow[] = hintFromTo ? [{ from: hintFromTo.from, to: hintFromTo.to, color: 'rgba(255,215,0,0.85)' }] : [];
+    const review: BoardArrow[] = reviewArrow ? [reviewArrow] : [];
+    return [...hint, ...review, ...failArrows, ...analysisArrows];
+  }, [hintFromTo, reviewArrow, failArrows, analysisArrows]);
+
+  // S1: board enabled logic
+  const boardEnabled = isActive && (
+    puzzleStatus === 'playing' ||
+    isAnalysisOpen ||
+    puzzleStatus === 'reviewing' ||
+    puzzleStatus === 'reviewed'
+  );
+
+  // S3: board size — desktop uses original calc, mobile uses flex-measured container
+  const boardMaxSizeDesktop = Math.min(height - 40, 580, boardColW > 0 ? boardColW : height - 40);
+  const boardMaxSizeMobile  = boardSectionSize > 0 ? boardSectionSize : Math.max(height - 248, 200);
 
   // ── Shared sub-elements ───────────────────────────────────────────────────
   const badgeRow = !isCalibrating ? (
@@ -190,20 +393,158 @@ function PuzzleCardComponent({
     </Text>
   );
 
-  const buttons = (
-    <View style={styles.buttonsArea}>
-      {/* playing: válvula de escape ghost */}
-      {isActive && puzzleStatus === 'playing' && (
-        <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={startReview}>
-          <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
-            {t('puzzle.viewSolution')}
+  // ── Analysis inline panel ─────────────────────────────────────────────────
+  const analysisPanel = isAnalysisOpen ? (
+    <View style={[styles.analysisPanel, { backgroundColor: colors.background, borderColor: colors.border }]}>
+      <View style={styles.analysisHeader}>
+        <Text style={[styles.analysisTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+          {analysisState.status === 'loading'  && t('analysis.loading')}
+          {analysisState.status === 'thinking' && t('analysis.depth', { depth: analysisState.depth })}
+          {analysisState.status === 'ready'    && t('analysis.depth', { depth: analysisState.result.depth })}
+          {analysisState.status === 'error'    && t('analysis.unavailable')}
+        </Text>
+        <View style={styles.analysisHeaderActions}>
+          {/* S1: "Back to main line" — only when user has explored away */}
+          {explorationFen !== null && (
+            <TouchableOpacity
+              onPress={handleBackToMainLine}
+              hitSlop={8}
+              style={[styles.mainLineBtn, { borderColor: colors.border }]}
+            >
+              <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>
+                ← {t('puzzle.mainLine')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={handleResetAnalysis} hitSlop={8}>
+            <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {analysisState.status === 'loading' && (
+        <ActivityIndicator size="small" color={colors.accent} style={{ alignSelf: 'flex-start' }} />
+      )}
+
+      {(analysisState.status === 'thinking' || analysisState.status === 'ready') && (() => {
+        const pvs     = analysisState.status === 'ready' ? analysisState.result.pvs : analysisState.pvs;
+        const topCp   = pvs[0]?.cp   ?? null;
+        const topMate = pvs[0]?.mate  ?? null;
+        return (
+          <View style={styles.analysisBody}>
+            <EvalBar cp={topCp} mate={topMate} />
+            <View style={{ flex: 1, gap: 4 }}>
+              {pvs.slice(0, 3).map((pv, i) => {
+                const evalStr = pv.mate != null
+                  ? (pv.mate > 0 ? `M${pv.mate}` : `M${-pv.mate}`)
+                  : pv.cp != null
+                    ? `${pv.cp > 0 ? '+' : ''}${(pv.cp / 100).toFixed(1)}`
+                    : '=';
+                const moves     = pv.moves?.split(' ') ?? [];
+                const moveLabel = moves.slice(0, 2).join(' ') || '—';
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.pvRow}
+                    activeOpacity={0.5}
+                    onPress={() => pv.moves && handlePvClick(pv.moves)}
+                  >
+                    <Text style={[styles.pvEval, { color: colors.text, fontSize: typography.size.xs }]}>{evalStr}</Text>
+                    <Text style={[styles.pvMoves, { color: colors.textSecondary, fontSize: typography.size.xs }]} numberOfLines={1}>
+                      {moveLabel}
+                    </Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs, opacity: 0.5 }}>›</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        );
+      })()}
+    </View>
+  ) : null;
+
+  // ── Review navigation row ─────────────────────────────────────────────────
+  const reviewNav = (puzzleStatus: 'reviewing' | 'reviewed') => (
+    <View style={styles.reviewNav}>
+      <TouchableOpacity
+        style={[styles.navBtn, { opacity: reviewMoveIndex <= 0 ? 0.25 : 1 }]}
+        onPress={() => { stopAutoplay(); wrappedBackReview(); }}
+        disabled={reviewMoveIndex <= 0}
+      >
+        <Text style={[styles.navBtnText, { color: colors.text }]}>‹</Text>
+      </TouchableOpacity>
+
+      <View style={styles.reviewInfo}>
+        <Text style={[styles.reviewSanText, { color: colors.text, fontSize: typography.size.sm }]} numberOfLines={1}>
+          {reviewSan ?? '—'}
+        </Text>
+        <Text style={[styles.reviewCounter, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+          {reviewMoveIndex}/{puzzle.moves.length}
+        </Text>
+      </View>
+
+      {/* Autoplay button — only in reviewing, not at the end */}
+      {puzzleStatus === 'reviewing' && (
+        <TouchableOpacity
+          style={styles.navBtn}
+          onPress={isAutoplaying ? stopAutoplay : startAutoplay}
+        >
+          <Text style={[styles.navBtnText, { color: colors.accent, fontSize: 22 }]}>
+            {isAutoplaying ? '■' : '▶'}
           </Text>
         </TouchableOpacity>
       )}
 
-      {/* failed: reintentar / ver solución + analizar / saltar */}
+      <TouchableOpacity
+        style={[styles.navBtn, { opacity: reviewMoveIndex >= puzzle.moves.length ? 0.25 : 1 }]}
+        onPress={() => { stopAutoplay(); wrappedAdvanceReview(); }}
+        disabled={reviewMoveIndex >= puzzle.moves.length}
+      >
+        <Text style={[styles.navBtnText, { color: colors.text }]}>›</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ── S2: Buttons per state ─────────────────────────────────────────────────
+  const buttons = (
+    <View style={styles.buttonsArea}>
+
+      {/* playing: pista progresiva + válvula de escape */}
+      {isActive && puzzleStatus === 'playing' && (
+        <View style={styles.row}>
+          {hintLevel < 3 && (
+            <TouchableOpacity
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              onPress={handleHint}
+            >
+              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                {hintLabel}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.btn, styles.btnGhost, { flex: 1 }]}
+            onPress={startReview}
+          >
+            <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+              {t('puzzle.viewSolution')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* failed: hierarchy — primary "Ver Solución" → secondary [Reintentar | Analizar] → ghost "Saltar" */}
       {isActive && puzzleStatus === 'failed' && (
         <>
+          <TouchableOpacity
+            style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.accent, alignSelf: 'stretch' }]}
+            onPress={startReview}
+          >
+            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
+              {t('puzzle.viewSolution')}
+            </Text>
+          </TouchableOpacity>
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
@@ -214,25 +555,37 @@ function PuzzleCardComponent({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.accent, flex: 1 }]}
-              onPress={startReview}
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              onPress={handleAnalyze}
             >
-              <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-                {t('puzzle.viewSolution')}
+              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                {t('puzzle.analyze')}
               </Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={onComplete}>
+            <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+              {t('puzzle.skip')}
+            </Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {/* reviewing: nav + [Analizar | Saltar ghost] */}
+      {isActive && puzzleStatus === 'reviewing' && (
+        <>
+          {reviewNav(puzzleStatus as 'reviewing' | 'reviewed')}
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={() => analyze(getCurrentFen())}
+              onPress={handleAnalyze}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
                 {t('puzzle.analyze')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              style={[styles.btn, styles.btnGhostOutline, { flex: 1 }]}
               onPress={onComplete}
             >
               <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
@@ -243,62 +596,45 @@ function PuzzleCardComponent({
         </>
       )}
 
-      {/* reviewing / reviewed: navegación ‹ N/M › */}
-      {isActive && (puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed') && (
-        <View style={styles.reviewNav}>
+      {/* reviewed: nav + "Siguiente Puzzle" (primary wide) + "Analizar" */}
+      {isActive && puzzleStatus === 'reviewed' && (
+        <>
+          {reviewNav(puzzleStatus as 'reviewing' | 'reviewed')}
           <TouchableOpacity
-            style={[styles.navBtn, { opacity: reviewMoveIndex <= 0 ? 0.25 : 1 }]}
-            onPress={handleBackReview}
-            disabled={reviewMoveIndex <= 0}
+            style={[
+              styles.btn, styles.btnPrimary, { alignSelf: 'stretch' },
+              reviewedAfterSolve
+                ? { backgroundColor: colors.success }
+                : { backgroundColor: colors.accent },
+            ]}
+            onPress={onComplete}
           >
-            <Text style={[styles.navBtnText, { color: colors.text }]}>‹</Text>
+            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
+              {t('puzzle.nextPuzzle')}
+            </Text>
           </TouchableOpacity>
-          <Text style={[styles.reviewCounter, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-            {reviewMoveIndex} / {puzzle.moves.length}
-          </Text>
           <TouchableOpacity
-            style={[styles.navBtn, { opacity: reviewMoveIndex >= puzzle.moves.length ? 0.25 : 1 }]}
-            onPress={handleAdvanceReview}
-            disabled={reviewMoveIndex >= puzzle.moves.length}
-          >
-            <Text style={[styles.navBtnText, { color: colors.text }]}>›</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      {/* reviewing / reviewed: analizar + siguiente (primario en reviewed) */}
-      {isActive && (puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed') && (
-        <View style={styles.row}>
-          <TouchableOpacity
-            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-            onPress={() => analyze(getCurrentFen())}
+            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, alignSelf: 'stretch' }]}
+            onPress={handleAnalyze}
           >
             <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
               {t('puzzle.analyze')}
             </Text>
           </TouchableOpacity>
+        </>
+      )}
+
+      {/* complete: "Siguiente Puzzle" (primary wide) + secondary row */}
+      {isActive && puzzleStatus === 'complete' && (
+        <>
           <TouchableOpacity
-            style={[
-              styles.btn,
-              { flex: 1 },
-              puzzleStatus === 'reviewed'
-                ? [styles.btnPrimary, { backgroundColor: colors.accent }]
-                : [styles.btnOutline, { borderColor: colors.border }],
-            ]}
+            style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.success, alignSelf: 'stretch' }]}
             onPress={onComplete}
           >
-            <Text style={[styles.btnText, {
-              color: puzzleStatus === 'reviewed' ? '#fff' : colors.text,
-              fontSize: typography.size.sm,
-            }]}>
+            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
               {t('puzzle.nextPuzzle')}
             </Text>
           </TouchableOpacity>
-        </View>
-      )}
-
-      {/* complete: revisar / analizar + compartir / siguiente */}
-      {isActive && puzzleStatus === 'complete' && (
-        <>
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
@@ -310,14 +646,12 @@ function PuzzleCardComponent({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={() => analyze(getCurrentFen())}
+              onPress={handleAnalyze}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
                 {t('puzzle.analyze')}
               </Text>
             </TouchableOpacity>
-          </View>
-          <View style={styles.row}>
             {Platform.OS !== 'web' && (
               <TouchableOpacity
                 style={[styles.btn, styles.btnOutline, { borderColor: colors.border, opacity: isSharing ? 0.5 : 1 }]}
@@ -329,66 +663,12 @@ function PuzzleCardComponent({
                 </Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.success, flex: 1 }]}
-              onPress={onComplete}
-            >
-              <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-                {t('puzzle.nextPuzzle')}
-              </Text>
-            </TouchableOpacity>
           </View>
         </>
       )}
-      {/* ── Inline analysis panel ── */}
-      {analysisState.status !== 'idle' && (
-        <View style={[styles.analysisPanel, { backgroundColor: colors.background, borderColor: colors.border }]}>
-          <View style={styles.analysisHeader}>
-            <Text style={[styles.analysisTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-              {analysisState.status === 'loading'  && t('analysis.loading')}
-              {analysisState.status === 'thinking' && t('analysis.depth', { depth: analysisState.depth })}
-              {analysisState.status === 'ready'    && t('analysis.depth', { depth: analysisState.result.depth })}
-              {analysisState.status === 'error'    && t('analysis.unavailable')}
-            </Text>
-            <TouchableOpacity onPress={resetAnalysis} hitSlop={8}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>✕</Text>
-            </TouchableOpacity>
-          </View>
 
-          {analysisState.status === 'loading' && (
-            <ActivityIndicator size="small" color={colors.accent} style={{ alignSelf: 'flex-start' }} />
-          )}
-
-          {(analysisState.status === 'thinking' || analysisState.status === 'ready') && (() => {
-            const pvs  = analysisState.status === 'ready' ? analysisState.result.pvs : analysisState.pvs;
-            const topCp   = pvs[0]?.cp   ?? null;
-            const topMate = pvs[0]?.mate  ?? null;
-            return (
-              <View style={styles.analysisBody}>
-                <EvalBar cp={topCp} mate={topMate} />
-                <View style={{ flex: 1, gap: 4 }}>
-                  {pvs.slice(0, 3).map((pv, i) => {
-                    const evalStr = pv.mate != null
-                      ? (pv.mate > 0 ? `M${pv.mate}` : `M${-pv.mate}`)
-                      : pv.cp != null
-                        ? `${pv.cp > 0 ? '+' : ''}${(pv.cp / 100).toFixed(1)}`
-                        : '=';
-                    const firstMove = pv.moves?.split(' ')[0] ?? '';
-                    return (
-                      <View key={i} style={styles.pvRow}>
-                        <Text style={[styles.pvEval, { color: colors.text, fontSize: typography.size.xs }]}>{evalStr}</Text>
-                        <Text style={[styles.pvMoves, { color: colors.textSecondary, fontSize: typography.size.xs }]} numberOfLines={1}>
-                          {firstMove}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            );
-          })()}
-        </View>
-      )}
+      {/* Analysis panel — shown below buttons in all states */}
+      {analysisPanel}
     </View>
   );
 
@@ -402,17 +682,17 @@ function PuzzleCardComponent({
           onLayout={e => setBoardColW(e.nativeEvent.layout.width)}
         >
           <View style={styles.boardSection}>
-            <View style={[styles.colorBar, { backgroundColor: opponentBarColor, width: boardMaxSize, alignSelf: 'center' }]} />
+            <View style={[styles.colorBar, { backgroundColor: opponentBarColor, width: boardMaxSizeDesktop, alignSelf: 'center' }]} />
             <View style={styles.boardWrapper}>
               <ChessBoard
                 ref={boardRef}
                 fen={puzzle.fen}
                 resetKey={puzzle.id}
                 orientation="auto"
-                enabled={puzzleStatus === 'playing' && isActive}
-                onMove={onUserMove}
-                maxSize={boardMaxSize}
-                arrows={analysisArrows.length ? analysisArrows : undefined}
+                enabled={boardEnabled}
+                onMove={handleBoardMove}
+                maxSize={boardMaxSizeDesktop}
+                arrows={allArrows.length ? allArrows : undefined}
               />
               {eloDelta !== null && (
                 <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
@@ -421,7 +701,7 @@ function PuzzleCardComponent({
                 <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
               )}
             </View>
-            <View style={[styles.colorBar, { backgroundColor: playerBarColor, width: boardMaxSize, alignSelf: 'center' }]} />
+            <View style={[styles.colorBar, { backgroundColor: playerBarColor, width: boardMaxSizeDesktop, alignSelf: 'center' }]} />
           </View>
         </View>
 
@@ -449,25 +729,36 @@ function PuzzleCardComponent({
     );
   }
 
-  // ── Mobile: stacked vertical ──────────────────────────────────────────────
+  // ── Mobile: S3 flex layout — top / board(flex:1) / bottom ────────────────
   return (
     <View style={[styles.card, { height, backgroundColor: backgroundColor ?? colors.background }]}>
-      {badgeRow}
-      {metaText}
-      {playerColorText}
 
-      <View style={styles.boardSection}>
-        <View style={[styles.colorBar, { backgroundColor: opponentBarColor }]} />
+      {/* Top section: badge + meta + playerColor */}
+      <View style={styles.topSection}>
+        {badgeRow}
+        {metaText}
+        {playerColorText}
+      </View>
+
+      {/* Board section: flex:1 — absorbs all remaining space */}
+      <View
+        style={styles.boardSectionFlex}
+        onLayout={e => {
+          const { width, height: h } = e.nativeEvent.layout;
+          setBoardSectionSize(Math.min(width, h));
+        }}
+      >
+        <View style={[styles.colorBar, { backgroundColor: opponentBarColor, width: boardMaxSizeMobile, alignSelf: 'center' }]} />
         <View style={styles.boardWrapper}>
           <ChessBoard
             ref={boardRef}
             fen={puzzle.fen}
             resetKey={puzzle.id}
             orientation="auto"
-            enabled={puzzleStatus === 'playing' && isActive}
-            onMove={onUserMove}
-            maxSize={boardMaxSize}
-            arrows={analysisArrows.length ? analysisArrows : undefined}
+            enabled={boardEnabled}
+            onMove={handleBoardMove}
+            maxSize={boardMaxSizeMobile}
+            arrows={allArrows.length ? allArrows : undefined}
           />
           {eloDelta !== null && (
             <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
@@ -476,11 +767,14 @@ function PuzzleCardComponent({
             <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
           )}
         </View>
-        <View style={[styles.colorBar, { backgroundColor: playerBarColor }]} />
+        <View style={[styles.colorBar, { backgroundColor: playerBarColor, width: boardMaxSizeMobile, alignSelf: 'center' }]} />
       </View>
 
-      {statusText}
-      {buttons}
+      {/* Bottom section: status + buttons */}
+      <View style={styles.bottomSection}>
+        {statusText}
+        {buttons}
+      </View>
 
       {isActive && puzzleStatus === 'complete' && Platform.OS !== 'web' && (
         <ShareCard
@@ -499,9 +793,13 @@ function PuzzleCardComponent({
 export const PuzzleCard = memo(PuzzleCardComponent);
 
 const styles = StyleSheet.create({
-  // Mobile
-  card:         { alignItems: 'center', justifyContent: 'center', gap: 12 },
-  // Desktop
+  // ── Mobile card ──────────────────────────────────────────────────────────
+  card:             { alignItems: 'center', paddingVertical: 8 },
+  topSection:       { alignSelf: 'stretch', alignItems: 'center', paddingBottom: 4, gap: 2 },
+  boardSectionFlex: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  bottomSection:    { alignSelf: 'stretch', alignItems: 'center', paddingTop: 6, gap: 8 },
+
+  // ── Desktop card ─────────────────────────────────────────────────────────
   cardDesktop:  { flexDirection: 'row', alignItems: 'stretch' },
   boardCol:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
   infoPanel:    {
@@ -513,36 +811,46 @@ const styles = StyleSheet.create({
     borderLeftWidth: StyleSheet.hairlineWidth,
   },
   separator:    { height: StyleSheet.hairlineWidth, marginVertical: 4 },
-  // Shared
-  topRow:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sessionCount: { fontWeight: '600' },
-  calibBar:     { width: '88%', borderRadius: 8, borderWidth: 1, padding: 10, gap: 8 },
-  calibText:    { fontWeight: '600', textAlign: 'center' },
-  boardSection: { alignSelf: 'stretch', alignItems: 'center' },
-  colorBar:     { height: 4, alignSelf: 'stretch' },
-  boardWrapper: { position: 'relative' },
-  retryBorder:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 3, borderRadius: 4 },
-  meta:         { marginBottom: 2 },
-  playerColor:  { marginBottom: 6, fontWeight: '600' },
-  status:       { fontWeight: '500' },
-  // Buttons area
-  buttonsArea:  { alignSelf: 'stretch', gap: 8 },
-  row:          { flexDirection: 'row', alignSelf: 'stretch', gap: 8 },
-  btn:          { paddingHorizontal: 20, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-  btnPrimary:   { paddingVertical: 12 },
-  btnGhost:     { alignSelf: 'stretch', opacity: 0.4 },
-  btnOutline:   { borderWidth: 1 },
-  btnText:      { fontWeight: '600' },
-  reviewNav:    { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', justifyContent: 'center', gap: 20 },
-  navBtn:       { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  navBtnText:   { fontSize: 30, fontWeight: '300', lineHeight: 36 },
-  reviewCounter: { minWidth: 52, textAlign: 'center', fontWeight: '600' },
-  // Analysis inline panel
-  analysisPanel:  { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, padding: 10, gap: 8 },
-  analysisHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  analysisTitle:  { fontWeight: '600', flex: 1 },
-  analysisBody:   { flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 60 },
-  pvRow:          { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  pvEval:         { fontWeight: '700', minWidth: 36 },
-  pvMoves:        { flex: 1, fontFamily: 'monospace' as const, opacity: 0.7 },
+
+  // ── Shared ───────────────────────────────────────────────────────────────
+  topRow:         { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sessionCount:   { fontWeight: '600' },
+  calibBar:       { width: '88%', borderRadius: 8, borderWidth: 1, padding: 10, gap: 8 },
+  calibText:      { fontWeight: '600', textAlign: 'center' },
+  boardSection:   { alignSelf: 'stretch', alignItems: 'center' },
+  colorBar:       { height: 4, alignSelf: 'stretch' },
+  boardWrapper:   { position: 'relative' },
+  retryBorder:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 3, borderRadius: 4 },
+  meta:           { marginBottom: 2 },
+  playerColor:    { marginBottom: 2, fontWeight: '600' },
+  status:         { fontWeight: '500' },
+
+  // ── Buttons area ─────────────────────────────────────────────────────────
+  buttonsArea:    { alignSelf: 'stretch', gap: 8 },
+  row:            { flexDirection: 'row', alignSelf: 'stretch', gap: 8 },
+  btn:            { paddingHorizontal: 20, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  btnPrimary:     { paddingVertical: 12 },
+  btnGhost:       { alignSelf: 'stretch', opacity: 0.6 },
+  btnGhostOutline: { opacity: 0.5, paddingHorizontal: 20, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  btnOutline:     { borderWidth: 1 },
+  btnText:        { fontWeight: '600' },
+
+  // ── Review nav ───────────────────────────────────────────────────────────
+  reviewNav:      { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', justifyContent: 'center', gap: 20 },
+  navBtn:         { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  navBtnText:     { fontSize: 30, fontWeight: '300', lineHeight: 36 },
+  reviewInfo:     { alignItems: 'center', minWidth: 64 },
+  reviewSanText:  { fontFamily: 'monospace' as const, fontWeight: '700', textAlign: 'center' },
+  reviewCounter:  { textAlign: 'center', fontWeight: '500' },
+
+  // ── Analysis inline panel ────────────────────────────────────────────────
+  analysisPanel:        { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, padding: 10, gap: 8 },
+  analysisHeader:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  analysisHeaderActions:{ flexDirection: 'row', alignItems: 'center', gap: 10 },
+  analysisTitle:        { fontWeight: '600', flex: 1 },
+  mainLineBtn:          { borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  analysisBody:         { flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 60 },
+  pvRow:                { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  pvEval:               { fontWeight: '700', minWidth: 36 },
+  pvMoves:              { flex: 1, fontFamily: 'monospace' as const, opacity: 0.7 },
 });

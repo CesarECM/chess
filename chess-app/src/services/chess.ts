@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import type { Square } from 'chess.js';
+import type { Square, PieceSymbol } from 'chess.js';
 
 function parseUCI(uci: string): { from: string; to: string; promotion?: string } {
   return {
@@ -62,4 +62,33 @@ export function isValidFen(fen: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Pre-compute FENs and SAN notations for a sequence of UCI moves from a starting position.
+ * Single Chess instance — avoids redundant re-parsing.
+ * Returns partial results if a move is illegal.
+ */
+export function computeMoveSequence(
+  startFen: string,
+  uciMoves: string[],
+): { fens: string[]; sans: string[] } {
+  const fens: string[] = [startFen];
+  const sans: string[] = [];
+  try {
+    const chess = new Chess(startFen);
+    for (const uci of uciMoves) {
+      const result = chess.move({
+        from:      uci.slice(0, 2) as Square,
+        to:        uci.slice(2, 4) as Square,
+        promotion: uci.length === 5 ? (uci[4] as PieceSymbol) : undefined,
+      });
+      if (!result) break;
+      sans.push(result.san);
+      fens.push(chess.fen());
+    }
+  } catch {
+    // return partial result
+  }
+  return { fens, sans };
 }

@@ -54,7 +54,11 @@
     "sessionCount": "{{count}} hoje",
     "skip": "Saltar",
     "reviewMove": "Revisar",
-    "analyze": "Analisar"
+    "analyze": "Analisar",
+    "mainLine": "Linha principal",
+    "hint": "Dica",
+    "hintMore": "Mais dica",
+    "hintShow": "Mostrar jogada"
   },
   "calibration": {
     "estimating": "Calibrando seu nível…",

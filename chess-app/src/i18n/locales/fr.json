@@ -54,7 +54,11 @@
     "sessionCount": "{{count}} aujourd'hui",
     "skip": "Passer",
     "reviewMove": "Revoir",
-    "analyze": "Analyser"
+    "analyze": "Analyser",
+    "mainLine": "Ligne principale",
+    "hint": "Indice",
+    "hintMore": "Plus d'indice",
+    "hintShow": "Montrer le coup"
   },
   "calibration": {
     "estimating": "Calibrage de votre niveau…",

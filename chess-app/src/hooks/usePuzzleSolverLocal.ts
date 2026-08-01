@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import type { Square, PieceSymbol } from 'chess.js';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
 import type { Puzzle, UserPuzzleProgress, ProgressMessage } from '@/types';
-import { applyMove } from '@/services/chess';
+import { applyMove, computeMoveSequence } from '@/services/chess';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -49,6 +49,11 @@ export function usePuzzleSolverLocal(
   const [hasFailed, setHasFailed] = useState(false);
   const [reviewMoveIndex, setReviewMoveIndex] = useState(0);
   const [reviewedAfterSolve, setReviewedAfterSolve] = useState(false);
+  const [hintLevel, setHintLevel]   = useState(0);
+  const [hintFromTo, setHintFromTo] = useState<{ from: string; to: string } | null>(null);
+  const hintLevelRef = useRef(0);
+  const [failedMove, setFailedMove]         = useState<string | null>(null);
+  const [failedExpected, setFailedExpected] = useState<string | null>(null);
 
   // Refs for mutable solver state — avoids stale closures in callbacks
   const fenRef        = useRef(puzzle?.fen ?? '');
@@ -64,6 +69,7 @@ export function usePuzzleSolverLocal(
   const onMessagesEarnedRef = useRef(onMessagesEarned);
   onMessagesEarnedRef.current = onMessagesEarned;
   const reviewFensRef = useRef<string[]>([]);
+  const reviewSansRef = useRef<string[]>([]);
 
   const updateElo            = useUserStore((s) => s.updateElo);
   const updatePreElo         = useUserStore((s) => s.updatePreElo);
@@ -113,9 +119,15 @@ export function usePuzzleSolverLocal(
     hasAttemptedRef.current  = false;
     solvedResultRef.current  = null;
     reviewFensRef.current    = [];
+    reviewSansRef.current    = [];
     setHasFailed(false);
     setReviewMoveIndex(0);
     setReviewedAfterSolve(false);
+    hintLevelRef.current = 0;
+    setHintLevel(0);
+    setHintFromTo(null);
+    setFailedMove(null);
+    setFailedExpected(null);
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -415,12 +427,17 @@ export function usePuzzleSolverLocal(
   const onUserMove = useCallback((uciMove: string) => {
     if (!puzzle || statusRef.current !== 'playing') return;
     hasAttemptedRef.current = true;
+    hintLevelRef.current = 0;
+    setHintLevel(0);
+    setHintFromTo(null);
 
     const idx      = moveIndexRef.current;
     const fen      = fenRef.current;
     const expected = puzzle.moves[idx];
 
     if (normalizeUCI(uciMove) !== normalizeUCI(expected)) {
+      setFailedMove(uciMove);
+      setFailedExpected(expected);
       recordResult(puzzle.id, puzzle.rating, false);
       setHasFailed(true);
       setStatus('failed');
@@ -463,16 +480,9 @@ export function usePuzzleSolverLocal(
     setReviewedAfterSolve(alreadySolved);
     recordResult(puzzle.id, puzzle.rating, false);
 
-    // Pre-compute all FENs for back/forward navigation
-    const fens: string[] = [puzzle.fen];
-    let fen = puzzle.fen;
-    for (const move of puzzle.moves) {
-      const next = applyMove(fen, move);
-      if (!next) break;
-      fens.push(next);
-      fen = next;
-    }
+    const { fens, sans } = computeMoveSequence(puzzle.fen, puzzle.moves);
     reviewFensRef.current = fens;
+    reviewSansRef.current = sans;
 
     fenRef.current       = puzzle.fen;
     moveIndexRef.current = 0;
@@ -542,6 +552,8 @@ export function usePuzzleSolverLocal(
     if (!puzzle) return;
     fenRef.current        = puzzle.fen;
     moveIndexRef.current  = 0;
+    setFailedMove(null);
+    setFailedExpected(null);
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -556,6 +568,39 @@ export function usePuzzleSolverLocal(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
 
+  // Progressive hint: returns expected UCI only at level 3 (for PuzzleCard to animate + execute).
+  // Levels 1-2 are handled internally (board highlight / hint arrow).
+  const requestHint = useCallback((): string | null => {
+    if (statusRef.current !== 'playing' || !puzzle) return null;
+    const expectedUCI = puzzle.moves[moveIndexRef.current];
+    if (!expectedUCI || expectedUCI.length < 4) return null;
+
+    const next = hintLevelRef.current + 1;
+    hintLevelRef.current = next;
+    setHintLevel(next);
+
+    const from = expectedUCI.slice(0, 2);
+    const to   = expectedUCI.slice(2, 4);
+
+    if (next === 1) {
+      boardRef.current?.highlight({ square: from as Square, color: 'rgba(255,215,0,0.85)' });
+      setHintFromTo(null);
+      // Registrar fallo inmediatamente — idempotente vía countedRef
+      recordResult(puzzle.id, puzzle.rating, false);
+      setHasFailed(true);
+      return null;
+    }
+    if (next === 2) {
+      boardRef.current?.highlight({ square: from as Square, color: 'rgba(255,215,0,0.85)' });
+      setHintFromTo({ from, to });
+      return null;
+    }
+    // Level 3: hand off UCI to PuzzleCard for board animation + solver execution
+    setHintFromTo(null);
+    return expectedUCI;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.id]);
+
   return {
     puzzleStatus,
     hasFailed,
@@ -567,6 +612,12 @@ export function usePuzzleSolverLocal(
     handleBackReview,
     onRetry,
     forceFailure,
+    hintLevel,
+    hintFromTo,
+    requestHint,
+    failedMove,
+    failedExpected,
+    reviewSan: reviewMoveIndex > 0 ? (reviewSansRef.current[reviewMoveIndex - 1] ?? null) : null,
     preEloLow,
     eloDelta,
     clearEloDelta: () => setEloDelta(null),
