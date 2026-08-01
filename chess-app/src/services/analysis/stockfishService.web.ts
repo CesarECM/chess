@@ -1,4 +1,4 @@
-import type { CloudEvalResult } from './lichessCloudEval';
+import type { CloudEvalResult, CloudEvalPv } from './lichessCloudEval';
 
 let worker: Worker | null = null;
 let pendingCancel: (() => void) | null = null;
@@ -15,6 +15,7 @@ export async function analyzeWithStockfish(
   depth = 15,
   multiPv = 3,
   timeoutMs = 10_000,
+  onProgress?: (pvs: CloudEvalPv[], depth: number) => void,
 ): Promise<CloudEvalResult | null> {
   pendingCancel?.();
   pendingCancel = null;
@@ -47,11 +48,17 @@ export async function analyzeWithStockfish(
       const msg = e.data;
       if (!msg) return;
       if (msg.type === 'info') {
-        latestDepth = Math.max(latestDepth, msg.depth ?? 0);
+        const d = msg.depth ?? 0;
+        if (d > latestDepth) {
+          latestDepth = d;
+          if (onProgress && msg.pvs?.length) {
+            onProgress(msg.pvs, d);
+          }
+        }
         return;
       }
       if (msg.type === 'bestmove') {
-        const pvList: Array<{ cp?: number; mate?: number; moves: string }> = msg.pvs ?? [];
+        const pvList: CloudEvalPv[] = msg.pvs ?? [];
         finish(pvList.length
           ? { fen, depth: latestDepth || depth, knodes: 0, pvs: pvList }
           : null);

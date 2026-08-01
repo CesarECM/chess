@@ -20,7 +20,7 @@ function handleUCILine(line) {
       pvs[mpv]  = scoreM[1] === 'cp'
         ? { moves: pvM[1].trim(), cp: +scoreM[2] }
         : { moves: pvM[1].trim(), mate: +scoreM[2] };
-      _postToMain({ type: 'info', depth: +dM[1] });
+      _postToMain({ type: 'info', depth: +dM[1], pvs: Object.values(pvs) });
     }
     return;
   }

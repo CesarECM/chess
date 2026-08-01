@@ -1,14 +1,17 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ChessBoard } from '@/components/chess/ChessBoard';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
+import type { BoardArrow } from '@/components/chess/ChessBoard';
+import { EvalBar } from '@/components/chess/EvalBar';
 import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
 import { usePuzzleSolverLocal, type SolverStatus } from '@/hooks/usePuzzleSolverLocal';
 import { useShareCard } from '@/hooks/useShareCard';
+import { useAnalysis } from '@/services/analysis/useAnalysis';
 import { EloDeltaBadge } from '@/components/feed/EloDeltaBadge';
 import { CalibrationBar } from '@/components/feed/CalibrationBar';
 import { RangeBadge } from '@/components/ui/RangeBadge';
@@ -37,15 +40,13 @@ interface Props {
   onStatusChange?: (status: SolverStatus) => void;
   onMessagesEarned?: (messages: ProgressMessage[], feedIndex: number) => void;
   backgroundColor?: string;
-  onAnalyze?: (fen: string) => void;
-  boardArrow?: { from: string; to: string } | null;
   onForceFailRef?: MutableRefObject<(() => void) | null>;
   onDebugLog?: (tag: string, msg: string) => void;
 }
 
 function PuzzleCardComponent({
   puzzle, height, isActive, feedIndex,
-  onComplete, onStatusChange, onMessagesEarned, backgroundColor, onAnalyze, boardArrow, onForceFailRef, onDebugLog,
+  onComplete, onStatusChange, onMessagesEarned, backgroundColor, onForceFailRef, onDebugLog,
 }: Props) {
   const { colors, typography } = useTheme();
   const { t }        = useTranslation();
@@ -63,6 +64,31 @@ function PuzzleCardComponent({
   const sessionCount     = usePuzzleStore((s) => s.sessionPuzzleCount);
 
   const { cardRef, isSharing, captureAndShare } = useShareCard();
+  const { state: analysisState, analyze, reset: resetAnalysis } = useAnalysis();
+
+  // Reset analysis when puzzle changes or card becomes inactive
+  useEffect(() => {
+    if (!isActive) resetAnalysis();
+  }, [isActive, puzzle.id, resetAnalysis]);
+
+  // Derive up to 3 arrows from current analysis pvs (thinking or ready)
+  const analysisArrows = useMemo<BoardArrow[]>(() => {
+    const pvs =
+      analysisState.status === 'ready'   ? analysisState.result.pvs :
+      analysisState.status === 'thinking' ? analysisState.pvs :
+      null;
+    if (!pvs) return [];
+    const colors = [
+      'rgba(50,200,50,0.85)',
+      'rgba(50,200,50,0.50)',
+      'rgba(50,200,50,0.25)',
+    ];
+    return pvs.slice(0, 3).flatMap((pv, i) => {
+      const uci = pv.moves?.split(' ')[0];
+      if (!uci || uci.length < 4) return [];
+      return [{ from: uci.slice(0, 2), to: uci.slice(2, 4), color: colors[i] }];
+    });
+  }, [analysisState]);
 
   const handleMessagesEarned = useCallback(
     (msgs: ProgressMessage[]) => onMessagesEarned?.(msgs, feedIndex),
@@ -199,7 +225,7 @@ function PuzzleCardComponent({
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={() => onAnalyze?.(getCurrentFen())}
+              onPress={() => analyze(getCurrentFen())}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
                 {t('puzzle.analyze')}
@@ -244,7 +270,7 @@ function PuzzleCardComponent({
         <View style={styles.row}>
           <TouchableOpacity
             style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-            onPress={() => onAnalyze?.(getCurrentFen())}
+            onPress={() => analyze(getCurrentFen())}
           >
             <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
               {t('puzzle.analyze')}
@@ -284,7 +310,7 @@ function PuzzleCardComponent({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={() => onAnalyze?.(getCurrentFen())}
+              onPress={() => analyze(getCurrentFen())}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
                 {t('puzzle.analyze')}
@@ -314,6 +340,55 @@ function PuzzleCardComponent({
           </View>
         </>
       )}
+      {/* ── Inline analysis panel ── */}
+      {analysisState.status !== 'idle' && (
+        <View style={[styles.analysisPanel, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.analysisHeader}>
+            <Text style={[styles.analysisTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+              {analysisState.status === 'loading'  && t('analysis.loading')}
+              {analysisState.status === 'thinking' && t('analysis.depth', { depth: analysisState.depth })}
+              {analysisState.status === 'ready'    && t('analysis.depth', { depth: analysisState.result.depth })}
+              {analysisState.status === 'error'    && t('analysis.unavailable')}
+            </Text>
+            <TouchableOpacity onPress={resetAnalysis} hitSlop={8}>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {analysisState.status === 'loading' && (
+            <ActivityIndicator size="small" color={colors.accent} style={{ alignSelf: 'flex-start' }} />
+          )}
+
+          {(analysisState.status === 'thinking' || analysisState.status === 'ready') && (() => {
+            const pvs  = analysisState.status === 'ready' ? analysisState.result.pvs : analysisState.pvs;
+            const topCp   = pvs[0]?.cp   ?? null;
+            const topMate = pvs[0]?.mate  ?? null;
+            return (
+              <View style={styles.analysisBody}>
+                <EvalBar cp={topCp} mate={topMate} />
+                <View style={{ flex: 1, gap: 4 }}>
+                  {pvs.slice(0, 3).map((pv, i) => {
+                    const evalStr = pv.mate != null
+                      ? (pv.mate > 0 ? `M${pv.mate}` : `M${-pv.mate}`)
+                      : pv.cp != null
+                        ? `${pv.cp > 0 ? '+' : ''}${(pv.cp / 100).toFixed(1)}`
+                        : '=';
+                    const firstMove = pv.moves?.split(' ')[0] ?? '';
+                    return (
+                      <View key={i} style={styles.pvRow}>
+                        <Text style={[styles.pvEval, { color: colors.text, fontSize: typography.size.xs }]}>{evalStr}</Text>
+                        <Text style={[styles.pvMoves, { color: colors.textSecondary, fontSize: typography.size.xs }]} numberOfLines={1}>
+                          {firstMove}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            );
+          })()}
+        </View>
+      )}
     </View>
   );
 
@@ -337,7 +412,7 @@ function PuzzleCardComponent({
                 enabled={puzzleStatus === 'playing' && isActive}
                 onMove={onUserMove}
                 maxSize={boardMaxSize}
-                arrows={boardArrow ? [{ ...boardArrow, color: 'rgba(50,200,50,0.85)' }] : undefined}
+                arrows={analysisArrows.length ? analysisArrows : undefined}
               />
               {eloDelta !== null && (
                 <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
@@ -392,7 +467,7 @@ function PuzzleCardComponent({
             enabled={puzzleStatus === 'playing' && isActive}
             onMove={onUserMove}
             maxSize={boardMaxSize}
-            arrows={boardArrow ? [{ ...boardArrow, color: 'rgba(50,200,50,0.85)' }] : undefined}
+            arrows={analysisArrows.length ? analysisArrows : undefined}
           />
           {eloDelta !== null && (
             <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
@@ -462,4 +537,12 @@ const styles = StyleSheet.create({
   navBtn:       { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   navBtnText:   { fontSize: 30, fontWeight: '300', lineHeight: 36 },
   reviewCounter: { minWidth: 52, textAlign: 'center', fontWeight: '600' },
+  // Analysis inline panel
+  analysisPanel:  { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, padding: 10, gap: 8 },
+  analysisHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  analysisTitle:  { fontWeight: '600', flex: 1 },
+  analysisBody:   { flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 60 },
+  pvRow:          { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  pvEval:         { fontWeight: '700', minWidth: 36 },
+  pvMoves:        { flex: 1, fontFamily: 'monospace' as const, opacity: 0.7 },
 });
