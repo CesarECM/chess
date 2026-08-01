@@ -1,30 +1,13 @@
 /* global Stockfish */
-importScripts('https://cdn.jsdelivr.net/npm/stockfish/src/stockfish.js');
+importScripts('https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.js');
 
 let sf = null;
 let pvs = {};
 
-function setup(engine) {
-  sf = engine;
-  sf.addMessageListener(onLine);
-  sf.postMessage('uci');
-  sf.postMessage('isready');
-}
-
-function init() {
-  const instance = Stockfish();
-  if (instance && typeof instance.then === 'function') {
-    instance.then(setup);
-  } else {
-    setup(instance);
-  }
-}
-
 function onLine(line) {
   if (!line) return;
 
-  // info depth 18 seldepth 25 multipv 1 score cp 35 nodes 123 nps 456 pv e2e4 e7e5 ...
-  // info depth 18 multipv 2 score mate -3 pv ...
+  // info depth 18 seldepth 25 multipv 1 score cp 35 nodes 123 pv e2e4 e7e5 ...
   const m = line.match(
     /^info.*\bdepth (\d+).*\bmultipv (\d+).*\bscore (cp|mate) (-?\d+).*\bpv ([\w\s]+)/
   );
@@ -44,6 +27,29 @@ function onLine(line) {
     const result = Object.values(pvs);
     pvs = {};
     self.postMessage({ type: 'bestmove', move, pvs: result });
+  }
+}
+
+function setup(engine) {
+  sf = engine;
+  // stockfish.js@10 uses onmessage; newer packages may use addMessageListener
+  if (typeof sf.addMessageListener === 'function') {
+    sf.addMessageListener(onLine);
+  } else {
+    sf.onmessage = function (event) {
+      onLine(typeof event === 'string' ? event : (event.data ?? ''));
+    };
+  }
+  sf.postMessage('uci');
+  sf.postMessage('isready');
+}
+
+function init() {
+  const instance = Stockfish();
+  if (instance && typeof instance.then === 'function') {
+    instance.then(setup);
+  } else {
+    setup(instance);
   }
 }
 
