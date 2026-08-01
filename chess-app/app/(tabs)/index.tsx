@@ -27,9 +27,10 @@ const BATCH_SIZE         = 10;
 export default function FeedScreen() {
   const { colors, typography } = useTheme();
   const { t } = useTranslation();
-  const elo            = useUserStore((s) => s.elo);
-  const preEloLow      = useUserStore((s) => s.preEloLow);
-  const preEloHigh     = useUserStore((s) => s.preEloHigh);
+  const elo                 = useUserStore((s) => s.elo);
+  const preEloLow           = useUserStore((s) => s.preEloLow);
+  const preEloHigh          = useUserStore((s) => s.preEloHigh);
+  const onboardingCompleted = useUserStore((s) => s.onboardingCompleted);
   const feed           = usePuzzleStore((s) => s.feed);
   const setFeed        = usePuzzleStore((s) => s.setFeed);
   const sessionHistory = usePuzzleStore((s) => s.sessionHistory);
@@ -100,6 +101,8 @@ export default function FeedScreen() {
 
   // ── Initial feed load ────────────────────────────────────────────────────
   useEffect(() => {
+    if (initializedRef.current) return;
+    if (!onboardingCompleted) return; // wait — bounds not set yet
     let cancelled = false;
     (async () => {
       try {
@@ -189,7 +192,7 @@ export default function FeedScreen() {
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onboardingCompleted]);
 
   // ── Prefetch: fills buffer when it runs low ───────────────────────────────
   useEffect(() => {
