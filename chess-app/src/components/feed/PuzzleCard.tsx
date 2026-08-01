@@ -10,9 +10,9 @@ import { usePuzzleStore } from '@/stores/usePuzzleStore';
 import { usePuzzleSolverLocal, type SolverStatus } from '@/hooks/usePuzzleSolverLocal';
 import { useShareCard } from '@/hooks/useShareCard';
 import { EloDeltaBadge } from '@/components/feed/EloDeltaBadge';
+import { CalibrationBar } from '@/components/feed/CalibrationBar';
 import { RangeBadge } from '@/components/ui/RangeBadge';
 import { ShareCard } from '@/components/ui/ShareCard';
-import { PRE_ELO_LOWER, PRE_ELO_UPPER, PRE_ELO_NUMERIC_THRESHOLD } from '@/constants';
 import type { Puzzle, ProgressMessage } from '@/types';
 
 const DESKTOP_PANEL_WIDTH = 280;
@@ -54,6 +54,8 @@ function PuzzleCardComponent({
   const elo              = useUserStore((s) => s.elo);
   const preEloLow        = useUserStore((s) => s.preEloLow);
   const preEloHigh       = useUserStore((s) => s.preEloHigh);
+  const preEloStartLow   = useUserStore((s) => s.preEloStartLow);
+  const preEloStartHigh  = useUserStore((s) => s.preEloStartHigh);
   const streakDays       = useUserStore((s) => s.streakDays);
   const puzzlesCompleted = useUserStore((s) => s.puzzlesCompleted);
   const sessionCount     = usePuzzleStore((s) => s.sessionPuzzleCount);
@@ -114,13 +116,6 @@ function PuzzleCardComponent({
       )
     : (Platform.OS === 'web' ? Math.max(height - 220, 200) : undefined);
 
-  // ── preElo bar (shown during calibration) ────────────────────────────────
-  const preEloRange = (preEloLow !== null && preEloHigh !== null)
-    ? preEloHigh - preEloLow
-    : 0;
-  const initialRange = PRE_ELO_UPPER - PRE_ELO_LOWER;
-  const calibProgress = Math.max(0, Math.min(1, 1 - (preEloRange - 0) / initialRange));
-
   // ── Shared sub-elements ───────────────────────────────────────────────────
   const badgeRow = !isCalibrating ? (
     <View style={styles.topRow}>
@@ -133,23 +128,15 @@ function PuzzleCardComponent({
     </View>
   ) : (
     <View style={[styles.calibBar, { backgroundColor: colors.accent + '22', borderColor: colors.accent + '44' }]}>
-      {preEloRange <= PRE_ELO_NUMERIC_THRESHOLD ? (
-        <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
-          {t('calibration.narrowing', { low: preEloLow, high: preEloHigh })}
-        </Text>
-      ) : (
-        <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
-          {t('calibration.estimating')}
-        </Text>
-      )}
-      <View style={[styles.calibTrack, { backgroundColor: colors.accent + '33' }]}>
-        <View
-          style={[styles.calibFill, {
-            backgroundColor: colors.accent,
-            width: `${calibProgress * 100}%` as `${number}%`,
-          }]}
-        />
-      </View>
+      <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
+        {t('calibration.estimating')}
+      </Text>
+      <CalibrationBar
+        startLow={preEloStartLow}
+        startHigh={preEloStartHigh}
+        currentLow={preEloLow!}
+        currentHigh={preEloHigh!}
+      />
     </View>
   );
 
@@ -372,10 +359,8 @@ const styles = StyleSheet.create({
   // Shared
   topRow:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sessionCount: { fontWeight: '600' },
-  calibBar:     { width: '88%', borderRadius: 8, borderWidth: 1, padding: 10, gap: 6 },
+  calibBar:     { width: '88%', borderRadius: 8, borderWidth: 1, padding: 10, gap: 8 },
   calibText:    { fontWeight: '600', textAlign: 'center' },
-  calibTrack:   { height: 4, borderRadius: 2, width: '100%', overflow: 'hidden' },
-  calibFill:    { height: 4, borderRadius: 2 },
   boardSection: { alignSelf: 'stretch', alignItems: 'center' },
   colorBar:     { height: 4, alignSelf: 'stretch' },
   boardWrapper: { position: 'relative' },

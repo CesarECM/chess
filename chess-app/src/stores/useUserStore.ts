@@ -39,8 +39,10 @@ interface DriftSample {
 
 interface UserState {
   elo: number;
-  preEloLow: number | null;   // null = calibrated
-  preEloHigh: number | null;  // null = calibrated
+  preEloLow: number | null;      // null = calibrated
+  preEloHigh: number | null;     // null = calibrated
+  preEloStartLow: number;        // bounds when this calibration session started
+  preEloStartHigh: number;
   recentDriftSamples: DriftSample[];
   declaredLevel: string | null;
   firstPuzzleRating: number | null;
@@ -97,6 +99,8 @@ export const useUserStore = create<UserState>()(
       elo: 800,
       preEloLow: PRE_ELO_LOWER,
       preEloHigh: PRE_ELO_UPPER,
+      preEloStartLow: PRE_ELO_LOWER,
+      preEloStartHigh: PRE_ELO_UPPER,
       recentDriftSamples: [],
       declaredLevel: null,
       firstPuzzleRating: null,
@@ -179,9 +183,13 @@ export const useUserStore = create<UserState>()(
 
       startRecalibration: () => {
         const { elo, calibrationBounds } = get();
+        const startLow  = Math.max(calibrationBounds.low,  elo - RECALIBRATION_RANGE);
+        const startHigh = Math.min(calibrationBounds.high, elo + RECALIBRATION_RANGE);
         set({
-          preEloLow:  Math.max(calibrationBounds.low,  elo - RECALIBRATION_RANGE),
-          preEloHigh: Math.min(calibrationBounds.high, elo + RECALIBRATION_RANGE),
+          preEloLow:       startLow,
+          preEloHigh:      startHigh,
+          preEloStartLow:  startLow,
+          preEloStartHigh: startHigh,
           recentDriftSamples: [],
         });
       },
@@ -280,14 +288,18 @@ export const useUserStore = create<UserState>()(
       completeOnboarding: (levelElo, theme, pieces, levelKey) => {
         const { calibrationBounds } = get();
         const clampedTarget = Math.max(calibrationBounds.low, Math.min(calibrationBounds.high, levelElo));
+        const startLow  = Math.max(calibrationBounds.low,  clampedTarget - PRE_ELO_ONBOARDING_WINDOW);
+        const startHigh = Math.min(calibrationBounds.high, clampedTarget + PRE_ELO_ONBOARDING_WINDOW);
         set({
           boardTheme: theme,
           pieceSet: pieces,
           onboardingCompleted: true,
           declaredLevel: levelKey,
           firstPuzzleRating: clampedTarget,
-          preEloLow:  Math.max(calibrationBounds.low,  clampedTarget - PRE_ELO_ONBOARDING_WINDOW),
-          preEloHigh: Math.min(calibrationBounds.high, clampedTarget + PRE_ELO_ONBOARDING_WINDOW),
+          preEloLow:       startLow,
+          preEloHigh:      startHigh,
+          preEloStartLow:  startLow,
+          preEloStartHigh: startHigh,
         });
       },
 
@@ -311,6 +323,8 @@ export const useUserStore = create<UserState>()(
         elo: 800,
         preEloLow: PRE_ELO_LOWER,
         preEloHigh: PRE_ELO_UPPER,
+        preEloStartLow: PRE_ELO_LOWER,
+        preEloStartHigh: PRE_ELO_UPPER,
         recentDriftSamples: [],
         declaredLevel: null,
         firstPuzzleRating: null,
@@ -335,7 +349,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'user-store',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -343,12 +357,21 @@ export const useUserStore = create<UserState>()(
           const wasCalibrated = state.isCalibrated as boolean | undefined;
           return {
             ...state,
-            preEloLow:  wasCalibrated ? null : PRE_ELO_LOWER,
-            preEloHigh: wasCalibrated ? null : PRE_ELO_UPPER,
+            preEloLow:       wasCalibrated ? null : PRE_ELO_LOWER,
+            preEloHigh:      wasCalibrated ? null : PRE_ELO_UPPER,
+            preEloStartLow:  PRE_ELO_LOWER,
+            preEloStartHigh: PRE_ELO_UPPER,
             recentDriftSamples: [],
             declaredLevel: null,
             firstPuzzleRating: null,
             calibrationBounds: { low: PRE_ELO_LOWER, high: PRE_ELO_UPPER },
+          };
+        }
+        if (version < 2) {
+          return {
+            ...state,
+            preEloStartLow:  (state.preEloLow  as number | null) ?? PRE_ELO_LOWER,
+            preEloStartHigh: (state.preEloHigh as number | null) ?? PRE_ELO_UPPER,
           };
         }
         return state;
@@ -357,6 +380,8 @@ export const useUserStore = create<UserState>()(
         elo: state.elo,
         preEloLow: state.preEloLow,
         preEloHigh: state.preEloHigh,
+        preEloStartLow: state.preEloStartLow,
+        preEloStartHigh: state.preEloStartHigh,
         recentDriftSamples: state.recentDriftSamples,
         declaredLevel: state.declaredLevel,
         firstPuzzleRating: state.firstPuzzleRating,
