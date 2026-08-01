@@ -52,8 +52,6 @@ export function usePuzzleSolverLocal(
   const [hintLevel, setHintLevel]   = useState(0);
   const [hintFromTo, setHintFromTo] = useState<{ from: string; to: string } | null>(null);
   const hintLevelRef = useRef(0);
-  const [failedMove, setFailedMove]         = useState<string | null>(null);
-  const [failedExpected, setFailedExpected] = useState<string | null>(null);
 
   // Refs for mutable solver state — avoids stale closures in callbacks
   const fenRef        = useRef(puzzle?.fen ?? '');
@@ -126,8 +124,6 @@ export function usePuzzleSolverLocal(
     hintLevelRef.current = 0;
     setHintLevel(0);
     setHintFromTo(null);
-    setFailedMove(null);
-    setFailedExpected(null);
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -436,8 +432,6 @@ export function usePuzzleSolverLocal(
     const expected = puzzle.moves[idx];
 
     if (normalizeUCI(uciMove) !== normalizeUCI(expected)) {
-      setFailedMove(uciMove);
-      setFailedExpected(expected);
       recordResult(puzzle.id, puzzle.rating, false);
       setHasFailed(true);
       setStatus('failed');
@@ -552,8 +546,6 @@ export function usePuzzleSolverLocal(
     if (!puzzle) return;
     fenRef.current        = puzzle.fen;
     moveIndexRef.current  = 0;
-    setFailedMove(null);
-    setFailedExpected(null);
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -615,8 +607,6 @@ export function usePuzzleSolverLocal(
     hintLevel,
     hintFromTo,
     requestHint,
-    failedMove,
-    failedExpected,
     reviewSan: reviewMoveIndex > 0 ? (reviewSansRef.current[reviewMoveIndex - 1] ?? null) : null,
     preEloLow,
     eloDelta,

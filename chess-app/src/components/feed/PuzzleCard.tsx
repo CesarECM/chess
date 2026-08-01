@@ -123,23 +123,12 @@ function PuzzleCardComponent({
     puzzleStatus, hasFailed, reviewMoveIndex, reviewedAfterSolve,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
     forceFailure, hintLevel, hintFromTo, requestHint,
-    failedMove, failedExpected, reviewSan,
+    reviewSan,
     eloDelta, clearEloDelta, getCurrentFen,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
 
   // Keep a stable ref so callbacks always see the latest getCurrentFen
   getCurrentFenRef.current = getCurrentFen;
-
-  // When the user fails, snap the board back to the pre-move position after a brief delay
-  // so the fail arrows are drawn from the correct square positions
-  useEffect(() => {
-    if (puzzleStatus !== 'failed') return;
-    const t = setTimeout(() => {
-      boardRef.current?.resetBoard(getCurrentFenRef.current());
-    }, 300);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puzzleStatus]);
 
   const isCalibrating = preEloLow !== null;
 
@@ -319,23 +308,12 @@ function PuzzleCardComponent({
     return { from: uci.slice(0, 2), to: uci.slice(2, 4), color: 'rgba(255,165,0,0.75)' };
   }, [puzzleStatus, reviewMoveIndex, puzzle.moves]);
 
-  // Fail arrows: red (wrong move played) + green (expected move) — only when failed and analysis not open
-  const failArrows = useMemo<BoardArrow[]>(() => {
-    if (puzzleStatus !== 'failed' || isAnalysisOpen) return [];
-    const arrows: BoardArrow[] = [];
-    if (failedMove && failedMove.length >= 4)
-      arrows.push({ from: failedMove.slice(0, 2), to: failedMove.slice(2, 4), color: 'rgba(220,50,50,0.85)' });
-    if (failedExpected && failedExpected.length >= 4)
-      arrows.push({ from: failedExpected.slice(0, 2), to: failedExpected.slice(2, 4), color: 'rgba(50,200,50,0.85)' });
-    return arrows;
-  }, [puzzleStatus, isAnalysisOpen, failedMove, failedExpected]);
-
-  // Merge: hint (yellow) + review (orange) + fail (red+green) + analysis (green)
+  // Merge: hint (yellow) + review (orange) + analysis (green)
   const allArrows = useMemo<BoardArrow[]>(() => {
     const hint:   BoardArrow[] = hintFromTo ? [{ from: hintFromTo.from, to: hintFromTo.to, color: 'rgba(255,215,0,0.85)' }] : [];
     const review: BoardArrow[] = reviewArrow ? [reviewArrow] : [];
-    return [...hint, ...review, ...failArrows, ...analysisArrows];
-  }, [hintFromTo, reviewArrow, failArrows, analysisArrows]);
+    return [...hint, ...review, ...analysisArrows];
+  }, [hintFromTo, reviewArrow, analysisArrows]);
 
   // S1: board enabled logic
   const boardEnabled = isActive && (
