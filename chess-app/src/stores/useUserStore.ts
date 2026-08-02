@@ -193,6 +193,34 @@ export const useUserStore = create<UserState>()(
         const clampedHigh = Math.min(calibrationBounds.high, newHigh);
 
         if (clampedHigh - clampedLow < PRE_ELO_CONVERGENCE) {
+          const { preEloStartLow, preEloStartHigh } = get();
+
+          // Converged at ceiling without ever failing → player is stronger than declared.
+          if (clampedHigh >= preEloStartHigh && clampedHigh < calibrationBounds.high) {
+            const newHigh = Math.min(calibrationBounds.high, preEloStartHigh + PRE_ELO_ONBOARDING_WINDOW);
+            set({
+              preEloLow: clampedHigh,
+              preEloHigh: newHigh,
+              preEloStartLow: clampedHigh,
+              preEloStartHigh: newHigh,
+              calibrationPendingConfirmation: false,
+            });
+            return;
+          }
+
+          // Converged at floor without ever winning → player is weaker than declared.
+          if (clampedLow <= preEloStartLow && clampedLow > calibrationBounds.low) {
+            const newLow = Math.max(calibrationBounds.low, preEloStartLow - PRE_ELO_ONBOARDING_WINDOW);
+            set({
+              preEloLow: newLow,
+              preEloHigh: clampedLow,
+              preEloStartLow: newLow,
+              preEloStartHigh: clampedLow,
+              calibrationPendingConfirmation: false,
+            });
+            return;
+          }
+
           if (!calibrationPendingConfirmation) {
             // First time in convergence zone — hold for one more confirmation puzzle.
             set({ preEloLow: clampedLow, preEloHigh: clampedHigh, calibrationPendingConfirmation: true });
