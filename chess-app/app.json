@@ -67,6 +67,7 @@
       "backgroundColor": "#0a0a1a"
     },
     "plugins": [
+      "./plugins/withKotlinCompat",
       "expo-router",
       "expo-status-bar",
       "expo-web-browser",
