@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import type { Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '@/components/chess/ChessBoard';
@@ -202,6 +203,17 @@ function PuzzleCardComponent({
     if (!isActive) return;
     if (puzzleStatus === 'complete') playMoveSound('complete');
     else if (puzzleStatus === 'failed') playMoveSound('fail');
+  }, [puzzleStatus, isActive]);
+
+  const successFlash = useSharedValue(0);
+  const successFlashStyle = useAnimatedStyle(() => ({ opacity: successFlash.value }));
+  useEffect(() => {
+    if (isActive && puzzleStatus === 'complete') {
+      successFlash.value = withSequence(
+        withTiming(0.45, { duration: 80 }),
+        withTiming(0,    { duration: 700 }),
+      );
+    }
   }, [puzzleStatus, isActive]);
 
   const statusColor = (puzzleStatus === 'reviewed' && reviewedAfterSolve)
@@ -820,6 +832,7 @@ function PuzzleCardComponent({
               {hasFailed && (puzzleStatus === 'idle' || puzzleStatus === 'playing') && (
                 <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
               )}
+              <Animated.View pointerEvents="none" style={[styles.successOverlay, { backgroundColor: colors.success }, successFlashStyle]} />
             </View>
             <View style={[styles.colorBar, { backgroundColor: playerBarColor, width: boardMaxSizeDesktop, alignSelf: 'center' }]} />
           </View>
@@ -886,6 +899,7 @@ function PuzzleCardComponent({
           {hasFailed && (puzzleStatus === 'idle' || puzzleStatus === 'playing') && (
             <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
           )}
+          <Animated.View pointerEvents="none" style={[styles.successOverlay, { backgroundColor: colors.success }, successFlashStyle]} />
         </View>
         <View style={[styles.colorBar, { backgroundColor: playerBarColor, width: boardMaxSizeMobile, alignSelf: 'center' }]} />
       </View>
@@ -941,6 +955,7 @@ const styles = StyleSheet.create({
   colorBar:       { height: 4, alignSelf: 'stretch' },
   boardWrapper:   { position: 'relative' },
   retryBorder:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 3, borderRadius: 4 },
+  successOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 4 },
   meta:           { marginBottom: 2 },
   playerColor:    { marginBottom: 2, fontWeight: '600' },
   status:         { fontWeight: '500' },
