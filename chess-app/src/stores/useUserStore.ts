@@ -205,7 +205,7 @@ export const useUserStore = create<UserState>()(
             preEloLow: null,
             preEloHigh: null,
             elo: finalElo,
-            eloAllTimeMax: Math.max(get().eloAllTimeMax, finalElo),
+            eloAllTimeMax: finalElo,  // reset baseline to calibrated ELO
             recentDriftSamples: [],
             firstPuzzleRating: null,
             calibrationPendingConfirmation: false,
@@ -415,7 +415,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'user-store',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -441,17 +441,19 @@ export const useUserStore = create<UserState>()(
           };
         }
         if (version < 3) {
-          const eloHistory = (state.eloHistory as Array<{ elo: number }> | undefined) ?? [];
           const currentElo = (state.elo as number | undefined) ?? 800;
-          const eloAllTimeMax = eloHistory.length > 0
-            ? Math.max(currentElo, ...eloHistory.map((e) => e.elo))
-            : currentElo;
           return {
             ...state,
-            eloAllTimeMax,
+            eloAllTimeMax: currentElo,
             consecutivePersonalBests: 0,
             puzzlesCompletedAtCalibration: 0,
           };
+        }
+        if (version < 4) {
+          // Fix: v3 migration used max(eloHistory) which could be a stale historical peak,
+          // making personal_best_elo impossible to trigger. Reset to current ELO as baseline.
+          const currentElo = (state.elo as number | undefined) ?? 800;
+          return { ...state, eloAllTimeMax: currentElo };
         }
         return state;
       },
