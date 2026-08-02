@@ -1,4 +1,5 @@
 import '@/i18n'; // inicializa i18next con los recursos bundleados
+import { SUPABASE_CONFIG_ERROR } from '@/services/supabase';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -7,7 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { GDPRConsentModal } from '@/components/ui/GDPRConsentModal';
 import { OnboardingModal } from '@/components/ui/OnboardingModal';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { ErrorBoundary, ErrorScreen } from '@/components/ui/ErrorBoundary';
 import { analytics } from '@/services/analytics';
 
 import { useTheme } from '@/hooks/useTheme';
@@ -27,6 +28,21 @@ import {
 } from '@/services/notifications';
 import { loadDueProgress } from '@/services/puzzleProgress';
 import i18n, { getDeviceLocale } from '@/i18n';
+
+// Captura errores JS fatales fuera del árbol de React (callbacks, timers, etc.)
+let _globalError: { message: string; stack?: string } | null = null;
+const _g = globalThis as Record<string, unknown>;
+if (typeof _g['ErrorUtils'] !== 'undefined') {
+  const EU = _g['ErrorUtils'] as {
+    getGlobalHandler: () => ((e: Error, fatal: boolean) => void) | null;
+    setGlobalHandler: (h: (e: Error, fatal: boolean) => void) => void;
+  };
+  const orig = EU.getGlobalHandler();
+  EU.setGlobalHandler((error, isFatal) => {
+    _globalError = { message: error?.message ?? String(error), stack: error?.stack };
+    orig?.(error, isFatal);
+  });
+}
 
 /** S11.4 — Scheduling inteligente: cancela notifs si el usuario ya jugó hoy,
  *  o las (re)programa con el conteo actual de repasos FSRS. */
@@ -152,6 +168,16 @@ export default function RootLayout() {
       boxShadow: '0 0 80px rgba(0,0,0,0.45)',
     } as ViewStyle),
   ];
+
+  // Mostrar diagnóstico antes de intentar inicializar cualquier cosa
+  const startupError = SUPABASE_CONFIG_ERROR ?? (_globalError?.message ? _globalError.message : null);
+  if (startupError) {
+    return (
+      <View style={{ flex: 1 }}>
+        <ErrorScreen message={startupError} stack={_globalError?.stack} />
+      </View>
+    );
+  }
 
   return (
     <View style={outerStyle}>
