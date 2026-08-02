@@ -16,7 +16,7 @@ import { LockedSlot } from '@/components/feed/LockedSlot';
 import { SpringPager } from '@/components/feed/SpringPager';
 import type { SpringPagerRef } from '@/components/feed/SpringPager';
 import { showInterstitialIfDue } from '@/services/ads';
-import { PROGRESS_CARDS_ENABLED } from '@/constants';
+import { PROGRESS_CARDS_ENABLED, PRE_ELO_ONBOARDING_WINDOW } from '@/constants';
 import { detectSessionStartEvents } from '@/services/feedMessages';
 import type { FeedItem, Puzzle, ProgressMessage } from '@/types';
 import type { SolverStatus } from '@/hooks/usePuzzleSolverLocal';
@@ -113,9 +113,11 @@ export default function FeedScreen() {
         let calibrationStarted = false;
         if (!recalibrationCheckedRef.current) {
           recalibrationCheckedRef.current = true;
-          const { checkRecalibrationNeeded, startRecalibration, preEloLow: currentLow } = useUserStore.getState();
+          const { checkRecalibrationNeeded, startRecalibration, preEloLow: currentLow, elo: currentElo, calibrationBounds } = useUserStore.getState();
           if (currentLow === null && checkRecalibrationNeeded()) {
-            startRecalibration();
+            const newLow  = Math.max(calibrationBounds.low,  currentElo - PRE_ELO_ONBOARDING_WINDOW);
+            const newHigh = Math.min(calibrationBounds.high, currentElo + PRE_ELO_ONBOARDING_WINDOW);
+            startRecalibration(newLow, newHigh);
             calibrationStarted = true;
           }
         }

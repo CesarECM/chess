@@ -380,6 +380,10 @@
         "Superaste los {{eloFloor}} de rating en tu calibración. El algoritmo de repetición espaciada empieza ahora.",
         "Listo. Tu nivel supera los {{eloFloor}} puntos. Los mejores puzzles para tu nivel te están esperando."
       ]
+    },
+    "recalibration_streak": {
+      "title": "Tu nivel subió",
+      "body": "Llevas {{count}} récords seguidos — tu nivel real es más alto de lo que teníamos. Ajustamos tu calibración."
     }
   },
   "gdpr": {

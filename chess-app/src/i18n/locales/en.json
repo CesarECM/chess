@@ -380,6 +380,10 @@
         "You surpassed {{eloFloor}} rating in your calibration. The spaced repetition algorithm starts now.",
         "Done. Your level exceeds {{eloFloor}} points. The best puzzles for your level are waiting."
       ]
+    },
+    "recalibration_streak": {
+      "title": "Your level went up",
+      "body": "{{count}} personal records in a row — your real level is higher than we had on record. Adjusting your calibration."
     }
   },
   "gdpr": {

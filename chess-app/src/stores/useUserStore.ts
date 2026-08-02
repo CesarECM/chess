@@ -9,6 +9,8 @@ import {
   RECALIBRATION_DAYS,
   DRIFT_SAMPLE_SIZE,
   DRIFT_THRESHOLD,
+  RECALIB_COOLDOWN_PUZZLES,
+  RECALIB_CONSECUTIVE_RECORDS,
   CALIB_FAST_SOLVE_MS,
   CALIB_FAST_SOLVE_BONUS,
   CALIB_MISCLICK_MS,
@@ -48,6 +50,9 @@ interface UserState {
   preEloHigh: number | null;     // null = calibrated
   preEloStartLow: number;        // bounds when this calibration session started
   preEloStartHigh: number;
+  eloAllTimeMax: number;
+  consecutivePersonalBests: number;
+  puzzlesCompletedAtCalibration: number;
   recentDriftSamples: DriftSample[];
   declaredLevel: string | null;
   firstPuzzleRating: number | null;
@@ -79,7 +84,7 @@ interface UserState {
   calibrationPendingConfirmation: boolean;
   updatePreElo: (puzzleRating: number, solved: boolean, elapsedMs?: number) => void;
   checkRecalibrationNeeded: () => boolean;
-  startRecalibration: () => void;
+  startRecalibration: (newLow: number, newHigh: number) => void;
   setCalibrationBounds: (low: number, high: number) => void;
   clearFirstPuzzleRating: () => void;
   updateStreak: () => void;
@@ -105,6 +110,9 @@ export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
       elo: 800,
+      eloAllTimeMax: 800,
+      consecutivePersonalBests: 0,
+      puzzlesCompletedAtCalibration: 0,
       preEloLow: PRE_ELO_LOWER,
       preEloHigh: PRE_ELO_UPPER,
       preEloStartLow: PRE_ELO_LOWER,
@@ -139,15 +147,20 @@ export const useUserStore = create<UserState>()(
       setElo: (elo) => set({ elo }),
 
       updateElo: (puzzleRating, solved) => {
-        const { elo } = get();
+        const { elo, eloAllTimeMax, consecutivePersonalBests, recentDriftSamples } = get();
         const { newElo } = calculateElo(elo, puzzleRating, solved, K_ESTABLISHED);
         const expected = 1 / (1 + Math.pow(10, (puzzleRating - elo) / 400));
-        const { recentDriftSamples } = get();
         const updatedSamples = [
           ...recentDriftSamples,
           { expected, actual: solved ? 1 : 0 },
         ].slice(-DRIFT_SAMPLE_SIZE);
-        set({ elo: newElo, recentDriftSamples: updatedSamples });
+        const isNewRecord = newElo > eloAllTimeMax;
+        set({
+          elo: newElo,
+          eloAllTimeMax: isNewRecord ? newElo : eloAllTimeMax,
+          consecutivePersonalBests: isNewRecord ? consecutivePersonalBests + 1 : 0,
+          recentDriftSamples: updatedSamples,
+        });
         return newElo - elo;
       },
 
@@ -187,7 +200,18 @@ export const useUserStore = create<UserState>()(
           }
           // Confirmation done — converge.
           const finalElo = Math.round((clampedLow + clampedHigh) / 2);
-          set({ preEloLow: null, preEloHigh: null, elo: finalElo, recentDriftSamples: [], firstPuzzleRating: null, calibrationPendingConfirmation: false });
+          const { puzzlesCompleted } = get();
+          set({
+            preEloLow: null,
+            preEloHigh: null,
+            elo: finalElo,
+            eloAllTimeMax: Math.max(get().eloAllTimeMax, finalElo),
+            recentDriftSamples: [],
+            firstPuzzleRating: null,
+            calibrationPendingConfirmation: false,
+            consecutivePersonalBests: 0,
+            puzzlesCompletedAtCalibration: puzzlesCompleted,
+          });
           return;
         }
 
@@ -195,28 +219,40 @@ export const useUserStore = create<UserState>()(
       },
 
       checkRecalibrationNeeded: () => {
-        const { preEloLow, lastActiveDate, recentDriftSamples } = get();
+        const { preEloLow, lastActiveDate, recentDriftSamples, consecutivePersonalBests, puzzlesCompleted, puzzlesCompletedAtCalibration } = get();
         if (preEloLow !== null) return false; // still calibrating
 
+        // Disparador 1: inactividad ≥ 30 días
         if (lastActiveDate) {
           const daysSince = (Date.now() - new Date(lastActiveDate + 'T00:00:00').getTime()) / 86400000;
           if (daysSince >= RECALIBRATION_DAYS) return true;
         }
 
-        if (recentDriftSamples.length >= DRIFT_SAMPLE_SIZE) {
+        // Disparador 2: drift ≥ 30% en 20 muestras (con cooldown post-calibración)
+        const cooldownMet = (puzzlesCompleted - puzzlesCompletedAtCalibration) >= RECALIB_COOLDOWN_PUZZLES;
+        if (cooldownMet && recentDriftSamples.length >= DRIFT_SAMPLE_SIZE) {
           const deviations = recentDriftSamples.filter(
             ({ expected, actual }) => (expected > 0.5 && actual === 0) || (expected < 0.5 && actual === 1),
           ).length;
           if (deviations / recentDriftSamples.length > DRIFT_THRESHOLD) return true;
         }
 
+        // Disparador 3 (fallback de sesión): 5 récords consecutivos detectados en sesión anterior
+        if (consecutivePersonalBests >= RECALIB_CONSECUTIVE_RECORDS) return true;
+
         return false;
       },
 
-      startRecalibration: () => {
-        // Recalibration restarts Phase 2 (FSRS fine-tuning), not Phase 1 (binary search).
-        // Keep preEloLow/High as null — no binary search, just reset drift tracking.
-        set({ recentDriftSamples: [], calibrationPendingConfirmation: false });
+      startRecalibration: (newLow, newHigh) => {
+        set({
+          preEloLow: newLow,
+          preEloHigh: newHigh,
+          preEloStartLow: newLow,
+          preEloStartHigh: newHigh,
+          recentDriftSamples: [],
+          calibrationPendingConfirmation: false,
+          consecutivePersonalBests: 0,
+        });
       },
 
       setCalibrationBounds: (low, high) => set({ calibrationBounds: { low, high } }),
@@ -347,6 +383,9 @@ export const useUserStore = create<UserState>()(
 
       reset: () => set({
         elo: 800,
+        eloAllTimeMax: 800,
+        consecutivePersonalBests: 0,
+        puzzlesCompletedAtCalibration: 0,
         preEloLow: PRE_ELO_LOWER,
         preEloHigh: PRE_ELO_UPPER,
         preEloStartLow: PRE_ELO_LOWER,
@@ -376,7 +415,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'user-store',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -401,10 +440,26 @@ export const useUserStore = create<UserState>()(
             preEloStartHigh: (state.preEloHigh as number | null) ?? PRE_ELO_UPPER,
           };
         }
+        if (version < 3) {
+          const eloHistory = (state.eloHistory as Array<{ elo: number }> | undefined) ?? [];
+          const currentElo = (state.elo as number | undefined) ?? 800;
+          const eloAllTimeMax = eloHistory.length > 0
+            ? Math.max(currentElo, ...eloHistory.map((e) => e.elo))
+            : currentElo;
+          return {
+            ...state,
+            eloAllTimeMax,
+            consecutivePersonalBests: 0,
+            puzzlesCompletedAtCalibration: 0,
+          };
+        }
         return state;
       },
       partialize: (state) => ({
         elo: state.elo,
+        eloAllTimeMax: state.eloAllTimeMax,
+        consecutivePersonalBests: state.consecutivePersonalBests,
+        puzzlesCompletedAtCalibration: state.puzzlesCompletedAtCalibration,
         preEloLow: state.preEloLow,
         preEloHigh: state.preEloHigh,
         preEloStartLow: state.preEloStartLow,

@@ -29,6 +29,7 @@ const ICONS: Record<MessageType, string> = {
   calibration_insight:    '🧭',
   calibration_midpoint:   '📊',
   calibration_complete:   '🏆',
+  recalibration_streak:   '📈',
 };
 
 function getIcon(message: ProgressMessage): string {

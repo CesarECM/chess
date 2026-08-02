@@ -27,9 +27,12 @@ export const CALIB_SLOW_FAIL_MS     = 60_000;  // > 60s fail → engaged serious
 export const CALIB_SLOW_FAIL_CREDIT = 50;
 
 // ── recalibration ────────────────────────────────────────────────────────────
-export const RECALIBRATION_DAYS   = 30;
-export const DRIFT_SAMPLE_SIZE    = 20;
-export const DRIFT_THRESHOLD      = 0.30;
+export const RECALIBRATION_DAYS          = 30;
+export const DRIFT_SAMPLE_SIZE           = 20;
+export const DRIFT_THRESHOLD             = 0.30;
+export const RECALIB_COOLDOWN_PUZZLES    = 50;   // puzzles after calibration before drift can trigger
+export const RECALIB_CONSECUTIVE_RECORDS = 5;    // consecutive personal bests → recalibrate upward
+export const RECALIB_STREAK_WINDOW_UP    = 300;  // search window above current ELO for streak trigger
 
 export const FSRS_TARGET_RETENTION = 0.9;
 

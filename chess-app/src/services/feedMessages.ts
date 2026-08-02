@@ -6,6 +6,7 @@ export interface PuzzleEventSnapshot {
   // User state before/after
   eloBefore:         number;
   eloAfter:          number;
+  eloAllTimeMax:     number;   // true historical max, used for personal_best_elo check
   completedBefore:   number;
   completedAfter:    number;
   medalsBefore:      string[];
@@ -67,17 +68,14 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
     });
   }
 
-  // 4. Récord personal de ELO (requiere ≥2 días de historial)
-  if (s.eloHistoryBefore.length >= 2) {
-    const historicalMax = Math.max(...s.eloHistoryBefore.map((e) => e.elo));
-    if (s.eloAfter > historicalMax) {
-      messages.push({
-        id:      `personal_best_elo_${s.eloAfter}`,
-        kind:    'progress',
-        type:    'personal_best_elo',
-        payload: { elo: s.eloAfter },
-      });
-    }
+  // 4. Récord personal de ELO (usa all-time max para evitar falsos positivos con historial de 30d)
+  if (s.eloAfter > s.eloAllTimeMax) {
+    messages.push({
+      id:      `personal_best_elo_${s.eloAfter}`,
+      kind:    'progress',
+      type:    'personal_best_elo',
+      payload: { elo: s.eloAfter },
+    });
   }
 
   // 5. Racha perfecta en sesión (5 ó 10 seguidos)

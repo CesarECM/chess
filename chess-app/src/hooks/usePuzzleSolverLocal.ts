@@ -13,7 +13,7 @@ import { recordViralityEvent, recordSkipEvent } from '@/services/virality';
 import { recordSolveEvent } from '@/services/solveHistory';
 import { trackReferralPuzzle } from '@/services/referral';
 import { analytics } from '@/services/analytics';
-import { PROGRESS_CARDS_ENABLED } from '@/constants';
+import { PROGRESS_CARDS_ENABLED, RECALIB_CONSECUTIVE_RECORDS, RECALIB_STREAK_WINDOW_UP } from '@/constants';
 import { detectPuzzleEvents } from '@/services/feedMessages';
 
 export type SolverStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'reviewed' | 'complete';
@@ -305,10 +305,11 @@ export function usePuzzleSolverLocal(
     const fsrsRating = deriveFsrsRating(solved, elapsedMs);
 
     const preUser = solved && PROGRESS_CARDS_ENABLED ? {
-      elo:             useUserStore.getState().elo,
+      elo:              useUserStore.getState().elo,
+      eloAllTimeMax:    useUserStore.getState().eloAllTimeMax,
       puzzlesCompleted: useUserStore.getState().puzzlesCompleted,
-      unlockedMedals:  [...useUserStore.getState().unlockedMedals],
-      eloHistory:      useUserStore.getState().eloHistory,
+      unlockedMedals:   [...useUserStore.getState().unlockedMedals],
+      eloHistory:       useUserStore.getState().eloHistory,
     } : null;
 
     const preSession = solved && PROGRESS_CARDS_ENABLED ? {
@@ -339,6 +340,22 @@ export function usePuzzleSolverLocal(
     addToHistory(puzzleId);
     incrementPuzzleStats(solved, puzzle?.themes ?? []);
 
+    // Disparador 3: 5 récords personales consecutivos → recalibración upward mid-session
+    if (solved && PROGRESS_CARDS_ENABLED) {
+      const { consecutivePersonalBests, elo: currentElo, calibrationBounds, preEloLow } = useUserStore.getState();
+      if (preEloLow === null && consecutivePersonalBests >= RECALIB_CONSECUTIVE_RECORDS) {
+        const newLow  = Math.max(calibrationBounds.low, currentElo);
+        const newHigh = Math.min(calibrationBounds.high, currentElo + RECALIB_STREAK_WINDOW_UP);
+        useUserStore.getState().startRecalibration(newLow, newHigh);
+        onMessagesEarnedRef.current?.([{
+          id:      `recalibration_streak_${Date.now()}`,
+          kind:    'progress',
+          type:    'recalibration_streak',
+          payload: { count: consecutivePersonalBests },
+        }]);
+      }
+    }
+
     solvedResultRef.current = solved;
     if (solved) {
       usePuzzleStore.getState().recordSolvedInSession();
@@ -350,6 +367,7 @@ export function usePuzzleSolverLocal(
       const messages = detectPuzzleEvents({
         eloBefore:                preUser.elo,
         eloAfter:                 useUserStore.getState().elo,
+        eloAllTimeMax:            preUser.eloAllTimeMax,
         completedBefore:          preUser.puzzlesCompleted,
         completedAfter:           useUserStore.getState().puzzlesCompleted,
         medalsBefore:             preUser.unlockedMedals,

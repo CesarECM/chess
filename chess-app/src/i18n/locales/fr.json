@@ -380,6 +380,10 @@
         "Vous avez dépassé les {{eloFloor}} de classement lors de votre calibration. L'algorithme de répétition espacée commence maintenant.",
         "C'est fait. Votre niveau dépasse les {{eloFloor}} points. Les meilleurs puzzles vous attendent."
       ]
+    },
+    "recalibration_streak": {
+      "title": "Ton niveau a progressé",
+      "body": "{{count}} records d'affilée — ton niveau réel est plus élevé que ce qu'on avait. On ajuste ta calibration."
     }
   },
   "gdpr": {
