@@ -72,6 +72,7 @@ interface UserState {
   boardTheme: BoardThemeId;
   pieceSet: PieceSetId;
   onboardingCompleted: boolean;
+  soundEnabled: boolean;
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => number;
@@ -86,6 +87,7 @@ interface UserState {
   setPreferredLanguage: (lang: string | null) => void;
   setBoardTheme: (theme: BoardThemeId) => void;
   setPieceSet: (set: PieceSetId) => void;
+  setSoundEnabled: (enabled: boolean) => void;
   completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId, levelKey: string) => void;
   setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
@@ -131,6 +133,7 @@ export const useUserStore = create<UserState>()(
       boardTheme: 'classic',
       pieceSet: 'cburnett',
       onboardingCompleted: false,
+      soundEnabled: true,
       calibrationPendingConfirmation: false,
 
       setElo: (elo) => set({ elo }),
@@ -306,6 +309,7 @@ export const useUserStore = create<UserState>()(
       setPreferredLanguage: (lang) => set({ preferredLanguage: lang }),
       setBoardTheme: (theme) => set({ boardTheme: theme }),
       setPieceSet: (s) => set({ pieceSet: s }),
+      setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
 
       completeOnboarding: (levelElo, theme, pieces, levelKey) => {
         const { calibrationBounds } = get();
@@ -429,6 +433,7 @@ export const useUserStore = create<UserState>()(
         boardTheme: state.boardTheme,
         pieceSet: state.pieceSet,
         onboardingCompleted: state.onboardingCompleted,
+        soundEnabled: state.soundEnabled,
       }),
     },
   ),

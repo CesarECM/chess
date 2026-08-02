@@ -44,6 +44,18 @@ export function isLegalMove(fen: string, uciMove: string): boolean {
   return applyMove(fen, uciMove) !== null;
 }
 
+/** Like applyMove but also returns capture/check metadata for sound selection. */
+export function getMoveInfo(fen: string, uciMove: string): { fen: string; isCapture: boolean; isCheck: boolean } | null {
+  try {
+    const chess = new Chess(fen);
+    const result = chess.move(parseUCI(uciMove));
+    if (!result) return null;
+    return { fen: chess.fen(), isCapture: result.captured !== undefined, isCheck: chess.isCheck() };
+  } catch {
+    return null;
+  }
+}
+
 /** Which side is to move: 'w' | 'b'. */
 export function getSideToMove(fen: string): 'w' | 'b' {
   return new Chess(fen).turn();

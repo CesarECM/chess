@@ -4,7 +4,8 @@ import * as Haptics from 'expo-haptics';
 import { Chess } from 'chess.js';
 import type { Square, PieceSymbol, Move } from 'chess.js';
 
-import { applyMove, getLegalMovesFromSquare } from '@/services/chess';
+import { applyMove, getMoveInfo, getLegalMovesFromSquare } from '@/services/chess';
+import { playMoveSound } from '@/services/sounds';
 import { BOARD_THEMES } from '@/constants/boardThemes';
 import { getPieceUrl } from '@/constants/pieceSets';
 import { useUserStore } from '@/stores/useUserStore';
@@ -89,6 +90,10 @@ function posToSquare(x: number, y: number, flipped: boolean, sqSize: number): Sq
 
 function triggerHaptic() {
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+}
+
+function triggerSound(isCapture: boolean, isCheck: boolean) {
+  playMoveSound(isCheck ? 'check' : isCapture ? 'capture' : 'move');
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
@@ -229,16 +234,18 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
 
       if (selected === sq) { setSelected(null); setLegalDests(new Set()); return; }
 
-      const base       = `${selected}${sq}`;
-      const newFenBase = applyMove(fenNow, base);
-      const pieceType  = piecesNow[selected];
+      const base      = `${selected}${sq}`;
+      const moveInfo  = getMoveInfo(fenNow, base);
+      const pieceType = piecesNow[selected];
 
-      if (newFenBase) {
+      if (moveInfo) {
+        const { fen: newFenBase, isCapture, isCheck } = moveInfo;
         currentFenRef.current = newFenBase;
         setSelected(null);
         setLegalDests(new Set());
         onMove?.(base, newFenBase);
         triggerHaptic();
+        triggerSound(isCapture, isCheck);
         if (pieceType) playMoveAnim(selected, sq, newFenBase, pieceType);
         else { setCurrentFen(newFenBase); setLastMove({ from: selected, to: sq }); }
       } else if (applyMove(fenNow, `${base}q`)) {
@@ -266,15 +273,17 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
       const fenNow    = currentFenRef.current;
       const piecesNow = parseFen(fenNow);
       const pieceType = piecesNow[from];
-      const base      = `${from}${to}`;
-      const newFen    = applyMove(fenNow, base);
+      const base     = `${from}${to}`;
+      const dropInfo = getMoveInfo(fenNow, base);
 
-      if (newFen) {
+      if (dropInfo) {
+        const { fen: newFen, isCapture, isCheck } = dropInfo;
         currentFenRef.current = newFen;
         setSelected(null);
         setLegalDests(new Set());
         onMoveRef.current?.(base, newFen);
         triggerHaptic();
+        triggerSound(isCapture, isCheck);
         if (pieceType) playMoveAnim(from, to, newFen, pieceType);
         else { setCurrentFen(newFen); setLastMove({ from, to }); }
       } else if (applyMove(fenNow, `${base}q`)) {
@@ -355,14 +364,16 @@ export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
     const handlePromotion = useCallback((piece: PieceSymbol) => {
       if (!promotionPending) return;
       const { from, to } = promotionPending;
-      const uci      = `${from}${to}${piece}`;
-      const newFen   = applyMove(currentFenRef.current, uci);
-      const ptBefore = parseFen(currentFenRef.current)[from];
+      const uci        = `${from}${to}${piece}`;
+      const promoInfo  = getMoveInfo(currentFenRef.current, uci);
+      const ptBefore   = parseFen(currentFenRef.current)[from];
       setPromotionPending(null);
-      if (newFen) {
+      if (promoInfo) {
+        const { fen: newFen, isCapture, isCheck } = promoInfo;
         currentFenRef.current = newFen;
         onMove?.(uci, newFen);
         triggerHaptic();
+        triggerSound(isCapture, isCheck);
         if (ptBefore) playMoveAnim(from, to, newFen, ptBefore, piece);
         else { setCurrentFen(newFen); setLastMove({ from, to }); }
       }

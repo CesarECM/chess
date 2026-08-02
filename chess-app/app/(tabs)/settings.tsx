@@ -45,6 +45,8 @@ export default function SettingsScreen() {
   const setBoardTheme = useUserStore((s) => s.setBoardTheme);
   const pieceSet = useUserStore((s) => s.pieceSet);
   const setPieceSet = useUserStore((s) => s.setPieceSet);
+  const soundEnabled = useUserStore((s) => s.soundEnabled);
+  const setSoundEnabled = useUserStore((s) => s.setSoundEnabled);
   const router = useRouter();
 
   const THEME_OPTIONS: { label: string; value: ThemePreference }[] = [
@@ -193,6 +195,17 @@ export default function SettingsScreen() {
         {t('settings.sectionBoard')}
       </Text>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+        {/* Sound toggle */}
+        <TouchableOpacity
+          style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
+          onPress={() => setSoundEnabled(!soundEnabled)}
+        >
+          <Text style={[styles.label, { color: colors.text, fontSize: typography.size.md }]}>
+            {t('settings.soundEnabled')}
+          </Text>
+          {soundEnabled && <View style={[styles.dot, { backgroundColor: colors.accent }]} />}
+        </TouchableOpacity>
+
         {/* Board color theme */}
         <View style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
           <Text style={[styles.label, { color: colors.text, fontSize: typography.size.sm }]}>

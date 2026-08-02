@@ -6,6 +6,7 @@ import { ChessBoard } from '@/components/chess/ChessBoard';
 import type { ChessboardRef } from '@/components/chess/ChessBoard';
 import type { BoardArrow } from '@/components/chess/ChessBoard';
 import { applyMove, isGameOver } from '@/services/chess';
+import { playMoveSound } from '@/services/sounds';
 import { EvalBar } from '@/components/chess/EvalBar';
 import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
@@ -196,6 +197,12 @@ function PuzzleCardComponent({
   useEffect(() => {
     if (isActive) onStatusChange?.(puzzleStatus);
   }, [puzzleStatus, isActive, onStatusChange]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    if (puzzleStatus === 'complete') playMoveSound('complete');
+    else if (puzzleStatus === 'failed') playMoveSound('fail');
+  }, [puzzleStatus, isActive]);
 
   const statusColor = (puzzleStatus === 'reviewed' && reviewedAfterSolve)
     ? colors[STATUS_COLOR['complete']]
