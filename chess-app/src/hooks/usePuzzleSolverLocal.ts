@@ -48,6 +48,7 @@ export function usePuzzleSolverLocal(
   const [eloDelta, setEloDelta] = useState<number | null>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const [reviewMoveIndex, setReviewMoveIndex] = useState(0);
+  const [solverMoveIndex, setSolverMoveIndex] = useState(0);
   const [reviewedAfterSolve, setReviewedAfterSolve] = useState(false);
   const [hintLevel, setHintLevel]   = useState(0);
   const [hintFromTo, setHintFromTo] = useState<{ from: string; to: string } | null>(null);
@@ -122,6 +123,7 @@ export function usePuzzleSolverLocal(
     setReviewFens([]);
     setHasFailed(false);
     setReviewMoveIndex(0);
+    setSolverMoveIndex(0);
     setReviewedAfterSolve(false);
     hintLevelRef.current = 0;
     setHintLevel(0);
@@ -169,6 +171,7 @@ export function usePuzzleSolverLocal(
       boardRef.current?.move(uciToMove(opponentUCI));
       fenRef.current       = newFen;
       moveIndexRef.current = 1;
+      setSolverMoveIndex(1);
       setStatus('playing');
 
       setTimeout(() => { solveStartRef.current = Date.now(); }, 400);
@@ -465,6 +468,7 @@ export function usePuzzleSolverLocal(
     if (afterUserIdx >= puzzle.moves.length) {
       fenRef.current       = fenAfterUser;
       moveIndexRef.current = afterUserIdx;
+      setSolverMoveIndex(afterUserIdx);
       setStatus('complete');
       recordResult(puzzle.id, puzzle.rating, true);
       return;
@@ -476,6 +480,7 @@ export function usePuzzleSolverLocal(
 
     fenRef.current       = fenAfterOpponent;
     moveIndexRef.current = afterOpponentIdx;
+    setSolverMoveIndex(afterOpponentIdx);
 
     if (afterOpponentIdx >= puzzle.moves.length) {
       setStatus('complete');
@@ -567,6 +572,7 @@ export function usePuzzleSolverLocal(
     if (!puzzle) return;
     fenRef.current        = puzzle.fen;
     moveIndexRef.current  = 0;
+    setSolverMoveIndex(0);
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -639,6 +645,7 @@ export function usePuzzleSolverLocal(
     puzzleStatus,
     hasFailed,
     reviewMoveIndex,
+    solverMoveIndex,
     reviewedAfterSolve,
     onUserMove,
     startReview,

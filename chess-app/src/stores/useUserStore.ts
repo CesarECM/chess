@@ -48,8 +48,10 @@ interface UserState {
   elo: number;
   preEloLow: number | null;      // null = calibrated
   preEloHigh: number | null;     // null = calibrated
-  preEloStartLow: number;        // bounds when this calibration session started
+  preEloStartLow: number;        // bounds when this calibration phase started (resets on Phase 1 restart)
   preEloStartHigh: number;
+  calibGlobalLow: number;        // widest range seen across all Phase 1 restarts — used for visualization
+  calibGlobalHigh: number;
   eloAllTimeMax: number;
   consecutivePersonalBests: number;
   puzzlesCompletedAtCalibration: number;
@@ -117,6 +119,8 @@ export const useUserStore = create<UserState>()(
       preEloHigh: PRE_ELO_UPPER,
       preEloStartLow: PRE_ELO_LOWER,
       preEloStartHigh: PRE_ELO_UPPER,
+      calibGlobalLow: PRE_ELO_LOWER,
+      calibGlobalHigh: PRE_ELO_UPPER,
       recentDriftSamples: [],
       declaredLevel: null,
       firstPuzzleRating: null,
@@ -193,7 +197,7 @@ export const useUserStore = create<UserState>()(
         const clampedHigh = Math.min(calibrationBounds.high, newHigh);
 
         if (clampedHigh - clampedLow < PRE_ELO_CONVERGENCE) {
-          const { preEloStartLow, preEloStartHigh } = get();
+          const { preEloStartLow, preEloStartHigh, calibGlobalLow, calibGlobalHigh } = get();
 
           // Converged at ceiling without ever failing → player is stronger than declared.
           if (clampedHigh >= preEloStartHigh && clampedHigh < calibrationBounds.high) {
@@ -203,6 +207,7 @@ export const useUserStore = create<UserState>()(
               preEloHigh: newHigh,
               preEloStartLow: clampedHigh,
               preEloStartHigh: newHigh,
+              calibGlobalHigh: Math.max(calibGlobalHigh, newHigh),
               calibrationPendingConfirmation: false,
             });
             return;
@@ -216,6 +221,7 @@ export const useUserStore = create<UserState>()(
               preEloHigh: clampedLow,
               preEloStartLow: newLow,
               preEloStartHigh: clampedLow,
+              calibGlobalLow: Math.min(calibGlobalLow, newLow),
               calibrationPendingConfirmation: false,
             });
             return;
@@ -277,6 +283,8 @@ export const useUserStore = create<UserState>()(
           preEloHigh: newHigh,
           preEloStartLow: newLow,
           preEloStartHigh: newHigh,
+          calibGlobalLow: newLow,
+          calibGlobalHigh: newHigh,
           recentDriftSamples: [],
           calibrationPendingConfirmation: false,
           consecutivePersonalBests: 0,
@@ -390,6 +398,8 @@ export const useUserStore = create<UserState>()(
           preEloHigh:      startHigh,
           preEloStartLow:  startLow,
           preEloStartHigh: startHigh,
+          calibGlobalLow:  startLow,
+          calibGlobalHigh: startHigh,
         });
       },
 
@@ -418,6 +428,8 @@ export const useUserStore = create<UserState>()(
         preEloHigh: PRE_ELO_UPPER,
         preEloStartLow: PRE_ELO_LOWER,
         preEloStartHigh: PRE_ELO_UPPER,
+        calibGlobalLow: PRE_ELO_LOWER,
+        calibGlobalHigh: PRE_ELO_UPPER,
         recentDriftSamples: [],
         declaredLevel: null,
         firstPuzzleRating: null,
@@ -443,7 +455,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'user-store',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -483,6 +495,13 @@ export const useUserStore = create<UserState>()(
           const currentElo = (state.elo as number | undefined) ?? 800;
           return { ...state, eloAllTimeMax: currentElo };
         }
+        if (version < 5) {
+          return {
+            ...state,
+            calibGlobalLow:  (state.preEloStartLow  as number | undefined) ?? PRE_ELO_LOWER,
+            calibGlobalHigh: (state.preEloStartHigh as number | undefined) ?? PRE_ELO_UPPER,
+          };
+        }
         return state;
       },
       partialize: (state) => ({
@@ -494,6 +513,8 @@ export const useUserStore = create<UserState>()(
         preEloHigh: state.preEloHigh,
         preEloStartLow: state.preEloStartLow,
         preEloStartHigh: state.preEloStartHigh,
+        calibGlobalLow: state.calibGlobalLow,
+        calibGlobalHigh: state.calibGlobalHigh,
         recentDriftSamples: state.recentDriftSamples,
         declaredLevel: state.declaredLevel,
         firstPuzzleRating: state.firstPuzzleRating,

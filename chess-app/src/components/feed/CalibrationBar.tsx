@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
 interface Props {
@@ -21,9 +21,20 @@ const COLOR_DOT_ON    = '#22c55e';
 
 const SPRING = { useNativeDriver: false, damping: 20, stiffness: 200 } as const;
 
+const TICK_INTERVAL = 100;
+
 export function CalibrationBar({ startLow, startHigh, currentLow, currentHigh }: Props) {
   const startRange   = Math.max(1, startHigh - startLow);
   const currentRange = currentHigh - currentLow;
+
+  const ticks = useMemo(() => {
+    const result: number[] = [];
+    const first = Math.ceil((startLow + 1) / TICK_INTERVAL) * TICK_INTERVAL;
+    for (let elo = first; elo < startHigh; elo += TICK_INTERVAL) {
+      result.push(elo);
+    }
+    return result;
+  }, [startLow, startHigh]);
   const progress     = Math.max(0, Math.min(1, 1 - currentRange / startRange));
   const leftFrac     = (currentLow - startLow) / startRange;
   const rightFrac    = (startHigh - currentHigh) / startRange;
@@ -101,6 +112,12 @@ export function CalibrationBar({ startLow, startHigh, currentLow, currentHigh }:
         <Animated.View
           style={[styles.active, { left: leftAnim, right: rightAnim, backgroundColor: barColor }]}
         />
+        {trackW > 0 && ticks.map((elo) => (
+          <View
+            key={elo}
+            style={[styles.tick, { left: Math.round((elo - startLow) / startRange * trackW) }]}
+          />
+        ))}
       </View>
 
       {/* Puntito + onda — fuera del overflow:hidden del track */}
@@ -134,6 +151,13 @@ const styles = StyleSheet.create({
   active: {
     position: 'absolute',
     top: 0, bottom: 0,
+  },
+  tick: {
+    position: 'absolute',
+    width: 1,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
   dotAnchor: {
     position: 'absolute',

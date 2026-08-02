@@ -66,6 +66,7 @@ function PuzzleCardComponent({
   const [isVsEngine, setIsVsEngine]             = useState(false);
   const [vsEngineWaiting, setVsEngineWaiting]   = useState(false);
   const [vsEngineOver, setVsEngineOver]         = useState(false);
+  const [playNavIdx, setPlayNavIdx]             = useState<number | null>(null);
   const vsEngineFenRef      = useRef('');
   const vsEngineStartFenRef = useRef('');
   const isAutoplayingRef    = useRef(false);
@@ -77,6 +78,8 @@ function PuzzleCardComponent({
   const preEloHigh       = useUserStore((s) => s.preEloHigh);
   const preEloStartLow   = useUserStore((s) => s.preEloStartLow);
   const preEloStartHigh  = useUserStore((s) => s.preEloStartHigh);
+  const calibGlobalLow   = useUserStore((s) => s.calibGlobalLow);
+  const calibGlobalHigh  = useUserStore((s) => s.calibGlobalHigh);
   const streakDays       = useUserStore((s) => s.streakDays);
   const puzzlesCompleted = useUserStore((s) => s.puzzlesCompleted);
   const sessionCount     = usePuzzleStore((s) => s.sessionPuzzleCount);
@@ -100,9 +103,13 @@ function PuzzleCardComponent({
       setIsVsEngine(false);
       setVsEngineWaiting(false);
       setVsEngineOver(false);
+      setPlayNavIdx(null);
       resetAnalysisRaw();
     }
   }, [isActive, puzzle.id, resetAnalysisRaw]);
+
+  // Reset nav de playing al cambiar puzzle
+  useEffect(() => { setPlayNavIdx(null); }, [puzzle.id]);
 
   // Stable ref so callbacks created once always see the latest getCurrentFen
   const getCurrentFenRef = useRef<() => string>(() => '');
@@ -133,7 +140,7 @@ function PuzzleCardComponent({
   );
 
   const {
-    puzzleStatus, hasFailed, reviewMoveIndex, reviewedAfterSolve,
+    puzzleStatus, hasFailed, reviewMoveIndex, solverMoveIndex, reviewedAfterSolve,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
     forceFailure, hintLevel, hintFromTo, requestHint,
     reviewSan, reviewFens, jumpToReviewIndex,
@@ -142,6 +149,20 @@ function PuzzleCardComponent({
 
   const isInReview = puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed';
   const { evals: reviewEvals } = useBatchEval(reviewFens, isActive && isInReview);
+
+  // FENs de la línea revelada durante playing (crece con cada movimiento correcto del user)
+  const playingNavFens = useMemo(() => {
+    if (puzzleStatus !== 'playing') return [];
+    const fens: string[] = [puzzle.fen];
+    let fen = puzzle.fen;
+    for (let i = 0; i < solverMoveIndex; i++) {
+      const next = applyMove(fen, puzzle.moves[i]);
+      if (!next) break;
+      fens.push(next);
+      fen = next;
+    }
+    return fens;
+  }, [puzzle.fen, puzzle.moves, solverMoveIndex, puzzleStatus]);
 
   // Keep a stable ref so callbacks always see the latest getCurrentFen
   getCurrentFenRef.current = getCurrentFen;
@@ -400,6 +421,44 @@ function PuzzleCardComponent({
                   : hintLevel === 1 ? t('puzzle.hintMore')
                   : t('puzzle.hintShow');
 
+  const applyPlayNavHighlight = useCallback((idx: number) => {
+    boardRef.current?.resetAllHighlightedSquares();
+    if (idx <= 0) return;
+    const uci = puzzle.moves[idx - 1];
+    if (!uci || uci.length < 4) return;
+    setTimeout(() => {
+      boardRef.current?.highlight({ square: uci.slice(0, 2) as Square, color: 'rgba(255,165,0,0.75)' });
+      boardRef.current?.highlight({ square: uci.slice(2, 4) as Square, color: 'rgba(255,165,0,0.50)' });
+    }, 200);
+  }, [puzzle.moves]);
+
+  const handlePlayNavBack = useCallback(() => {
+    const cur = playNavIdx ?? solverMoveIndex;
+    const newIdx = cur - 1;
+    if (newIdx < 0) return;
+    const targetFen = playingNavFens[newIdx];
+    if (!targetFen) return;
+    boardRef.current?.resetBoard(targetFen);
+    applyPlayNavHighlight(newIdx);
+    setPlayNavIdx(newIdx);
+  }, [playNavIdx, solverMoveIndex, playingNavFens, applyPlayNavHighlight]);
+
+  const handlePlayNavForward = useCallback(() => {
+    if (playNavIdx === null) return;
+    const newIdx = playNavIdx + 1;
+    if (newIdx >= solverMoveIndex) {
+      boardRef.current?.resetBoard(getCurrentFenRef.current());
+      applyPlayNavHighlight(solverMoveIndex);
+      setPlayNavIdx(null);
+    } else {
+      const targetFen = playingNavFens[newIdx];
+      if (!targetFen) return;
+      boardRef.current?.resetBoard(targetFen);
+      applyPlayNavHighlight(newIdx);
+      setPlayNavIdx(newIdx);
+    }
+  }, [playNavIdx, solverMoveIndex, playingNavFens, applyPlayNavHighlight]);
+
   // Arrow for the active move in review mode (orange, matches existing square highlights)
   const reviewArrow = useMemo<BoardArrow | null>(() => {
     if (puzzleStatus !== 'reviewing' && puzzleStatus !== 'reviewed') return null;
@@ -418,7 +477,7 @@ function PuzzleCardComponent({
 
   // S1: board enabled logic
   const boardEnabled = isActive && (
-    puzzleStatus === 'playing' ||
+    (puzzleStatus === 'playing' && playNavIdx === null) ||
     (isAnalysisOpen && !vsEngineWaiting && !vsEngineOver) ||
     puzzleStatus === 'reviewing' ||
     puzzleStatus === 'reviewed'
@@ -444,8 +503,8 @@ function PuzzleCardComponent({
         {t('calibration.estimating')}
       </Text>
       <CalibrationBar
-        startLow={preEloStartLow}
-        startHigh={preEloStartHigh}
+        startLow={calibGlobalLow ?? preEloStartLow}
+        startHigh={calibGlobalHigh ?? preEloStartHigh}
         currentLow={preEloLow!}
         currentHigh={preEloHigh!}
       />
@@ -642,26 +701,30 @@ function PuzzleCardComponent({
   const buttons = (
     <View style={styles.buttonsArea}>
 
-      {/* playing: pista progresiva + válvula de escape */}
+      {/* playing: pista + navegar la línea revelada */}
       {isActive && puzzleStatus === 'playing' && (
         <View style={styles.row}>
-          {hintLevel < 3 && (
-            <TouchableOpacity
-              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={handleHint}
-            >
-              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-                {hintLabel}
-              </Text>
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
-            style={[styles.btn, styles.btnGhost, { flex: 1 }]}
-            onPress={startReview}
+            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+            onPress={handleHint}
           >
-            <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
-              {t('puzzle.viewSolution')}
+            <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+              {hintLabel}
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.navBtn, { opacity: (playNavIdx === null ? solverMoveIndex : playNavIdx) <= 0 ? 0.25 : 1 }]}
+            onPress={handlePlayNavBack}
+            disabled={(playNavIdx === null ? solverMoveIndex : playNavIdx) <= 0}
+          >
+            <Text style={[styles.navBtnText, { color: colors.text }]}>‹</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.navBtn, { opacity: playNavIdx === null ? 0.25 : 1 }]}
+            onPress={handlePlayNavForward}
+            disabled={playNavIdx === null}
+          >
+            <Text style={[styles.navBtnText, { color: colors.text }]}>›</Text>
           </TouchableOpacity>
         </View>
       )}
