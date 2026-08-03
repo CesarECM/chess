@@ -93,7 +93,7 @@ function triggerHaptic() {
 }
 
 function triggerSound(isCapture: boolean, isCheck: boolean) {
-  playMoveSound(isCheck ? 'check' : isCapture ? 'capture' : 'move');
+  playMoveSound(isCapture ? 'capture' : 'move');
 }
 
 export const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(

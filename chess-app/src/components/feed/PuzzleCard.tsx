@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '@/components/chess/ChessBoard';
@@ -58,6 +57,8 @@ function PuzzleCardComponent({
   const { colors, typography } = useTheme();
   const { t }        = useTranslation();
   const isDesktop    = useIsDesktop();
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const isLandscape  = screenW > screenH;
   const boardRef     = useRef<ChessboardRef>(null);
   const [boardColW, setBoardColW]         = useState(0);
   const [boardSectionSize, setBoardSectionSize] = useState(0);
@@ -146,7 +147,7 @@ function PuzzleCardComponent({
   );
 
   const {
-    puzzleStatus, hasFailed, bonusTriggered, clearBonusTriggered,
+    puzzleStatus, hasFailed,
     reviewMoveIndex, solverMoveIndex, reviewedAfterSolve,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
     forceFailure, hintLevel, hintFromTo, requestHint,
@@ -233,32 +234,9 @@ function PuzzleCardComponent({
     else if (puzzleStatus === 'failed') playMoveSound('fail');
   }, [puzzleStatus, isActive]);
 
-  const successFlash = useSharedValue(0);
-  const successFlashStyle = useAnimatedStyle(() => ({ opacity: successFlash.value }));
-
   const cancelAutoAdvance = useCallback(() => {
     if (completeTimerRef.current) { clearTimeout(completeTimerRef.current); completeTimerRef.current = null; }
   }, []);
-
-  useEffect(() => {
-    if (isActive && puzzleStatus === 'complete') {
-      if (bonusTriggered === true) {
-        successFlash.value = withSequence(
-          withTiming(0.7,  { duration: 60 }),
-          withTiming(0.1,  { duration: 220 }),
-          withTiming(0.65, { duration: 60 }),
-          withTiming(0,    { duration: 600 }),
-        );
-      } else {
-        successFlash.value = withSequence(
-          withTiming(0.45, { duration: 80 }),
-          withTiming(0,    { duration: 700 }),
-        );
-      }
-      clearBonusTriggered();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puzzleStatus, isActive, bonusTriggered]);
 
   // AutoAdvance: after complete, advance automatically after 1400ms
   useEffect(() => {
@@ -956,13 +934,12 @@ function PuzzleCardComponent({
                 maxSize={boardMaxSizeDesktop}
                 arrows={allArrows.length ? allArrows : undefined}
               />
-              {eloDelta !== null && (
+              {eloDelta !== null && eloDelta > 0 && (
                 <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
               )}
               {hasFailed && (puzzleStatus === 'idle' || puzzleStatus === 'playing' || puzzleStatus === 'retry') && (
                 <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
               )}
-              <Animated.View pointerEvents="none" style={[styles.successOverlay, { backgroundColor: colors.success }, successFlashStyle]} />
             </View>
             <View style={[styles.colorBar, { backgroundColor: playerBarColor, width: boardMaxSizeDesktop, alignSelf: 'center' }]} />
           </View>
@@ -1008,7 +985,7 @@ function PuzzleCardComponent({
         style={styles.boardSectionFlex}
         onLayout={e => {
           const { width, height: h } = e.nativeEvent.layout;
-          setBoardSectionSize(Math.min(width, h));
+          setBoardSectionSize(isLandscape ? Math.min(width, h) : width);
         }}
       >
         <View style={[styles.colorBar, { backgroundColor: opponentBarColor, width: boardMaxSizeMobile, alignSelf: 'center' }]} />
@@ -1023,13 +1000,12 @@ function PuzzleCardComponent({
             maxSize={boardMaxSizeMobile}
             arrows={allArrows.length ? allArrows : undefined}
           />
-          {eloDelta !== null && (
+          {eloDelta !== null && eloDelta > 0 && (
             <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
           )}
           {hasFailed && (puzzleStatus === 'idle' || puzzleStatus === 'playing') && (
             <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
           )}
-          <Animated.View pointerEvents="none" style={[styles.successOverlay, { backgroundColor: colors.success }, successFlashStyle]} />
         </View>
         <View style={[styles.colorBar, { backgroundColor: playerBarColor, width: boardMaxSizeMobile, alignSelf: 'center' }]} />
       </View>
@@ -1086,7 +1062,7 @@ const styles = StyleSheet.create({
   colorBar:       { height: 4, alignSelf: 'stretch' },
   boardWrapper:   { position: 'relative' },
   retryBorder:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 3, borderRadius: 4 },
-  successOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 4 },
+
   meta:           { marginBottom: 2 },
   playerColor:    { marginBottom: 2, fontWeight: '600' },
   status:         { fontWeight: '500' },
