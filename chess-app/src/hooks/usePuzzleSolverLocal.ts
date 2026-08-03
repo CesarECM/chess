@@ -61,8 +61,10 @@ export function usePuzzleSolverLocal(
   const hintLevelRef = useRef(0);
 
   // Refs for mutable solver state — avoids stale closures in callbacks
-  const fenRef        = useRef(puzzle?.fen ?? '');
-  const hasFailedRef  = useRef(false);
+  const fenRef            = useRef(puzzle?.fen ?? '');
+  const hasFailedRef      = useRef(false);
+  const hintUsedRef       = useRef(false);   // true if ANY hint level was used this puzzle
+  const wrongAttemptsRef  = useRef(0);       // count of wrong moves (not hint failures)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveIndexRef  = useRef(0);
   const statusRef     = useRef<SolverStatus>('idle');
@@ -129,7 +131,9 @@ export function usePuzzleSolverLocal(
     reviewSansRef.current    = [];
     setReviewFens([]);
     setHasFailed(false);
-    hasFailedRef.current = false;
+    hasFailedRef.current    = false;
+    hintUsedRef.current     = false;
+    wrongAttemptsRef.current = 0;
     setBonusTriggered(null);
     if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
     setReviewMoveIndex(0);
@@ -185,6 +189,13 @@ export function usePuzzleSolverLocal(
       moveIndexRef.current = 1;
       setSolverMoveIndex(1);
       setStatus('playing');
+
+      analytics.track('puzzle_loaded', {
+        puzzle_id:            puzzle.id,
+        difficulty_rating:    puzzle.rating,
+        is_easy_injection:    false,
+        session_puzzle_index: usePuzzleStore.getState().sessionPuzzleCount,
+      });
 
       setTimeout(() => { solveStartRef.current = Date.now(); }, 400);
     }, 500);
@@ -306,13 +317,16 @@ export function usePuzzleSolverLocal(
 
       recordViralityEvent(puzzleId, solved, elapsedMs).catch(console.error);
 
-      analytics.track(solved ? 'puzzle_completed' : 'puzzle_failed', {
-        puzzle_id:   puzzleId,
-        rating:      puzzleRating,
-        elapsed_ms:  elapsedMs,
-        tactic:      puzzle?.themes[0] ?? 'other',
-        calibrating: true,
-      });
+      if (solved) {
+        analytics.track('puzzle_solved', {
+          puzzle_id:       puzzleId,
+          used_hint:       hintUsedRef.current,
+          attempts:        wrongAttemptsRef.current,
+          time_total_ms:   elapsedMs,
+          bonus_triggered: false,
+          streak_after:    useUserStore.getState().streakDays,
+        });
+      }
       return;
     }
 
@@ -454,13 +468,16 @@ export function usePuzzleSolverLocal(
 
     recordViralityEvent(puzzleId, solved, elapsedMs).catch(console.error);
 
-    analytics.track(solved ? 'puzzle_completed' : 'puzzle_failed', {
-      puzzle_id:  puzzleId,
-      rating:     puzzleRating,
-      elapsed_ms: elapsedMs,
-      tactic:     puzzle?.themes[0] ?? 'other',
-      elo:        useUserStore.getState().elo,
-    });
+    if (solved) {
+      analytics.track('puzzle_solved', {
+        puzzle_id:       puzzleId,
+        used_hint:       hintUsedRef.current,
+        attempts:        wrongAttemptsRef.current,
+        time_total_ms:   elapsedMs,
+        bonus_triggered: bonusResult,
+        streak_after:    useUserStore.getState().streakDays,
+      });
+    }
 
     if (!useAuthStore.getState().isGuest && userId) {
       trackReferralPuzzle(userId).catch(console.error);
@@ -479,10 +496,21 @@ export function usePuzzleSolverLocal(
     const expected = puzzle.moves[idx];
 
     if (normalizeUCI(uciMove) !== normalizeUCI(expected)) {
+      const attemptNumber = wrongAttemptsRef.current + 1;
+      wrongAttemptsRef.current = attemptNumber;
+      const timeSinceStart = solveStartRef.current ? Date.now() - solveStartRef.current : 0;
+
+      analytics.track('puzzle_move_incorrect', {
+        puzzle_id:       puzzle.id,
+        attempt_number:  attemptNumber,
+        time_to_move_ms: timeSinceStart,
+      });
+
       if (!hasFailedRef.current) {
         // First wrong move — free retry: amber flash, auto-reset, no penalty yet
         hasFailedRef.current = true;
         setHasFailed(true);
+        analytics.track('puzzle_retry_started', { puzzle_id: puzzle.id });
         boardRef.current?.highlight({ square: uciMove.slice(2, 4) as Square, color: 'rgba(255, 165, 0, 0.75)' });
         setStatus('retry');
         const preFen = fenRef.current;
@@ -495,6 +523,11 @@ export function usePuzzleSolverLocal(
       } else {
         // Second wrong move — Incorrect_Final
         if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
+        const elapsedMs = solveStartRef.current ? Date.now() - solveStartRef.current : 0;
+        analytics.track('puzzle_failed_final', {
+          puzzle_id:    puzzle.id,
+          time_total_ms: elapsedMs,
+        });
         recordResult(puzzle.id, puzzle.rating, false);
         setStatus('failed');
       }
@@ -510,7 +543,18 @@ export function usePuzzleSolverLocal(
       moveIndexRef.current = afterUserIdx;
       setSolverMoveIndex(afterUserIdx);
       setStatus('complete');
+      const alreadyCountedA = countedRef.current === puzzle.id && solvedResultRef.current !== true;
       recordResult(puzzle.id, puzzle.rating, true);
+      if (alreadyCountedA) {
+        analytics.track('puzzle_solved', {
+          puzzle_id:       puzzle.id,
+          used_hint:       hintUsedRef.current,
+          attempts:        wrongAttemptsRef.current,
+          time_total_ms:   solveStartRef.current ? Date.now() - solveStartRef.current : 0,
+          bonus_triggered: false,
+          streak_after:    useUserStore.getState().streakDays,
+        });
+      }
       return;
     }
 
@@ -524,7 +568,18 @@ export function usePuzzleSolverLocal(
 
     if (afterOpponentIdx >= puzzle.moves.length) {
       setStatus('complete');
+      const alreadyCountedB = countedRef.current === puzzle.id && solvedResultRef.current !== true;
       recordResult(puzzle.id, puzzle.rating, true);
+      if (alreadyCountedB) {
+        analytics.track('puzzle_solved', {
+          puzzle_id:       puzzle.id,
+          used_hint:       hintUsedRef.current,
+          attempts:        wrongAttemptsRef.current,
+          time_total_ms:   solveStartRef.current ? Date.now() - solveStartRef.current : 0,
+          bonus_triggered: false,
+          streak_after:    useUserStore.getState().streakDays,
+        });
+      }
     }
 
     setTimeout(() => {
@@ -538,6 +593,10 @@ export function usePuzzleSolverLocal(
     const alreadySolved = countedRef.current === puzzle.id && solvedResultRef.current === true;
     setReviewedAfterSolve(alreadySolved);
     recordResult(puzzle.id, puzzle.rating, false);
+    analytics.track('solution_viewed', {
+      puzzle_id: puzzle.id,
+      context:   alreadySolved ? 'after_solved' : 'after_failed',
+    });
 
     const { fens, sans } = computeMoveSequence(puzzle.fen, puzzle.moves);
     reviewFensRef.current = fens;
@@ -663,6 +722,12 @@ export function usePuzzleSolverLocal(
     const to   = expectedUCI.slice(2, 4);
 
     if (next === 1) {
+      hintUsedRef.current = true;
+      const timeToHint = solveStartRef.current ? Date.now() - solveStartRef.current : 0;
+      analytics.track('puzzle_hint_requested', {
+        puzzle_id:       puzzle.id,
+        time_to_hint_ms: timeToHint,
+      });
       boardRef.current?.highlight({ square: from as Square, color: 'rgba(255,215,0,0.85)' });
       setHintFromTo(null);
       // Registrar fallo inmediatamente — idempotente vía countedRef
