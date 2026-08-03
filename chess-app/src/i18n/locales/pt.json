@@ -414,7 +414,19 @@
   "streak": {
     "current": "sequência atual",
     "longest": "melhor sequência",
-    "thisWeek": "esta semana"
+    "thisWeek": "esta semana",
+    "broken": {
+      "title": "Sequência quebrada 🔥",
+      "body": "Sua sequência de {{days}} dias terminou.",
+      "bodyZero": "Sua sequência terminou."
+    },
+    "frozen": {
+      "title": "Sua sequência foi salva 🔥❄️",
+      "body": "Usamos um freeze para protegê-la. Você tem {{remaining}} restante(s)."
+    },
+    "earnFreezeAd": "Ver anúncio → ganhar um freeze",
+    "freezeEarned": "Freeze ganho! Sua próxima sequência estará protegida.",
+    "dismiss": "Entendido"
   },
   "medal": {
     "first_solve_label": "Primeiro passo",

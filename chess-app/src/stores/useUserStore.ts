@@ -80,6 +80,8 @@ interface UserState {
   pieceSet: PieceSetId;
   onboardingCompleted: boolean;
   soundEnabled: boolean;
+  freezes: number;
+  freezeLastUsedDate: string | null;
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => number;
@@ -95,6 +97,9 @@ interface UserState {
   setBoardTheme: (theme: BoardThemeId) => void;
   setPieceSet: (set: PieceSetId) => void;
   setSoundEnabled: (enabled: boolean) => void;
+  gainFreeze: () => void;
+  consumeFreeze: () => void;
+  breakStreak: () => void;
   completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId, levelKey: string) => void;
   setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
@@ -146,6 +151,8 @@ export const useUserStore = create<UserState>()(
       pieceSet: 'cburnett',
       onboardingCompleted: false,
       soundEnabled: true,
+      freezes: 0,
+      freezeLastUsedDate: null,
       calibrationPendingConfirmation: false,
 
       setElo: (elo) => set({ elo }),
@@ -312,14 +319,34 @@ export const useUserStore = create<UserState>()(
         const state = get();
         const today = new Date().toISOString().split('T')[0];
 
+        const wasNewDay = state.lastActiveDate !== today;
         let { streakDays } = state;
         let lastActiveDate = state.lastActiveDate;
-        if (lastActiveDate !== today) {
+        let newFreezes = state.freezes;
+        let newFreezeLastUsedDate = state.freezeLastUsedDate;
+
+        if (wasNewDay) {
           const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-          streakDays = lastActiveDate === yesterday ? streakDays + 1 : 1;
+          if (lastActiveDate === yesterday) {
+            // Día consecutivo → incrementar racha
+            streakDays = streakDays + 1;
+          } else if (lastActiveDate !== null && state.freezes > 0 && state.freezeLastUsedDate !== yesterday) {
+            // Rompió la racha por inactividad PERO tiene freeze → proteger racha
+            streakDays = streakDays + 1;
+            newFreezes = state.freezes - 1;
+            newFreezeLastUsedDate = yesterday;
+          } else {
+            // Sin freeze → racha se rompe, empieza desde 1
+            streakDays = 1;
+          }
           lastActiveDate = today;
         }
         const streakLongest = Math.max(state.streakLongest, streakDays);
+
+        // Ganar freeze por hito de 7 días de racha
+        if (solved && wasNewDay && streakDays > 0 && streakDays % 7 === 0) {
+          newFreezes = Math.min(3, newFreezes + 1);
+        }
 
         const monday = getMondayISO(today);
         const isNewWeek = state.weekStartDate !== monday;
@@ -374,6 +401,8 @@ export const useUserStore = create<UserState>()(
           failedByTheme,
           eloHistory,
           unlockedMedals,
+          freezes: newFreezes,
+          freezeLastUsedDate: newFreezeLastUsedDate,
         });
       },
 
@@ -382,6 +411,21 @@ export const useUserStore = create<UserState>()(
       setBoardTheme: (theme) => set({ boardTheme: theme }),
       setPieceSet: (s) => set({ pieceSet: s }),
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
+
+      gainFreeze: () => {
+        const { freezes } = get();
+        if (freezes >= 3) return;
+        set({ freezes: freezes + 1 });
+      },
+
+      consumeFreeze: () => {
+        const { freezes } = get();
+        if (freezes <= 0) return;
+        const today = new Date().toISOString().split('T')[0];
+        set({ freezes: freezes - 1, freezeLastUsedDate: today });
+      },
+
+      breakStreak: () => set({ streakDays: 0 }),
 
       completeOnboarding: (levelElo, theme, pieces, levelKey) => {
         const { calibrationBounds } = get();
@@ -417,6 +461,7 @@ export const useUserStore = create<UserState>()(
         streakDays: profile.streakCurrent,
         streakLongest: profile.streakLongest,
         isPremium: profile.isPremium,
+        freezes: profile.freezes ?? 0,
       }),
 
       reset: () => set({
@@ -450,12 +495,14 @@ export const useUserStore = create<UserState>()(
         notificationStreakHour: 20,
         preferredLanguage: null,
         calibrationPendingConfirmation: false,
+        freezes: 0,
+        freezeLastUsedDate: null,
         // GDPR no se resetea al hacer logout
       }),
     }),
     {
       name: 'user-store',
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -502,6 +549,9 @@ export const useUserStore = create<UserState>()(
             calibGlobalHigh: (state.preEloStartHigh as number | undefined) ?? PRE_ELO_UPPER,
           };
         }
+        if (version < 6) {
+          return { ...state, freezes: 0, freezeLastUsedDate: null };
+        }
         return state;
       },
       partialize: (state) => ({
@@ -540,6 +590,8 @@ export const useUserStore = create<UserState>()(
         pieceSet: state.pieceSet,
         onboardingCompleted: state.onboardingCompleted,
         soundEnabled: state.soundEnabled,
+        freezes: state.freezes,
+        freezeLastUsedDate: state.freezeLastUsedDate,
       }),
     },
   ),

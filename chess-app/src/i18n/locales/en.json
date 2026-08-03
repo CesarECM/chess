@@ -414,7 +414,19 @@
   "streak": {
     "current": "current streak",
     "longest": "best streak",
-    "thisWeek": "this week"
+    "thisWeek": "this week",
+    "broken": {
+      "title": "Streak broken 🔥",
+      "body": "Your {{days}}-day streak has ended.",
+      "bodyZero": "Your streak has ended."
+    },
+    "frozen": {
+      "title": "Your streak was saved 🔥❄️",
+      "body": "We used a freeze to protect it. You have {{remaining}} left."
+    },
+    "earnFreezeAd": "Watch ad → earn a freeze",
+    "freezeEarned": "Freeze earned! Your next streak will be protected.",
+    "dismiss": "Got it"
   },
   "medal": {
     "first_solve_label": "First Step",

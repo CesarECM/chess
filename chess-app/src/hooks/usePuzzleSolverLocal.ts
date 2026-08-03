@@ -13,6 +13,8 @@ import { recordViralityEvent, recordSkipEvent } from '@/services/virality';
 import { recordSolveEvent } from '@/services/solveHistory';
 import { trackReferralPuzzle } from '@/services/referral';
 import { analytics } from '@/services/analytics';
+import { syncFreezesToSupabase } from '@/services/auth';
+import { showRewardedAdForFreeze } from '@/services/ads';
 import { PROGRESS_CARDS_ENABLED, RECALIB_CONSECUTIVE_RECORDS, RECALIB_STREAK_WINDOW_UP } from '@/constants';
 import { detectPuzzleEvents } from '@/services/feedMessages';
 
@@ -54,6 +56,8 @@ export function usePuzzleSolverLocal(
   const [hintLevel, setHintLevel]   = useState(0);
   const [hintFromTo, setHintFromTo] = useState<{ from: string; to: string } | null>(null);
   const [reviewFens, setReviewFens] = useState<string[]>([]);
+  const [penaltyResult, setPenaltyResult] = useState<'streakFrozen' | 'streakBroken' | null>(null);
+  const [streakBeforeBreak, setStreakBeforeBreak] = useState<number>(0);
   const hintLevelRef = useRef(0);
 
   // Refs for mutable solver state — avoids stale closures in callbacks
@@ -134,6 +138,8 @@ export function usePuzzleSolverLocal(
     hintLevelRef.current = 0;
     setHintLevel(0);
     setHintFromTo(null);
+    setPenaltyResult(null);
+    setStreakBeforeBreak(0);
     setStatus('idle');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
@@ -487,7 +493,7 @@ export function usePuzzleSolverLocal(
           setStatus('playing');
         }, 1200);
       } else {
-        // Second wrong move — record failure
+        // Second wrong move — Incorrect_Final
         if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
         recordResult(puzzle.id, puzzle.rating, false);
         setStatus('failed');
@@ -676,6 +682,20 @@ export function usePuzzleSolverLocal(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle?.id]);
 
+  const handleWatchAdForFreeze = useCallback(() => {
+    showRewardedAdForFreeze(() => {
+      useUserStore.getState().gainFreeze();
+      const { isGuest, user } = useAuthStore.getState();
+      const newFreezes = useUserStore.getState().freezes;
+      analytics.track('freeze_purchased', { method: 'rewarded_ad' });
+      if (!isGuest && user?.id) {
+        syncFreezesToSupabase(user.id, newFreezes).catch(() => {});
+      }
+      setPenaltyResult(null);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return {
     puzzleStatus,
     hasFailed,
@@ -700,5 +720,9 @@ export function usePuzzleSolverLocal(
     eloDelta,
     clearEloDelta: () => setEloDelta(null),
     getCurrentFen: () => fenRef.current,
+    penaltyResult,
+    clearPenalty: () => setPenaltyResult(null),
+    streakBeforeBreak,
+    onWatchAdForFreeze: handleWatchAdForFreeze,
   };
 }

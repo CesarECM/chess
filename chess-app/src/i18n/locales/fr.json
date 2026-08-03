@@ -414,7 +414,19 @@
   "streak": {
     "current": "série actuelle",
     "longest": "meilleure série",
-    "thisWeek": "cette semaine"
+    "thisWeek": "cette semaine",
+    "broken": {
+      "title": "Série perdue 🔥",
+      "body": "Votre série de {{days}} jours est terminée.",
+      "bodyZero": "Votre série est terminée."
+    },
+    "frozen": {
+      "title": "Votre série a été sauvegardée 🔥❄️",
+      "body": "Nous avons utilisé un freeze pour la protéger. Il vous en reste {{remaining}}."
+    },
+    "earnFreezeAd": "Regarder une pub → gagner un freeze",
+    "freezeEarned": "Freeze gagné ! Votre prochaine série sera protégée.",
+    "dismiss": "Compris"
   },
   "medal": {
     "first_solve_label": "Premier pas",

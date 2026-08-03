@@ -414,7 +414,19 @@
   "streak": {
     "current": "racha actual",
     "longest": "mejor racha",
-    "thisWeek": "esta semana"
+    "thisWeek": "esta semana",
+    "broken": {
+      "title": "Racha rota 🔥",
+      "body": "Tu racha de {{days}} días ha terminado.",
+      "bodyZero": "Tu racha ha terminado."
+    },
+    "frozen": {
+      "title": "Tu racha estuvo a salvo 🔥❄️",
+      "body": "Usamos un freeze para protegerla. Te quedan {{remaining}}."
+    },
+    "earnFreezeAd": "Ver anuncio → ganar un freeze",
+    "freezeEarned": "¡Freeze ganado! Tu próxima racha estará protegida.",
+    "dismiss": "Entendido"
   },
   "medal": {
     "first_solve_label": "Primer paso",

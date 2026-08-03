@@ -81,6 +81,7 @@ function PuzzleCardComponent({
   const wrappedAdvanceReviewRef = useRef<() => void>(() => {});
 
   const elo              = useUserStore((s) => s.elo);
+  const freezes          = useUserStore((s) => s.freezes);
   const preEloLow        = useUserStore((s) => s.preEloLow);
   const preEloHigh       = useUserStore((s) => s.preEloHigh);
   const preEloStartLow   = useUserStore((s) => s.preEloStartLow);
@@ -153,6 +154,7 @@ function PuzzleCardComponent({
     forceFailure, hintLevel, hintFromTo, requestHint,
     reviewSan, reviewFens, jumpToReviewIndex,
     eloDelta, clearEloDelta, getCurrentFen,
+    penaltyResult, clearPenalty, streakBeforeBreak, onWatchAdForFreeze,
   } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
 
   const isInReview = puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed';
@@ -237,6 +239,14 @@ function PuzzleCardComponent({
   const cancelAutoAdvance = useCallback(() => {
     if (completeTimerRef.current) { clearTimeout(completeTimerRef.current); completeTimerRef.current = null; }
   }, []);
+
+  // Auto-dismiss StreakFrozen overlay after 3s
+  useEffect(() => {
+    if (!isActive || penaltyResult !== 'streakFrozen') return;
+    const timer = setTimeout(clearPenalty, 3000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, penaltyResult]);
 
   // AutoAdvance: after complete, advance automatically after 1400ms
   useEffect(() => {
@@ -790,8 +800,55 @@ function PuzzleCardComponent({
         </View>
       )}
 
-      {/* failed: "Ver por qué" primary → "Analizar" secondary → ghost "Saltar" */}
-      {isActive && puzzleStatus === 'failed' && (
+      {/* failed + StreakFrozen overlay */}
+      {isActive && puzzleStatus === 'failed' && penaltyResult === 'streakFrozen' && (
+        <View style={styles.penaltyOverlay}>
+          <Text style={[styles.penaltyTitle, { color: colors.text, fontSize: typography.size.lg }]}>
+            {t('streak.frozen.title')}
+          </Text>
+          <Text style={[styles.penaltyBody, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+            {t('streak.frozen.body', { remaining: freezes })}
+          </Text>
+          <TouchableOpacity
+            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, alignSelf: 'stretch' }]}
+            onPress={clearPenalty}
+          >
+            <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+              {t('streak.dismiss')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* failed + StreakBroken overlay */}
+      {isActive && puzzleStatus === 'failed' && penaltyResult === 'streakBroken' && (
+        <View style={styles.penaltyOverlay}>
+          <Text style={[styles.penaltyTitle, { color: colors.error, fontSize: typography.size.lg }]}>
+            {t('streak.broken.title')}
+          </Text>
+          <Text style={[styles.penaltyBody, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+            {streakBeforeBreak > 0
+              ? t('streak.broken.body', { days: streakBeforeBreak })
+              : t('streak.broken.bodyZero')}
+          </Text>
+          <TouchableOpacity
+            style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.accent, alignSelf: 'stretch' }]}
+            onPress={onWatchAdForFreeze}
+          >
+            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
+              {t('streak.earnFreezeAd')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={clearPenalty}>
+            <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+              {t('streak.dismiss')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* failed normal: "Ver por qué" primary → "Analizar" secondary → ghost "Saltar" */}
+      {isActive && puzzleStatus === 'failed' && penaltyResult === null && (
         <>
           <TouchableOpacity
             style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.accent, alignSelf: 'stretch' }]}
@@ -1066,6 +1123,11 @@ const styles = StyleSheet.create({
   meta:           { marginBottom: 2 },
   playerColor:    { marginBottom: 2, fontWeight: '600' },
   status:         { fontWeight: '500' },
+
+  // ── Penalty overlays ─────────────────────────────────────────────────────
+  penaltyOverlay: { alignSelf: 'stretch', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  penaltyTitle:   { fontWeight: '700', textAlign: 'center' },
+  penaltyBody:    { textAlign: 'center', lineHeight: 20 },
 
   // ── Buttons area ─────────────────────────────────────────────────────────
   buttonsArea:    { alignSelf: 'stretch', gap: 8 },

@@ -15,12 +15,13 @@ export interface Profile {
   isPremium: boolean;
   streakCurrent: number;
   streakLongest: number;
+  freezes: number;
 }
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, elo, is_calibrated, pre_elo_low, pre_elo_high, is_premium, streak_current, streak_longest')
+    .select('id, email, elo, is_calibrated, pre_elo_low, pre_elo_high, is_premium, streak_current, streak_longest, freezes')
     .eq('id', userId)
     .single();
 
@@ -36,6 +37,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     isPremium: data.is_premium,
     streakCurrent: data.streak_current,
     streakLongest: data.streak_longest,
+    freezes: (data.freezes as number | null) ?? 0,
   };
 }
 
@@ -83,6 +85,10 @@ export async function signInWithGoogle() {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeError) throw exchangeError;
   }
+}
+
+export async function syncFreezesToSupabase(userId: string, freezes: number): Promise<void> {
+  await supabase.from('profiles').update({ freezes }).eq('id', userId);
 }
 
 export function onAuthStateChange(

@@ -1,7 +1,13 @@
 import { Platform } from 'react-native';
-import mobileAds, { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+import mobileAds, { InterstitialAd, AdEventType, RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
 import { useUserStore, selectIsPremiumActive } from '@/stores/useUserStore';
 import { getFeatureFlag } from '@/services/posthog';
+
+const REWARDED_ID = (
+  Platform.OS === 'ios'
+    ? (process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS ?? TestIds.REWARDED)
+    : (process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID ?? TestIds.REWARDED)
+);
 
 const INTERSTITIAL_ID = (
   Platform.OS === 'ios'
@@ -38,6 +44,20 @@ export async function initAds(): Promise<void> {
   getFeatureFlag('interstitial_frequency', 'anonymous').then((val) => {
     if (typeof val === 'number' && val > 0) adInterval = val;
   }).catch(() => {});
+}
+
+/** Shows a rewarded ad; calls onEarned if the user watches to completion. */
+export function showRewardedAdForFreeze(onEarned: () => void): void {
+  if (Platform.OS === 'web') return;
+  const rewarded = RewardedAd.createForAdRequest(REWARDED_ID);
+  const unsubLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
+    unsubLoaded();
+    rewarded.show();
+  });
+  rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+    onEarned();
+  });
+  rewarded.load();
 }
 
 /** Call after each puzzle advance. Shows interstitial every AD_INTERVAL puzzles for non-premium users. */
