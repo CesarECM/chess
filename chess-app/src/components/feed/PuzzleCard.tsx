@@ -69,8 +69,10 @@ function PuzzleCardComponent({
   const [vsEngineOver, setVsEngineOver]         = useState(false);
   const [playNavIdx, setPlayNavIdx]             = useState<number | null>(null);
   const [hintLoading, setHintLoading]           = useState(false);
-  const hintTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const completeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hintAvailable, setHintAvailable]       = useState(false);
+  const hintTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hintUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completeTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const vsEngineFenRef      = useRef('');
   const vsEngineStartFenRef = useRef('');
   const isAutoplayingRef    = useRef(false);
@@ -269,13 +271,35 @@ function PuzzleCardComponent({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzleStatus, isActive]);
 
-  // Cancel hint timer when puzzle changes or card becomes inactive
+  // Reset hint availability on puzzle change
+  useEffect(() => {
+    setHintAvailable(false);
+    setHintLoading(false);
+    if (hintTimerRef.current)       { clearTimeout(hintTimerRef.current);       hintTimerRef.current = null; }
+    if (hintUnlockTimerRef.current) { clearTimeout(hintUnlockTimerRef.current); hintUnlockTimerRef.current = null; }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle.id]);
+
+  // Unlock hint button 10s after puzzle becomes active
+  useEffect(() => {
+    if (!isActive || puzzleStatus !== 'playing' || hintAvailable) return;
+    hintUnlockTimerRef.current = setTimeout(() => {
+      hintUnlockTimerRef.current = null;
+      setHintAvailable(true);
+    }, 10000);
+    return () => {
+      if (hintUnlockTimerRef.current) { clearTimeout(hintUnlockTimerRef.current); hintUnlockTimerRef.current = null; }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, puzzleStatus, hintAvailable]);
+
+  // Cancel hint loading timer when status leaves playing
   useEffect(() => {
     if (!isActive || puzzleStatus !== 'playing') {
       setHintLoading(false);
       if (hintTimerRef.current) { clearTimeout(hintTimerRef.current); hintTimerRef.current = null; }
     }
-  }, [isActive, puzzle.id, puzzleStatus]);
+  }, [isActive, puzzleStatus]);
 
   const statusColor = (puzzleStatus === 'reviewed' && reviewedAfterSolve)
     ? colors[STATUS_COLOR['complete']]
@@ -756,19 +780,21 @@ function PuzzleCardComponent({
       {/* retry: transient state (1.2s amber flash + auto-reset) — no buttons */}
       {isActive && puzzleStatus === 'retry' && null}
 
-      {/* playing: pista + navegar la línea revelada */}
+      {/* playing: pista (aparece tras 10s) + navegar la línea revelada */}
       {isActive && puzzleStatus === 'playing' && (
         <View style={styles.row}>
-          <TouchableOpacity
-            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1, opacity: hintLoading ? 0.6 : 1 }]}
-            onPress={handleHint}
-            disabled={hintLoading}
-          >
-            {hintLoading
-              ? <ActivityIndicator size="small" color={colors.textSecondary} />
-              : <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>{hintLabel}</Text>
-            }
-          </TouchableOpacity>
+          {hintAvailable && (
+            <TouchableOpacity
+              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1, opacity: hintLoading ? 0.6 : 1 }]}
+              onPress={handleHint}
+              disabled={hintLoading}
+            >
+              {hintLoading
+                ? <ActivityIndicator size="small" color={colors.textSecondary} />
+                : <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>{hintLabel}</Text>
+              }
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.navBtn, { opacity: (playNavIdx === null ? solverMoveIndex : playNavIdx) <= 0 ? 0.25 : 1 }]}
             onPress={handlePlayNavBack}
