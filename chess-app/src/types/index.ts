@@ -27,6 +27,7 @@ export interface Puzzle {
   popularity: number;
   themes: TacticType[];
   gameUrl?: string;
+  isEasyInjection?: boolean;
 }
 
 export interface UserPuzzleProgress {

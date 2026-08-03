@@ -13,6 +13,11 @@ import type { Puzzle } from '@/types';
 
 const ELO_WINDOW = 200;
 
+// Easy injection
+const EASY_INJECTION_RATE    = 0.15;
+const EASY_DROP_MIN          = 100;   // min ELO below userElo for injected puzzles
+const EASY_DROP_MAX          = 300;   // max ELO below userElo
+
 // Feed scoring weights
 const W_ELO_MATCH   = 0.40;
 const W_VIRALITY    = 0.25;
@@ -212,6 +217,7 @@ export async function buildReviewQueue(
   userElo: number,
   batchSize = 10,
   excludeIds: string[] = [],
+  options: { guaranteeEasyFirst?: boolean; sessionSeed?: number } = {},
 ): Promise<Puzzle[]> {
   // ── Tier 1: FSRS repasos vencidos ─────────────────────────────────────────
   const due        = await loadDueProgress(userId);
@@ -322,6 +328,61 @@ export async function buildReviewQueue(
   if (needed > 0) {
     const leftovers = pool.filter((p) => !pickedIds.has(p.id)).slice(0, needed);
     picked.push(...leftovers);
+  }
+
+  // ── Easy injection: ~15% of picked slots replaced with easier puzzles ──────
+  const injectionCount = Math.round(picked.length * EASY_INJECTION_RATE);
+  if (injectionCount > 0) {
+    const allExcludedIds = new Set([...excluded, ...picked.map((p) => p.id)]);
+    const { data: easyRaw } = await supabase
+      .from('puzzles')
+      .select('*')
+      .gte('rating', userElo - EASY_DROP_MAX)
+      .lte('rating', userElo - EASY_DROP_MIN);
+
+    const easyPool = ((easyRaw ?? []) as Record<string, unknown>[])
+      .map(rowToPuzzle)
+      .filter((p) => !allExcludedIds.has(p.id));
+
+    if (easyPool.length > 0) {
+      // Seeded slot selection: use sessionSeed if provided, otherwise Math.random
+      const seed = options.sessionSeed;
+      const rand = seed !== undefined
+        ? (() => { let s = seed; return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; }; })()
+        : () => Math.random();
+
+      // Pick random slots from picked (not duePuzzles indices)
+      const availableSlots = picked.map((_, i) => i);
+      const injectionSlots: number[] = [];
+      const slotPool = availableSlots.slice();
+      for (let i = 0; i < injectionCount && slotPool.length > 0; i++) {
+        const pick = Math.floor(rand() * slotPool.length);
+        injectionSlots.push(slotPool[pick]);
+        slotPool.splice(pick, 1);
+      }
+
+      const easyShuffled = shuffled(easyPool);
+      injectionSlots.forEach((slotIdx, i) => {
+        const easyPuzzle = easyShuffled[i % easyShuffled.length];
+        if (easyPuzzle) {
+          picked[slotIdx] = { ...easyPuzzle, isEasyInjection: true };
+        }
+      });
+    }
+  }
+
+  // ── Guarantee first puzzle ≤ userElo for new users ─────────────────────────
+  if (options.guaranteeEasyFirst && picked.length > 0 && duePuzzles.length === 0) {
+    const belowElo  = picked.filter((p) => p.rating <= userElo);
+    const candidate = belowElo.length > 0
+      ? belowElo.reduce((best, p) => (Math.abs(p.rating - userElo) < Math.abs(best.rating - userElo) ? p : best))
+      : picked.reduce((best, p) => (p.rating < best.rating ? p : best));
+
+    const candidateIdx = picked.indexOf(candidate);
+    if (candidateIdx > 0) {
+      picked.splice(candidateIdx, 1);
+      picked.unshift(candidate);
+    }
   }
 
   return [...duePuzzles, ...picked];

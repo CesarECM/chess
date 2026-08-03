@@ -193,7 +193,7 @@ export function usePuzzleSolverLocal(
       analytics.track('puzzle_loaded', {
         puzzle_id:            puzzle.id,
         difficulty_rating:    puzzle.rating,
-        is_easy_injection:    false,
+        is_easy_injection:    puzzle.isEasyInjection ?? false,
         session_puzzle_index: usePuzzleStore.getState().sessionPuzzleCount,
       });
 

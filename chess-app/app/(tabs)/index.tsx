@@ -132,7 +132,14 @@ export default function FeedScreen() {
           if (firstPuzzleRating) clearFirstPuzzleRating();
           puzzles = await buildCalibrationQueue(target, BATCH_SIZE, sessionHistoryRef.current);
         } else {
-          puzzles = await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, sessionHistoryRef.current);
+          const isFirstEver = sessionHistoryRef.current.length === 0;
+          puzzles = await buildReviewQueue(
+            userId,
+            eloRef.current,
+            BATCH_SIZE,
+            sessionHistoryRef.current,
+            { guaranteeEasyFirst: isFirstEver, sessionSeed: Date.now() },
+          );
         }
         if (!cancelled) {
           if (puzzles.length) {
@@ -218,7 +225,7 @@ export default function FeedScreen() {
         const isPrefetchCalibrating = pLow !== null;
         const more = isPrefetchCalibrating
           ? await buildCalibrationQueue(Math.round((pLow! + pHigh!) / 2), BATCH_SIZE, excludeIds)
-          : await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, excludeIds);
+          : await buildReviewQueue(userId, eloRef.current, BATCH_SIZE, excludeIds, { sessionSeed: Date.now() });
         addLog('PREFETCH', `Got ${more.length} puzzles — buf before: ${puzzleBufferRef.current.length}`);
         if (more.length) {
           cachePuzzles(more);
