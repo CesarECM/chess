@@ -16,7 +16,7 @@ import { analytics } from '@/services/analytics';
 import { PROGRESS_CARDS_ENABLED, RECALIB_CONSECUTIVE_RECORDS, RECALIB_STREAK_WINDOW_UP } from '@/constants';
 import { detectPuzzleEvents } from '@/services/feedMessages';
 
-export type SolverStatus = 'idle' | 'playing' | 'failed' | 'reviewing' | 'reviewed' | 'complete';
+export type SolverStatus = 'idle' | 'playing' | 'retry' | 'failed' | 'reviewing' | 'reviewed' | 'complete';
 
 const HIGHLIGHT_FROM = 'rgba(255, 165, 0, 0.75)';
 const HIGHLIGHT_TO   = 'rgba(255, 165, 0, 0.50)';
@@ -47,6 +47,7 @@ export function usePuzzleSolverLocal(
   const [puzzleStatus, setPuzzleStatus] = useState<SolverStatus>('idle');
   const [eloDelta, setEloDelta] = useState<number | null>(null);
   const [hasFailed, setHasFailed] = useState(false);
+  const [bonusTriggered, setBonusTriggered] = useState<boolean | null>(null);
   const [reviewMoveIndex, setReviewMoveIndex] = useState(0);
   const [solverMoveIndex, setSolverMoveIndex] = useState(0);
   const [reviewedAfterSolve, setReviewedAfterSolve] = useState(false);
@@ -57,6 +58,8 @@ export function usePuzzleSolverLocal(
 
   // Refs for mutable solver state — avoids stale closures in callbacks
   const fenRef        = useRef(puzzle?.fen ?? '');
+  const hasFailedRef  = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveIndexRef  = useRef(0);
   const statusRef     = useRef<SolverStatus>('idle');
   const countedRef    = useRef<string | null>(null);
@@ -122,6 +125,9 @@ export function usePuzzleSolverLocal(
     reviewSansRef.current    = [];
     setReviewFens([]);
     setHasFailed(false);
+    hasFailedRef.current = false;
+    setBonusTriggered(null);
+    if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
     setReviewMoveIndex(0);
     setSolverMoveIndex(0);
     setReviewedAfterSolve(false);
@@ -231,8 +237,8 @@ export function usePuzzleSolverLocal(
       addToHistory(puzzleId);
       incrementPuzzleStats(solved, puzzle?.themes ?? []);
       solvedResultRef.current = solved;
-      if (solved) usePuzzleStore.getState().recordSolvedInSession();
-      else        usePuzzleStore.getState().recordFailedInSession();
+      if (solved) { usePuzzleStore.getState().recordSolvedInSession(); setBonusTriggered(false); }
+      else        { usePuzzleStore.getState().recordFailedInSession(); }
 
       // ── Calibration message cards ────────────────────────────────────────
       if (PROGRESS_CARDS_ENABLED && onMessagesEarnedRef.current) {
@@ -359,9 +365,21 @@ export function usePuzzleSolverLocal(
       }
     }
 
+    // Variable reward — calculate before recording (consecutiveSolved read pre-increment)
+    let bonusResult = false;
+    if (solved) {
+      const pre  = usePuzzleStore.getState();
+      const prob = 0.12
+        + (pre.consecutiveSolvedInSession >= 5 ? 0.05 : 0)
+        + (pre.puzzlesSinceLastBonus       >= 8 ? 0.10 : 0);
+      bonusResult = Math.random() < prob;
+    }
+
     solvedResultRef.current = solved;
     if (solved) {
       usePuzzleStore.getState().recordSolvedInSession();
+      if (bonusResult) usePuzzleStore.getState().resetBonusCounter();
+      setBonusTriggered(bonusResult);
     } else {
       usePuzzleStore.getState().recordFailedInSession();
     }
@@ -455,9 +473,25 @@ export function usePuzzleSolverLocal(
     const expected = puzzle.moves[idx];
 
     if (normalizeUCI(uciMove) !== normalizeUCI(expected)) {
-      recordResult(puzzle.id, puzzle.rating, false);
-      setHasFailed(true);
-      setStatus('failed');
+      if (!hasFailedRef.current) {
+        // First wrong move — free retry: amber flash, auto-reset, no penalty yet
+        hasFailedRef.current = true;
+        setHasFailed(true);
+        boardRef.current?.highlight({ square: uciMove.slice(2, 4) as Square, color: 'rgba(255, 165, 0, 0.75)' });
+        setStatus('retry');
+        const preFen = fenRef.current;
+        retryTimerRef.current = setTimeout(() => {
+          boardRef.current?.resetBoard(preFen);
+          boardRef.current?.resetAllHighlightedSquares();
+          retryTimerRef.current = null;
+          setStatus('playing');
+        }, 1200);
+      } else {
+        // Second wrong move — record failure
+        if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
+        recordResult(puzzle.id, puzzle.rating, false);
+        setStatus('failed');
+      }
       return;
     }
 
@@ -627,6 +661,7 @@ export function usePuzzleSolverLocal(
       setHintFromTo(null);
       // Registrar fallo inmediatamente — idempotente vía countedRef
       recordResult(puzzle.id, puzzle.rating, false);
+      hasFailedRef.current = true;
       setHasFailed(true);
       return null;
     }
@@ -644,6 +679,8 @@ export function usePuzzleSolverLocal(
   return {
     puzzleStatus,
     hasFailed,
+    bonusTriggered,
+    clearBonusTriggered: () => setBonusTriggered(null),
     reviewMoveIndex,
     solverMoveIndex,
     reviewedAfterSolve,

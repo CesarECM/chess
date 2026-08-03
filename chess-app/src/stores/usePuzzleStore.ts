@@ -45,9 +45,11 @@ interface PuzzleState {
   calibInsightShown:          boolean;
   calibMidpointShown:         boolean;
   sessionCalibInitialRange:   number | null;
+  puzzlesSinceLastBonus:      number;
   initSession:                (startElo: number) => void;
   recordSolvedInSession:      () => void;
   recordFailedInSession:      () => void;
+  resetBonusCounter:          () => void;
   markSessionEloGainShown:    () => void;
   markSessionPerfectRun5Shown:  () => void;
   markSessionPerfectRun10Shown: () => void;
@@ -121,6 +123,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   calibInsightShown:          false,
   calibMidpointShown:         false,
   sessionCalibInitialRange:   null,
+  puzzlesSinceLastBonus:      0,
 
   initSession: (startElo) => set({
     sessionStartElo:            startElo,
@@ -135,19 +138,24 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     calibInsightShown:          false,
     calibMidpointShown:         false,
     sessionCalibInitialRange:   null,
+    puzzlesSinceLastBonus:      0,
   }),
 
   recordSolvedInSession: () => set((s) => ({
     sessionPuzzleCount:         s.sessionPuzzleCount + 1,
     consecutiveSolvedInSession: s.consecutiveSolvedInSession + 1,
     consecutiveFailedInSession: 0,
+    puzzlesSinceLastBonus:      s.puzzlesSinceLastBonus + 1,
   })),
 
   recordFailedInSession: () => set((s) => ({
     sessionPuzzleCount:         s.sessionPuzzleCount + 1,
     consecutiveFailedInSession: s.consecutiveFailedInSession + 1,
     consecutiveSolvedInSession: 0,
+    puzzlesSinceLastBonus:      s.puzzlesSinceLastBonus + 1,
   })),
+
+  resetBonusCounter: () => set({ puzzlesSinceLastBonus: 0 }),
 
   markSessionEloGainShown:    () => set({ sessionEloGainShown: true }),
   markSessionPerfectRun5Shown:  () => set({ sessionPerfectRun5Shown: true }),

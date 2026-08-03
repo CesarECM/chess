@@ -31,6 +31,7 @@ const PIECE_COLOR_BLACK   = '#4a3728';
 const STATUS_COLOR: Record<SolverStatus, keyof ReturnType<typeof useTheme>['colors']> = {
   idle:      'textSecondary',
   playing:   'textSecondary',
+  retry:     'accent',
   failed:    'error',
   reviewing: 'textSecondary',
   reviewed:  'error',
@@ -67,6 +68,9 @@ function PuzzleCardComponent({
   const [vsEngineWaiting, setVsEngineWaiting]   = useState(false);
   const [vsEngineOver, setVsEngineOver]         = useState(false);
   const [playNavIdx, setPlayNavIdx]             = useState<number | null>(null);
+  const [hintLoading, setHintLoading]           = useState(false);
+  const hintTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const vsEngineFenRef      = useRef('');
   const vsEngineStartFenRef = useRef('');
   const isAutoplayingRef    = useRef(false);
@@ -140,7 +144,8 @@ function PuzzleCardComponent({
   );
 
   const {
-    puzzleStatus, hasFailed, reviewMoveIndex, solverMoveIndex, reviewedAfterSolve,
+    puzzleStatus, hasFailed, bonusTriggered, clearBonusTriggered,
+    reviewMoveIndex, solverMoveIndex, reviewedAfterSolve,
     onUserMove, startReview, handleAdvanceReview, handleBackReview, onRetry,
     forceFailure, hintLevel, hintFromTo, requestHint,
     reviewSan, reviewFens, jumpToReviewIndex,
@@ -228,14 +233,49 @@ function PuzzleCardComponent({
 
   const successFlash = useSharedValue(0);
   const successFlashStyle = useAnimatedStyle(() => ({ opacity: successFlash.value }));
+
+  const cancelAutoAdvance = useCallback(() => {
+    if (completeTimerRef.current) { clearTimeout(completeTimerRef.current); completeTimerRef.current = null; }
+  }, []);
+
   useEffect(() => {
     if (isActive && puzzleStatus === 'complete') {
-      successFlash.value = withSequence(
-        withTiming(0.45, { duration: 80 }),
-        withTiming(0,    { duration: 700 }),
-      );
+      if (bonusTriggered === true) {
+        successFlash.value = withSequence(
+          withTiming(0.7,  { duration: 60 }),
+          withTiming(0.1,  { duration: 220 }),
+          withTiming(0.65, { duration: 60 }),
+          withTiming(0,    { duration: 600 }),
+        );
+      } else {
+        successFlash.value = withSequence(
+          withTiming(0.45, { duration: 80 }),
+          withTiming(0,    { duration: 700 }),
+        );
+      }
+      clearBonusTriggered();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzleStatus, isActive, bonusTriggered]);
+
+  // AutoAdvance: after complete, advance automatically after 1400ms
+  useEffect(() => {
+    if (!isActive || puzzleStatus !== 'complete') {
+      cancelAutoAdvance();
+      return;
+    }
+    completeTimerRef.current = setTimeout(onComplete, 1400);
+    return cancelAutoAdvance;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzleStatus, isActive]);
+
+  // Cancel hint timer when puzzle changes or card becomes inactive
+  useEffect(() => {
+    if (!isActive || puzzleStatus !== 'playing') {
+      setHintLoading(false);
+      if (hintTimerRef.current) { clearTimeout(hintTimerRef.current); hintTimerRef.current = null; }
+    }
+  }, [isActive, puzzle.id, puzzleStatus]);
 
   const statusColor = (puzzleStatus === 'reviewed' && reviewedAfterSolve)
     ? colors[STATUS_COLOR['complete']]
@@ -244,6 +284,7 @@ function PuzzleCardComponent({
   const statusLabels = useMemo<Record<SolverStatus, string>>(() => ({
     idle:      t('puzzle.statusIdle'),
     playing:   t('puzzle.statusPlaying'),
+    retry:     t('puzzle.statusRetry'),
     failed:    t('puzzle.statusFailed'),
     reviewing: t('puzzle.statusReviewing'),
     reviewed:  reviewedAfterSolve ? t('puzzle.statusReviewedSolved') : t('puzzle.statusReviewed'),
@@ -404,18 +445,24 @@ function PuzzleCardComponent({
     runAnalysis(fen1);
   }, [analyzedFen, runAnalysis]);
 
-  // Hint: level 3 auto-move — PuzzleCard animates board then runs solver
+  // Hint: 2.2s intentional delay before revealing (builds anticipation per spec)
   const handleHint = useCallback(() => {
-    const autoMoveUCI = requestHint();
-    if (autoMoveUCI && autoMoveUCI.length >= 4) {
-      boardRef.current?.move({
-        from:      autoMoveUCI.slice(0, 2) as Square,
-        to:        autoMoveUCI.slice(2, 4) as Square,
-        promotion: autoMoveUCI.length === 5 ? autoMoveUCI[4] as PieceSymbol : undefined,
-      });
-      onUserMove(autoMoveUCI);
-    }
-  }, [requestHint, onUserMove]);
+    if (hintLoading) return;
+    setHintLoading(true);
+    hintTimerRef.current = setTimeout(() => {
+      hintTimerRef.current = null;
+      setHintLoading(false);
+      const autoMoveUCI = requestHint();
+      if (autoMoveUCI && autoMoveUCI.length >= 4) {
+        boardRef.current?.move({
+          from:      autoMoveUCI.slice(0, 2) as Square,
+          to:        autoMoveUCI.slice(2, 4) as Square,
+          promotion: autoMoveUCI.length === 5 ? autoMoveUCI[4] as PieceSymbol : undefined,
+        });
+        onUserMove(autoMoveUCI);
+      }
+    }, 2200);
+  }, [hintLoading, requestHint, onUserMove]);
 
   const hintLabel = hintLevel === 0 ? t('puzzle.hint')
                   : hintLevel === 1 ? t('puzzle.hintMore')
@@ -494,6 +541,11 @@ function PuzzleCardComponent({
       {sessionCount > 0 && (
         <Text style={[styles.sessionCount, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
           {t('puzzle.sessionCount', { count: sessionCount })}
+        </Text>
+      )}
+      {streakDays > 0 && (puzzleStatus === 'playing' || puzzleStatus === 'retry') && (
+        <Text style={[styles.streakBadge, { color: colors.text, fontSize: typography.size.xs }]}>
+          🔥 {streakDays}
         </Text>
       )}
     </View>
@@ -701,16 +753,21 @@ function PuzzleCardComponent({
   const buttons = (
     <View style={styles.buttonsArea}>
 
+      {/* retry: transient state (1.2s amber flash + auto-reset) — no buttons */}
+      {isActive && puzzleStatus === 'retry' && null}
+
       {/* playing: pista + navegar la línea revelada */}
       {isActive && puzzleStatus === 'playing' && (
         <View style={styles.row}>
           <TouchableOpacity
-            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1, opacity: hintLoading ? 0.6 : 1 }]}
             onPress={handleHint}
+            disabled={hintLoading}
           >
-            <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-              {hintLabel}
-            </Text>
+            {hintLoading
+              ? <ActivityIndicator size="small" color={colors.textSecondary} />
+              : <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>{hintLabel}</Text>
+            }
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.navBtn, { opacity: (playNavIdx === null ? solverMoveIndex : playNavIdx) <= 0 ? 0.25 : 1 }]}
@@ -729,7 +786,7 @@ function PuzzleCardComponent({
         </View>
       )}
 
-      {/* failed: hierarchy — primary "Ver Solución" → secondary [Reintentar | Analizar] → ghost "Saltar" */}
+      {/* failed: "Ver por qué" primary → "Analizar" secondary → ghost "Saltar" */}
       {isActive && puzzleStatus === 'failed' && (
         <>
           <TouchableOpacity
@@ -737,18 +794,10 @@ function PuzzleCardComponent({
             onPress={startReview}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-              {t('puzzle.viewSolution')}
+              {t('puzzle.viewWhy')}
             </Text>
           </TouchableOpacity>
           <View style={styles.row}>
-            <TouchableOpacity
-              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={onRetry}
-            >
-              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-                {t('puzzle.retry')}
-              </Text>
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
               onPress={handleAnalyze}
@@ -819,21 +868,13 @@ function PuzzleCardComponent({
         </>
       )}
 
-      {/* complete: "Siguiente Puzzle" (primary wide) + secondary row */}
+      {/* complete: secondary buttons visible during 1.4s auto-advance window; tapping cancels the timer */}
       {isActive && puzzleStatus === 'complete' && (
         <>
-          <TouchableOpacity
-            style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.success, alignSelf: 'stretch' }]}
-            onPress={onComplete}
-          >
-            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm }]}>
-              {t('puzzle.nextPuzzle')}
-            </Text>
-          </TouchableOpacity>
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={startReview}
+              onPress={() => { cancelAutoAdvance(); startReview(); }}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
                 {t('puzzle.reviewMove')}
@@ -841,7 +882,7 @@ function PuzzleCardComponent({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={handleAnalyze}
+              onPress={() => { cancelAutoAdvance(); handleAnalyze(); }}
             >
               <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
                 {t('puzzle.analyze')}
@@ -892,7 +933,7 @@ function PuzzleCardComponent({
               {eloDelta !== null && (
                 <EloDeltaBadge delta={eloDelta} onAnimationEnd={clearEloDelta} />
               )}
-              {hasFailed && (puzzleStatus === 'idle' || puzzleStatus === 'playing') && (
+              {hasFailed && (puzzleStatus === 'idle' || puzzleStatus === 'playing' || puzzleStatus === 'retry') && (
                 <View pointerEvents="none" style={[styles.retryBorder, { borderColor: colors.error }]} />
               )}
               <Animated.View pointerEvents="none" style={[styles.successOverlay, { backgroundColor: colors.success }, successFlashStyle]} />
@@ -1012,6 +1053,7 @@ const styles = StyleSheet.create({
   // ── Shared ───────────────────────────────────────────────────────────────
   topRow:         { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sessionCount:   { fontWeight: '600' },
+  streakBadge:    { fontWeight: '700' },
   calibBar:       { width: '88%', borderRadius: 8, borderWidth: 1, padding: 10, gap: 8 },
   calibText:      { fontWeight: '600', textAlign: 'center' },
   boardSection:   { alignSelf: 'stretch', alignItems: 'center' },
