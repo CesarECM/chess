@@ -414,6 +414,7 @@ export default function FeedScreen() {
         <MessageCard
           message={item}
           height={listHeight}
+          isActive={position === 'active'}
           onComplete={scrollToNext}
         />
       );

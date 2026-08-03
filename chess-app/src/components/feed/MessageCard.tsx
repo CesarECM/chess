@@ -6,8 +6,9 @@ import { useIsDesktop } from '@/hooks/useIsDesktop';
 import type { MessageType, ProgressMessage } from '@/types';
 
 interface Props {
-  message: ProgressMessage;
-  height:  number;
+  message:    ProgressMessage;
+  height:     number;
+  isActive:   boolean;
   onComplete: () => void;
 }
 
@@ -77,7 +78,7 @@ function useTranslatedPayload(message: ProgressMessage): Record<string, unknown>
 
 const AUTO_ADVANCE_MS = 6000;
 
-function MessageCardComponent({ message, height, onComplete }: Props) {
+function MessageCardComponent({ message, height, isActive, onComplete }: Props) {
   const { colors, typography, spacing } = useTheme();
   const { t }         = useTranslation();
   const isDesktop     = useIsDesktop();
@@ -89,10 +90,13 @@ function MessageCardComponent({ message, height, onComplete }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!isActive) {
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+      return;
+    }
     timerRef.current = setTimeout(() => onCompleteRef.current(), AUTO_ADVANCE_MS);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => { if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; } };
+  }, [isActive]);
 
   return (
     <View style={[styles.card, { height, backgroundColor: colors.background }]}>
