@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
@@ -75,7 +75,7 @@ function useTranslatedPayload(message: ProgressMessage): Record<string, unknown>
   return message.payload;
 }
 
-const AUTO_ADVANCE_MS = 4000;
+const AUTO_ADVANCE_MS = 6000;
 
 function MessageCardComponent({ message, height, onComplete }: Props) {
   const { colors, typography, spacing } = useTheme();
@@ -86,25 +86,13 @@ function MessageCardComponent({ message, height, onComplete }: Props) {
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
-  const progress  = useRef(new Animated.Value(0)).current;
-  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    Animated.timing(progress, {
-      toValue:         1,
-      duration:        AUTO_ADVANCE_MS,
-      easing:          Easing.linear,
-      useNativeDriver: false,
-    }).start();
     timerRef.current = setTimeout(() => onCompleteRef.current(), AUTO_ADVANCE_MS);
-    return () => {
-      progress.stopAnimation();
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const widthAnim = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
   return (
     <View style={[styles.card, { height, backgroundColor: colors.background }]}>
@@ -134,12 +122,6 @@ function MessageCardComponent({ message, height, onComplete }: Props) {
           </Text>
         </TouchableOpacity>
 
-        {/* Auto-advance progress bar */}
-        <View style={styles.progressTrack}>
-          <Animated.View
-            style={[styles.progressFill, { backgroundColor: colors.accent, width: widthAnim }]}
-          />
-        </View>
       </View>
     </View>
   );
@@ -156,6 +138,4 @@ const styles = StyleSheet.create({
   body:    { textAlign: 'center', lineHeight: 22 },
   btn:     { paddingHorizontal: 32, paddingVertical: 12 },
   btnText: { fontWeight: '600' },
-  progressTrack: { alignSelf: 'stretch', height: 3, backgroundColor: 'transparent', marginTop: 8, overflow: 'hidden', borderRadius: 2 },
-  progressFill:  { height: 3, borderRadius: 2 },
 });
