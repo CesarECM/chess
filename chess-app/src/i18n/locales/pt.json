@@ -537,7 +537,11 @@
     "streakBodyZero": "♟️ Pronto para o puzzle de xadrez de hoje?",
     "reviewTitle": "♟️ Você tem revisões pendentes",
     "reviewBody_one": "{{count}} puzzle pronto para revisar hoje.",
-    "reviewBody_other": "{{count}} puzzles prontos para revisar hoje."
+    "reviewBody_other": "{{count}} puzzles prontos para revisar hoje.",
+    "siegeBody": "🏰 Seu reino está sendo sitiado. Volte para defendê-lo!",
+    "winbackBody": "♟ Você está há 7 dias sem resolver puzzles. Volte hoje!",
+    "winbackBodyStreak_one": "🔥 Sua sequência de 1 dia está esperando por você. Volte antes que seja tarde!",
+    "winbackBodyStreak_other": "🔥 Sua sequência de {{count}} dias está esperando. Volte antes que seja tarde!"
   },
   "common": {
     "back": "Voltar"

@@ -537,7 +537,11 @@
     "streakBodyZero": "♟️ Ready for today's chess puzzle?",
     "reviewTitle": "♟️ You have pending reviews",
     "reviewBody_one": "{{count}} puzzle ready to review today.",
-    "reviewBody_other": "{{count}} puzzles ready to review today."
+    "reviewBody_other": "{{count}} puzzles ready to review today.",
+    "siegeBody": "🏰 Your kingdom is under siege. Come back to defend it!",
+    "winbackBody": "♟ You haven't solved any puzzles in 7 days. Come back today!",
+    "winbackBodyStreak_one": "🔥 Your 1-day streak is waiting for you. Come back before it's too late!",
+    "winbackBodyStreak_other": "🔥 Your {{count}}-day streak is waiting for you. Come back before it's too late!"
   },
   "common": {
     "back": "Back"

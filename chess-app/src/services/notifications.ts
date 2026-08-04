@@ -2,10 +2,13 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { supabase } from '@/services/supabase';
+import { analytics } from '@/services/analytics';
 import i18n from '@/i18n';
 
-const STREAK_NOTIF_ID = 'chess-streak-daily';
-const REVIEW_NOTIF_ID = 'chess-review-daily';
+export const STREAK_NOTIF_ID  = 'chess-streak-daily';
+export const REVIEW_NOTIF_ID  = 'chess-review-daily';
+export const SIEGE_NOTIF_ID   = 'chess-siege-48h';
+export const WINBACK_NOTIF_ID = 'chess-winback-7d';
 
 // Handler controls how notifications behave when the app is in the foreground.
 Notifications.setNotificationHandler({
@@ -66,6 +69,9 @@ export async function scheduleStreakReminder(
       minute: 0,
     },
   });
+  if (streakDays > 0) {
+    analytics.track('notification_streak_risk_sent', { streak_days: streakDays });
+  }
 }
 
 /** S11.3 — Programa una notificación one-shot 2 horas desde ahora cuando hay repasos FSRS pendientes.
@@ -99,5 +105,65 @@ export async function cancelTodayNotifications(): Promise<void> {
   await Promise.all([
     Notifications.cancelScheduledNotificationAsync(STREAK_NOTIF_ID).catch(() => null),
     Notifications.cancelScheduledNotificationAsync(REVIEW_NOTIF_ID).catch(() => null),
+  ]);
+}
+
+/** MPS #45 — Asedio: one-shot en +48h al ir a background. */
+export async function scheduleSiegeNotification(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Notifications.cancelScheduledNotificationAsync(SIEGE_NOTIF_ID).catch(() => null);
+  const granted = await requestPermissions();
+  if (!granted) return;
+  await Notifications.scheduleNotificationAsync({
+    identifier: SIEGE_NOTIF_ID,
+    content: {
+      title: i18n.t('notification.title'),
+      body:  i18n.t('notification.siegeBody'),
+      sound: true,
+    },
+    trigger: {
+      type:    Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 48 * 60 * 60,
+      repeats: false,
+    },
+  });
+  analytics.track('notification_siege_sent', {});
+}
+
+/** MPS #45 — Win-back: one-shot en +7 días al ir a background. */
+export async function scheduleWinbackNotification(streakDays: number): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Notifications.cancelScheduledNotificationAsync(WINBACK_NOTIF_ID).catch(() => null);
+  const granted = await requestPermissions();
+  if (!granted) return;
+  const body = streakDays > 0
+    ? i18n.t('notification.winbackBodyStreak', { count: streakDays })
+    : i18n.t('notification.winbackBody');
+  await Notifications.scheduleNotificationAsync({
+    identifier: WINBACK_NOTIF_ID,
+    content: { title: i18n.t('notification.title'), body, sound: true },
+    trigger: {
+      type:    Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 7 * 24 * 60 * 60,
+      repeats: false,
+    },
+  });
+  analytics.track('notification_winback_sent', { days_inactive_threshold: 7, streak_days: streakDays });
+}
+
+/** MPS #45 — Programa asedio + win-back al ir a background o cerrar sesión. */
+export async function scheduleBackgroundNotifications(streakDays: number): Promise<void> {
+  await Promise.all([
+    scheduleSiegeNotification(),
+    scheduleWinbackNotification(streakDays),
+  ]);
+}
+
+/** MPS #45 — Cancela asedio + win-back cuando el usuario vuelve a la app. */
+export async function cancelReentryNotifications(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Promise.all([
+    Notifications.cancelScheduledNotificationAsync(SIEGE_NOTIF_ID).catch(() => null),
+    Notifications.cancelScheduledNotificationAsync(WINBACK_NOTIF_ID).catch(() => null),
   ]);
 }

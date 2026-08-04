@@ -25,7 +25,10 @@ import {
   scheduleStreakReminder,
   scheduleReviewReminder,
   cancelTodayNotifications,
+  scheduleBackgroundNotifications,
+  cancelReentryNotifications,
 } from '@/services/notifications';
+import { useNotificationTracking } from '@/hooks/useNotificationTracking';
 import { loadDueProgress } from '@/services/puzzleProgress';
 import i18n, { getDeviceLocale } from '@/i18n';
 
@@ -94,6 +97,7 @@ function AuthGuard() {
   }, [user?.id]);
 
   useReferral();
+  useNotificationTracking();
 
   // S12.4 — sincronizar idioma cuando la preferencia del usuario se hidrata desde AsyncStorage
   const preferredLanguage = useUserStore((s) => s.preferredLanguage);
@@ -108,8 +112,12 @@ function AuthGuard() {
       appState.current = next;
       if (next === 'active' && prev !== 'active') {
         if (user?.id) drainSyncQueue(user.id).catch(console.error);
-        // S11.4: scheduling inteligente en cada vuelta a foreground
         refreshNotifications(user?.id).catch(console.error);
+        cancelReentryNotifications().catch(console.error);
+      }
+      if (next === 'background' && prev === 'active') {
+        const { streakDays } = useUserStore.getState();
+        scheduleBackgroundNotifications(streakDays).catch(console.error);
       }
     });
     return () => sub.remove();

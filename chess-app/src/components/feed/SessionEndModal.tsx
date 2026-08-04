@@ -2,6 +2,7 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { analytics } from '@/services/analytics';
+import { scheduleBackgroundNotifications } from '@/services/notifications';
 
 interface Props {
   visible: boolean;
@@ -61,6 +62,7 @@ export function SessionEndModal({
       accuracy_pct:      accuracy,
       end_reason:        'manual',
     });
+    scheduleBackgroundNotifications(streakDays).catch(console.error);
     onClose();
   };
 

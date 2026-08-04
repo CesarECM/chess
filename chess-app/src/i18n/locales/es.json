@@ -537,7 +537,11 @@
     "streakBodyZero": "♟️ ¿Listo para un puzzle de ajedrez hoy?",
     "reviewTitle": "♟️ Tienes repasos pendientes",
     "reviewBody_one": "{{count}} puzzle listo para repasar hoy.",
-    "reviewBody_other": "{{count}} puzzles listos para repasar hoy."
+    "reviewBody_other": "{{count}} puzzles listos para repasar hoy.",
+    "siegeBody": "🏰 Tu reino está bajo asedio. ¡Vuelve a defenderlo!",
+    "winbackBody": "♟ Llevas 7 días sin resolver puzzles. ¡Vuelve hoy!",
+    "winbackBodyStreak_one": "🔥 Tu racha de 1 día te está esperando. ¡Vuelve antes de que sea tarde!",
+    "winbackBodyStreak_other": "🔥 Tu racha de {{count}} días te está esperando. ¡Vuelve antes de que sea tarde!"
   },
   "common": {
     "back": "Atrás"

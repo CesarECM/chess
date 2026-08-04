@@ -537,7 +537,11 @@
     "streakBodyZero": "♟️ Prêt pour le puzzle d'échecs du jour ?",
     "reviewTitle": "♟️ Vous avez des révisions en attente",
     "reviewBody_one": "{{count}} puzzle prêt à réviser aujourd'hui.",
-    "reviewBody_other": "{{count}} puzzles prêts à réviser aujourd'hui."
+    "reviewBody_other": "{{count}} puzzles prêts à réviser aujourd'hui.",
+    "siegeBody": "🏰 Votre royaume est assiégé. Revenez le défendre !",
+    "winbackBody": "♟ Vous n'avez pas joué depuis 7 jours. Revenez aujourd'hui !",
+    "winbackBodyStreak_one": "🔥 Votre série de 1 jour vous attend. Revenez avant qu'il ne soit trop tard !",
+    "winbackBodyStreak_other": "🔥 Votre série de {{count}} jours vous attend. Revenez avant qu'il ne soit trop tard !"
   },
   "common": {
     "back": "Retour"
