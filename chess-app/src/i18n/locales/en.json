@@ -538,5 +538,29 @@
     "reviewTitle": "♟️ You have pending reviews",
     "reviewBody_one": "{{count}} puzzle ready to review today.",
     "reviewBody_other": "{{count}} puzzles ready to review today."
+  },
+  "common": {
+    "back": "Back"
+  },
+  "liga": {
+    "title":        "Weekly League",
+    "week":         "Week of {{start}} – {{end}}",
+    "myRank":       "Rank #{{rank}} of {{total}}",
+    "score_one":    "{{count}} puzzle",
+    "score_other":  "{{count}} puzzles",
+    "you":          "You",
+    "noLeague":     "You're not in a league yet",
+    "noLeagueHint": "Solve a puzzle this week to join",
+    "promotion":    "PROMOTION ZONE",
+    "demotion":     "DEMOTION ZONE",
+    "topSpots":     "top spots",
+    "loading":      "Loading league…",
+    "result": {
+      "title":    "Weekly result",
+      "rank":     "You finished #{{rank}} of {{total}}",
+      "promoted": "🎉 You moved up a division!",
+      "demoted":  "📉 You dropped a division",
+      "neutral":  "You stayed in your division"
+    }
   }
 }

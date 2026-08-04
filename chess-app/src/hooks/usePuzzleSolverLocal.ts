@@ -28,6 +28,8 @@ import {
   upsertHallProgress,
 } from '@/services/reino';
 import { getHallForTactic } from '@/constants/reino';
+import { useLigaStore } from '@/stores/useLigaStore';
+import { assignToLeagueIfNeeded, incrementLigaScore } from '@/services/liga';
 
 export type SolverStatus = 'idle' | 'playing' | 'retry' | 'failed' | 'reviewing' | 'reviewed' | 'complete';
 
@@ -416,6 +418,17 @@ export function usePuzzleSolverLocal(
         getAndApplySpeedPoints(userId, puzzleId, elapsedMs, (points, percentile) => {
           if (points > 0) useReinoStore.getState().addSpeedPoints(points, percentile);
         }).catch(console.error);
+      }
+
+      // Liga semanal — lazy assignment + score increment
+      if (userId) {
+        const ligaState = useLigaStore.getState();
+        const userElo   = useUserStore.getState().elo;
+        if (!ligaState.current) {
+          assignToLeagueIfNeeded(userId, userElo).catch(console.error);
+        } else {
+          incrementLigaScore(userId).catch(console.error);
+        }
       }
     }
     // ─────────────────────────────────────────────────────────────────────────

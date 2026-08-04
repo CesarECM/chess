@@ -538,5 +538,29 @@
     "reviewTitle": "♟️ Tienes repasos pendientes",
     "reviewBody_one": "{{count}} puzzle listo para repasar hoy.",
     "reviewBody_other": "{{count}} puzzles listos para repasar hoy."
+  },
+  "common": {
+    "back": "Atrás"
+  },
+  "liga": {
+    "title":       "Liga Semanal",
+    "week":        "Semana del {{start}} al {{end}}",
+    "myRank":      "Posición #{{rank}} de {{total}}",
+    "score_one":   "{{count}} puzzle",
+    "score_other": "{{count}} puzzles",
+    "you":         "Tú",
+    "noLeague":    "Aún no estás en una liga",
+    "noLeagueHint": "Resuelve un puzzle esta semana para unirte",
+    "promotion":   "ZONA DE ASCENSO",
+    "demotion":    "ZONA DE DESCENSO",
+    "topSpots":    "mejores puestos",
+    "loading":     "Cargando liga…",
+    "result": {
+      "title":    "Resultado de la semana",
+      "rank":     "Quedaste #{{rank}} de {{total}}",
+      "promoted": "🎉 ¡Subiste de división!",
+      "demoted":  "📉 Bajaste de división",
+      "neutral":  "Te mantuviste en tu división"
+    }
   }
 }

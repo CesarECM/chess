@@ -1,19 +1,25 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useReinoStore } from '@/stores/useReinoStore';
+import { useLigaStore } from '@/stores/useLigaStore';
 import { HALLS, CROWN_COLORS } from '@/constants/reino';
 import { HallCard } from '@/components/reino/HallCard';
 
 export default function ReinoScreen() {
   const { colors, typography } = useTheme();
-  const { t } = useTranslation();
+  const { t }      = useTranslation();
+  const router     = useRouter();
+
   const crowns             = useReinoStore((s) => s.crowns);
   const crystals           = useReinoStore((s) => s.crystals);
   const speedPointsToday   = useReinoStore((s) => s.speedPointsToday);
   const lives              = useReinoStore((s) => s.lives);
   const hallProgress       = useReinoStore((s) => s.hallProgress);
   const crystalHallUnlocked = useReinoStore((s) => s.crystalHallUnlocked);
+
+  const ligaCurrent = useLigaStore((s) => s.current);
 
   const normalHalls  = HALLS.filter((h) => !h.isCrystal);
   const crystalHall  = HALLS.find((h) => h.isCrystal)!;
@@ -79,6 +85,28 @@ export default function ReinoScreen() {
         </View>
       </View>
 
+      {/* ── Liga semanal ── */}
+      <TouchableOpacity
+        style={[styles.ligaButton, { borderColor: colors.border, backgroundColor: colors.background }]}
+        onPress={() => router.push('/reino/liga')}
+        activeOpacity={0.7}
+      >
+        <View style={styles.ligaLeft}>
+          <Text style={{ fontSize: 20 }}>🏆</Text>
+          <View>
+            <Text style={[styles.ligaTitle, { color: colors.text, fontSize: typography.size.sm }]}>
+              {t('liga.title')}
+            </Text>
+            <Text style={[styles.ligaSub, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+              {ligaCurrent
+                ? t('liga.myRank', { rank: ligaCurrent.myRank, total: ligaCurrent.members.length })
+                : t('liga.noLeague')}
+            </Text>
+          </View>
+        </View>
+        <Text style={[styles.ligaArrow, { color: colors.textSecondary }]}>›</Text>
+      </TouchableOpacity>
+
       {/* ── Halls ── */}
       <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
         {t('reino.section.halls')}
@@ -92,7 +120,7 @@ export default function ReinoScreen() {
         />
       ))}
 
-      {/* ── Crystal Hall (locked until max_lives = 10) ── */}
+      {/* ── Crystal Hall ── */}
       <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
         {t('reino.section.crystal')}
       </Text>
@@ -130,6 +158,11 @@ const styles = StyleSheet.create({
   crownsLine:         { flexDirection: 'row', gap: 6, alignItems: 'center' },
   crownItem:          { flexDirection: 'row', alignItems: 'center', gap: 3 },
   crownDot:           { width: 8, height: 8, borderRadius: 4 },
+  ligaButton:         { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 14, gap: 12 },
+  ligaLeft:           { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ligaTitle:          { fontWeight: '700' },
+  ligaSub:            { marginTop: 2 },
+  ligaArrow:          { fontSize: 22, fontWeight: '300' },
   crystalLocked:      { borderWidth: 1, borderRadius: 12, padding: 20, alignItems: 'center', gap: 8, borderStyle: 'dashed' },
   crystalLockedTitle: { fontWeight: '700', textAlign: 'center' },
   crystalLockedBody:  { textAlign: 'center', lineHeight: 18 },
