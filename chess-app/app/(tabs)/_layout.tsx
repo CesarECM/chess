@@ -7,10 +7,11 @@ import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 
 const NAV_ITEMS = [
-  { name: 'index',    href: '/',          icon: 'home'      as const },
-  { name: 'profile',  href: '/profile',   icon: 'person'    as const },
-  { name: 'progress', href: '/progress',  icon: 'bar-chart' as const },
-  { name: 'settings', href: '/settings',  icon: 'settings'  as const },
+  { name: 'index',    href: '/',          icon: 'home'      as const, emoji: null  },
+  { name: 'reino',    href: '/reino',     icon: null,                 emoji: '🏰' },
+  { name: 'profile',  href: '/profile',   icon: 'person'    as const, emoji: null  },
+  { name: 'progress', href: '/progress',  icon: 'bar-chart' as const, emoji: null  },
+  { name: 'settings', href: '/settings',  icon: 'settings'  as const, emoji: null  },
 ] as const;
 
 function DesktopHeader() {
@@ -29,21 +30,22 @@ function DesktopHeader() {
           const isActive = item.name === 'index'
             ? pathname === '/'
             : pathname.startsWith(`/${item.name}`);
+          const iconColor = isActive ? colors.tabBarActive : colors.tabBarInactive;
           return (
             <TouchableOpacity
               key={item.name}
               onPress={() => router.push(item.href)}
               style={styles.navItem}
             >
-              <Ionicons
-                name={item.icon}
-                size={16}
-                color={isActive ? colors.tabBarActive : colors.tabBarInactive}
-              />
+              {item.emoji ? (
+                <Text style={{ fontSize: 16 }}>{item.emoji}</Text>
+              ) : (
+                <Ionicons name={item.icon!} size={16} color={iconColor} />
+              )}
               <Text style={[
                 styles.navLabel,
                 {
-                  color: isActive ? colors.tabBarActive : colors.tabBarInactive,
+                  color: iconColor,
                   fontSize: typography.size.sm,
                 },
               ]}>
@@ -83,6 +85,13 @@ export default function TabsLayout() {
           options={{
             title: t('tab.feed'),
             tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="reino"
+          options={{
+            title: t('tab.reino'),
+            tabBarIcon: () => <Text style={{ fontSize: 22 }}>🏰</Text>,
           }}
         />
         <Tabs.Screen

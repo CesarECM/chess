@@ -19,6 +19,7 @@ import { useBatchEval } from '@/services/analysis/useBatchEval';
 import { EvalHistoryBar } from '@/components/chess/EvalHistoryBar';
 import { EloDeltaBadge } from '@/components/feed/EloDeltaBadge';
 import { CalibrationBar } from '@/components/feed/CalibrationBar';
+import { SessionBar } from '@/components/feed/SessionBar';
 import { RangeBadge } from '@/components/ui/RangeBadge';
 import { ShareCard } from '@/components/ui/ShareCard';
 import type { Puzzle, ProgressMessage } from '@/types';
@@ -549,15 +550,10 @@ function PuzzleCardComponent({
   // ── Shared sub-elements ───────────────────────────────────────────────────
   const badgeRow = !isCalibrating ? (
     <View style={styles.topRow}>
-      <RangeBadge elo={elo} />
+      <SessionBar />
       {sessionCount > 0 && (
         <Text style={[styles.sessionCount, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
           {t('puzzle.sessionCount', { count: sessionCount })}
-        </Text>
-      )}
-      {streakDays > 0 && (puzzleStatus === 'playing' || puzzleStatus === 'retry') && (
-        <Text style={[styles.streakBadge, { color: colors.text, fontSize: typography.size.xs }]}>
-          🔥 {streakDays}
         </Text>
       )}
     </View>

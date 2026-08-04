@@ -1,6 +1,7 @@
 {
   "tab": {
     "feed": "Fil",
+    "reino": "Le Royaume",
     "profile": "Profil",
     "progress": "Progrès",
     "settings": "Paramètres"
@@ -493,6 +494,41 @@
     "failed": "Échoués",
     "time": "Temps",
     "continue_button": "Continuer"
+  },
+  "reino": {
+    "title": "Le Royaume",
+    "stat": {
+      "crowns":  "Couronnes",
+      "crystals": "Cristaux",
+      "lives":   "Vies",
+      "speed":   "Vitesse aujourd'hui"
+    },
+    "section": {
+      "halls":   "SALLES",
+      "crystal": "SALLE DE CRISTAL"
+    },
+    "hall": {
+      "pin_tower":       "Tour de la Clouée",
+      "fork_hall":       "Salle de la Fourchette",
+      "sacrifice_vault": "Voûte du Sacrifice",
+      "mate_chamber":    "Chambre du Mat",
+      "defense_wall":    "Muraille de la Défense",
+      "crystal_hall":    "Salle de Cristal",
+      "progress":        "{{count}} / {{next}}",
+      "complete":        "Salle terminée !"
+    },
+    "crystal": {
+      "lockedTitle": "Salle de Cristal",
+      "lockedBody":  "Débloquez encore {{needed}} vie(s) max pour révéler cette salle."
+    },
+    "item": {
+      "medal":     "Médaille",
+      "painting":  "Tableau",
+      "sculpture": "Sculpture",
+      "trophy":    "Trophée",
+      "board":     "Échiquier",
+      "special":   "Spécial"
+    }
   },
   "notification": {
     "title": "Chess Puzzles",

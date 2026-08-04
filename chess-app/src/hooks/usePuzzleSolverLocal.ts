@@ -18,6 +18,16 @@ import { syncFreezesToSupabase } from '@/services/auth';
 import { showRewardedAdForFreeze } from '@/services/ads';
 import { PROGRESS_CARDS_ENABLED, RECALIB_CONSECUTIVE_RECORDS, RECALIB_STREAK_WINDOW_UP } from '@/constants';
 import { detectPuzzleEvents } from '@/services/feedMessages';
+import { useReinoStore } from '@/stores/useReinoStore';
+import {
+  detectCrystalEarned,
+  recordCrown as recordCrownToDb,
+  recordCrystal as recordCrystalToDb,
+  recordSolveTime,
+  getAndApplySpeedPoints,
+  upsertHallProgress,
+} from '@/services/reino';
+import { getHallForTactic } from '@/constants/reino';
 
 export type SolverStatus = 'idle' | 'playing' | 'retry' | 'failed' | 'reviewing' | 'reviewed' | 'complete';
 
@@ -368,9 +378,47 @@ export function usePuzzleSolverLocal(
       review5Shown:     usePuzzleStore.getState().sessionFsrsReview5Shown,
     } : null;
 
-    const updatedProgress = progressRef.current
-      ? reviewProgress(progressRef.current, fsrsRating)
+    const progressBefore  = progressRef.current;
+    const updatedProgress = progressBefore
+      ? reviewProgress(progressBefore, fsrsRating)
       : null;
+
+    // ── El Reino: crown + crystal + hall + speed ─────────────────────────────
+    if (solved) {
+      const userId = userIdRef.current ?? '';
+
+      // Crown
+      if (crownType) {
+        useReinoStore.getState().addCrown(crownType, puzzleId);
+        recordCrownToDb(userId, puzzleId, crownType).catch(console.error);
+      }
+
+      // Crystal (FSRS long-term memory transition)
+      if (updatedProgress && detectCrystalEarned(progressBefore, updatedProgress)) {
+        useReinoStore.getState().addCrystal(puzzleId);
+        recordCrystalToDb(userId, puzzleId).catch(console.error);
+      }
+
+      // Hall progress
+      const tactic = puzzle?.themes[0] ?? 'other';
+      const hallId = getHallForTactic(tactic);
+      if (hallId) {
+        useReinoStore.getState().incrementHallProgress(hallId, puzzleId);
+        const hp = useReinoStore.getState().hallProgress[hallId];
+        if (hp && userId) {
+          upsertHallProgress(userId, hallId, hp.level, hp.puzzlesCount).catch(console.error);
+        }
+      }
+
+      // Speed points (async — fire and forget)
+      if (elapsedMs > 0) {
+        recordSolveTime(userId, puzzleId, elapsedMs).catch(console.error);
+        getAndApplySpeedPoints(userId, puzzleId, elapsedMs, (points, percentile) => {
+          if (points > 0) useReinoStore.getState().addSpeedPoints(points, percentile);
+        }).catch(console.error);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     setLastFsrsRating(fsrsRating);
     const delta = updateElo(puzzleRating, solved);
@@ -545,6 +593,7 @@ export function usePuzzleSolverLocal(
           time_total_ms: elapsedMs,
         });
         recordResult(puzzle.id, puzzle.rating, false);
+        useReinoStore.getState().loseLife();
         setStatus('failed');
       }
       return;

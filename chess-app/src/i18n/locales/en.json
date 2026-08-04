@@ -1,6 +1,7 @@
 {
   "tab": {
     "feed": "Feed",
+    "reino": "The Kingdom",
     "profile": "Profile",
     "progress": "Progress",
     "settings": "Settings"
@@ -493,6 +494,41 @@
     "failed": "Failed",
     "time": "Time",
     "continue_button": "Continue"
+  },
+  "reino": {
+    "title": "The Kingdom",
+    "stat": {
+      "crowns":  "Crowns",
+      "crystals": "Crystals",
+      "lives":   "Lives",
+      "speed":   "Speed today"
+    },
+    "section": {
+      "halls":   "HALLS",
+      "crystal": "CRYSTAL HALL"
+    },
+    "hall": {
+      "pin_tower":       "Pin Tower",
+      "fork_hall":       "Fork Hall",
+      "sacrifice_vault": "Sacrifice Vault",
+      "mate_chamber":    "Mate Chamber",
+      "defense_wall":    "Defense Wall",
+      "crystal_hall":    "Crystal Hall",
+      "progress":        "{{count}} / {{next}}",
+      "complete":        "Hall complete!"
+    },
+    "crystal": {
+      "lockedTitle": "Crystal Hall",
+      "lockedBody":  "Unlock {{needed}} more max life/lives to reveal this hall."
+    },
+    "item": {
+      "medal":     "Medal",
+      "painting":  "Painting",
+      "sculpture": "Sculpture",
+      "trophy":    "Trophy",
+      "board":     "Board",
+      "special":   "Special"
+    }
   },
   "notification": {
     "title": "Chess Puzzles",

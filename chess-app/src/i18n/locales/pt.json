@@ -1,6 +1,7 @@
 {
   "tab": {
     "feed": "Início",
+    "reino": "O Reino",
     "profile": "Perfil",
     "progress": "Progresso",
     "settings": "Configurações"
@@ -493,6 +494,41 @@
     "failed": "Falhos",
     "time": "Tempo",
     "continue_button": "Continuar"
+  },
+  "reino": {
+    "title": "O Reino",
+    "stat": {
+      "crowns":  "Coroas",
+      "crystals": "Cristais",
+      "lives":   "Vidas",
+      "speed":   "Velocidade hoje"
+    },
+    "section": {
+      "halls":   "SALÕES",
+      "crystal": "SALÃO DE CRISTAL"
+    },
+    "hall": {
+      "pin_tower":       "Torre do Prego",
+      "fork_hall":       "Salão do Garfo",
+      "sacrifice_vault": "Câmara do Sacrifício",
+      "mate_chamber":    "Câmara do Xeque-mate",
+      "defense_wall":    "Muralha da Defesa",
+      "crystal_hall":    "Salão de Cristal",
+      "progress":        "{{count}} / {{next}}",
+      "complete":        "Salão completo!"
+    },
+    "crystal": {
+      "lockedTitle": "Salão de Cristal",
+      "lockedBody":  "Desbloqueie mais {{needed}} vida(s) máx. para revelar este salão."
+    },
+    "item": {
+      "medal":     "Medalha",
+      "painting":  "Quadro",
+      "sculpture": "Escultura",
+      "trophy":    "Troféu",
+      "board":     "Tabuleiro",
+      "special":   "Especial"
+    }
   },
   "notification": {
     "title": "Chess Puzzles",

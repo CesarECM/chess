@@ -1,6 +1,7 @@
 {
   "tab": {
     "feed": "Inicio",
+    "reino": "El Reino",
     "profile": "Perfil",
     "progress": "Progreso",
     "settings": "Ajustes"
@@ -493,6 +494,41 @@
     "failed": "Fallados",
     "time": "Tiempo",
     "continue_button": "Continuar"
+  },
+  "reino": {
+    "title": "El Reino",
+    "stat": {
+      "crowns":  "Coronas",
+      "crystals": "Cristales",
+      "lives":   "Vidas",
+      "speed":   "Velocidad hoy"
+    },
+    "section": {
+      "halls":   "SALONES",
+      "crystal": "SALÓN DE CRISTAL"
+    },
+    "hall": {
+      "pin_tower":       "Torre del Clavado",
+      "fork_hall":       "Salón de la Horquilla",
+      "sacrifice_vault": "Bóveda del Sacrificio",
+      "mate_chamber":    "Cámara del Jaque Mate",
+      "defense_wall":    "Muralla de la Defensa",
+      "crystal_hall":    "Salón de Cristal",
+      "progress":        "{{count}} / {{next}}",
+      "complete":        "¡Salón completo!"
+    },
+    "crystal": {
+      "lockedTitle": "Salón de Cristal",
+      "lockedBody":  "Desbloquea {{needed}} vida(s) máx. más para revelar este salón."
+    },
+    "item": {
+      "medal":     "Medalla",
+      "painting":  "Cuadro",
+      "sculpture": "Escultura",
+      "trophy":    "Trofeo",
+      "board":     "Tablero",
+      "special":   "Especial"
+    }
   },
   "notification": {
     "title": "Chess Puzzles",
