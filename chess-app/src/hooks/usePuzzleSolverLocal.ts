@@ -261,16 +261,79 @@ export function usePuzzleSolverLocal(
     const isCalibrating = useUserStore.getState().preEloLow !== null;
 
     if (isCalibrating) {
-      // ── Calibration path: no FSRS, no ELO badge ───────────────────────────
+      // ── Calibration path: no ELO badge ────────────────────────────────────
       const { preEloLow: prevLow, preEloHigh: prevHigh } = useUserStore.getState();
       updatePreElo(puzzleRating, solved, elapsedMs);
       const { preEloLow: newLow, preEloHigh: newHigh, elo: calibratedElo } = useUserStore.getState();
 
       addToHistory(puzzleId);
       incrementPuzzleStats(solved, puzzle?.themes ?? []);
+
+      // FSRS + El Reino apply during calibration too
+      const { fsrsRating: calibFsrsRating, crownType: calibCrownType, state: calibOutcomeState } = derivePuzzleOutcome(
+        hintUsedRef.current, wrongAttemptsRef.current, solved, elapsedMs,
+      );
+      setLastCrownType(calibCrownType);
+      const calibProgressBefore = progressRef.current;
+      if (calibProgressBefore) {
+        const calibUpdated = reviewProgress(calibProgressBefore, calibFsrsRating);
+        progressRef.current = calibUpdated;
+        saveProgress(calibUpdated).catch(console.error);
+      }
       solvedResultRef.current = solved;
-      if (solved) { usePuzzleStore.getState().recordSolvedInSession(); setBonusTriggered(false); }
-      else        { usePuzzleStore.getState().recordFailedInSession(); }
+      if (solved) {
+        if (calibOutcomeState === 1 || calibOutcomeState === '1b') {
+          usePuzzleStore.getState().recordFirstAttemptSolvedInSession();
+        } else {
+          usePuzzleStore.getState().recordSolvedInSession();
+        }
+        setBonusTriggered(false);
+      } else {
+        usePuzzleStore.getState().recordFailedInSession();
+      }
+
+      // El Reino rewards during calibration
+      if (solved) {
+        const userId = userIdRef.current ?? '';
+
+        if (calibCrownType) {
+          useReinoStore.getState().addCrown(calibCrownType, puzzleId);
+          recordCrownToDb(userId, puzzleId, calibCrownType).catch(console.error);
+        }
+
+        if (calibProgressBefore && progressRef.current && detectCrystalEarned(calibProgressBefore, progressRef.current)) {
+          useReinoStore.getState().addCrystal(puzzleId);
+          recordCrystalToDb(userId, puzzleId).catch(console.error);
+        }
+
+        const tactic = puzzle?.themes[0] ?? 'other';
+        const hallId = getHallForTactic(tactic);
+        if (hallId) {
+          useReinoStore.getState().incrementHallProgress(hallId, puzzleId);
+          const hp = useReinoStore.getState().hallProgress[hallId];
+          if (hp && userId) {
+            upsertHallProgress(userId, hallId, hp.level, hp.puzzlesCount).catch(console.error);
+          }
+        }
+
+        if (elapsedMs > 0) {
+          recordSolveTime(userId, puzzleId, elapsedMs).catch(console.error);
+          getAndApplySpeedPoints(userId, puzzleId, elapsedMs, (points, percentile) => {
+            if (points > 0) useReinoStore.getState().addSpeedPoints(points, percentile);
+          }).catch(console.error);
+        }
+
+        // Liga — assign/score
+        if (userId) {
+          const ligaState = useLigaStore.getState();
+          const userElo   = useUserStore.getState().elo;
+          if (!ligaState.current) {
+            assignToLeagueIfNeeded(userId, userElo).catch(console.error);
+          } else {
+            incrementLigaScore(userId).catch(console.error);
+          }
+        }
+      }
 
       // ── Calibration message cards ────────────────────────────────────────
       if (PROGRESS_CARDS_ENABLED && onMessagesEarnedRef.current) {
@@ -606,7 +669,9 @@ export function usePuzzleSolverLocal(
           time_total_ms: elapsedMs,
         });
         recordResult(puzzle.id, puzzle.rating, false);
-        useReinoStore.getState().loseLife();
+        if (useUserStore.getState().preEloLow === null) {
+          useReinoStore.getState().loseLife();
+        }
         setStatus('failed');
       }
       return;

@@ -11,6 +11,7 @@ interface Props {
   sessionTotalFailed: number;
   sessionStartTime: number | null;
   onClose: () => void;
+  onContinue: () => void;
 }
 
 type HighlightStat = 'streak' | 'accuracy' | 'puzzles' | 'time';
@@ -44,6 +45,7 @@ export function SessionEndModal({
   sessionTotalFailed,
   sessionStartTime,
   onClose,
+  onContinue,
 }: Props) {
   const { colors, typography } = useTheme();
   const { t } = useTranslation();
@@ -54,7 +56,7 @@ export function SessionEndModal({
   const durationS = Math.round(durationMs / 1000);
   const highlight = selectHighlightStat(streakDays, sessionTotalSolved, sessionTotalFailed);
 
-  const handleClose = () => {
+  const handleContinue = () => {
     analytics.track('session_ended', {
       puzzles_solved:    sessionTotalSolved,
       puzzles_failed:    sessionTotalFailed,
@@ -63,7 +65,7 @@ export function SessionEndModal({
       end_reason:        'manual',
     });
     scheduleBackgroundNotifications(streakDays).catch(console.error);
-    onClose();
+    onContinue();
   };
 
   const highlightValue = (() => {
@@ -78,7 +80,7 @@ export function SessionEndModal({
   const highlightLabel = t(`session_end.stat_${highlight}`);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <Text style={[styles.title, { color: colors.text, fontSize: typography.size.lg }]}>
@@ -111,7 +113,7 @@ export function SessionEndModal({
 
           <TouchableOpacity
             style={[styles.button, { backgroundColor: colors.accent }]}
-            onPress={handleClose}
+            onPress={handleContinue}
             activeOpacity={0.85}
           >
             <Text style={[styles.buttonText, { color: '#fff', fontSize: typography.size.md }]}>

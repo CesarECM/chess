@@ -548,27 +548,30 @@ function PuzzleCardComponent({
   const boardMaxSizeMobile  = boardSectionSize > 0 ? boardSectionSize : Math.max(height - 248, 200);
 
   // ── Shared sub-elements ───────────────────────────────────────────────────
-  const badgeRow = !isCalibrating ? (
-    <View style={styles.topRow}>
-      <SessionBar />
-      {sessionCount > 0 && (
-        <Text style={[styles.sessionCount, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-          {t('puzzle.sessionCount', { count: sessionCount })}
-        </Text>
+  const badgeRow = (
+    <>
+      {isCalibrating && (
+        <View style={[styles.calibBar, { backgroundColor: colors.accent + '22', borderColor: colors.accent + '44' }]}>
+          <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
+            {t('calibration.estimating')}
+          </Text>
+          <CalibrationBar
+            startLow={calibGlobalLow ?? preEloStartLow}
+            startHigh={calibGlobalHigh ?? preEloStartHigh}
+            currentLow={preEloLow!}
+            currentHigh={preEloHigh!}
+          />
+        </View>
       )}
-    </View>
-  ) : (
-    <View style={[styles.calibBar, { backgroundColor: colors.accent + '22', borderColor: colors.accent + '44' }]}>
-      <Text style={[styles.calibText, { color: colors.accent, fontSize: typography.size.xs }]}>
-        {t('calibration.estimating')}
-      </Text>
-      <CalibrationBar
-        startLow={calibGlobalLow ?? preEloStartLow}
-        startHigh={calibGlobalHigh ?? preEloStartHigh}
-        currentLow={preEloLow!}
-        currentHigh={preEloHigh!}
-      />
-    </View>
+      <View style={styles.topRow}>
+        <SessionBar />
+        {sessionCount > 0 && (
+          <Text style={[styles.sessionCount, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+            {t('puzzle.sessionCount', { count: sessionCount })}
+          </Text>
+        )}
+      </View>
+    </>
   );
 
   const hasBeenPlayed = ['failed', 'reviewing', 'reviewed', 'complete'].includes(puzzleStatus);

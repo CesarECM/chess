@@ -34,6 +34,8 @@ interface ReinoActions {
   addCrystal:            (puzzleId: string) => void;
   addSpeedPoints:        (points: number, percentile: number) => void;
   loseLife:              () => void;
+  gainLife:              (source: 'ad' | 'crystal' | 'recharge') => void;
+  redeemCrystalForLife:  () => boolean;
   rechargeLives:         () => void;
   incrementHallProgress: (hallId: HallId, puzzleId: string) => void;
   reset:                 () => void;
@@ -108,6 +110,26 @@ export const useReinoStore = create<ReinoState & ReinoActions>()(
           analytics.track('life_lost', { lives_remaining: newCurrent });
           return { lives: { ...s.lives, current: newCurrent } };
         });
+      },
+
+      gainLife: (source) => {
+        set((s) => {
+          if (s.lives.current >= s.lives.max) return s;
+          const newCurrent = s.lives.current + 1;
+          analytics.track('life_gained', { source, lives_after: newCurrent });
+          return { lives: { ...s.lives, current: newCurrent } };
+        });
+      },
+
+      redeemCrystalForLife: () => {
+        const s = get();
+        if (s.crystals < CRYSTALS_PER_LIFE || s.lives.current >= s.lives.max) return false;
+        set((prev) => ({
+          crystals: prev.crystals - CRYSTALS_PER_LIFE,
+          lives:    { ...prev.lives, current: prev.lives.current + 1 },
+        }));
+        analytics.track('life_redeemed_crystals', { crystals_spent: CRYSTALS_PER_LIFE });
+        return true;
       },
 
       rechargeLives: () => {

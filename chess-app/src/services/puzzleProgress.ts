@@ -98,6 +98,17 @@ export async function saveProgress(progress: UserPuzzleProgress): Promise<void> 
   }
 }
 
+/** Return all puzzle IDs the user has ever reviewed (for calibration exclusion). */
+export async function loadAllProgressPuzzleIds(userId: string): Promise<string[]> {
+  if (useAuthStore.getState().isGuest) return [];
+  const { data } = await supabase
+    .from('user_puzzle_progress')
+    .select('puzzle_id')
+    .eq('user_id', userId);
+  if (!data) return [];
+  return (data as { puzzle_id: string }[]).map((r) => r.puzzle_id);
+}
+
 /**
  * Fetch all progress records due for review at or before `now`.
  * Used by the S4.4 review queue.

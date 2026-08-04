@@ -94,7 +94,7 @@ export function getHallForTactic(tactic: TacticType): HallId | null {
 export const LIVES_BASE          = 5;
 export const LIVES_MAX_CAP       = 10;
 export const CRYSTALS_PER_LIFE   = 5;   // +1 max_life every 5 crystals (up to cap)
-export const LIFE_RECHARGE_HOURS = 4;   // 1 life recharges every N hours
+export const LIFE_RECHARGE_HOURS = 0.5; // 1 life recharges every 30 min
 
 // ── Speed points ───────────────────────────────────────────────────────────────
 export function computeSpeedPoints(percentile: number): 0 | 1 | 2 | 3 {

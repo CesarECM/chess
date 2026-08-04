@@ -10,6 +10,7 @@ import { usePuzzleStore, LOCKED_SLOT } from '@/stores/usePuzzleStore';
 import { buildReviewQueue, buildCalibrationQueue } from '@/services/reviewQueue';
 import { getOrCreateGuestId } from '@/services/identity';
 import { cachePuzzles, getCachedPuzzles } from '@/services/puzzleCache';
+import { loadAllProgressPuzzleIds } from '@/services/puzzleProgress';
 import { PuzzleCard } from '@/components/feed/PuzzleCard';
 import { MessageCard } from '@/components/feed/MessageCard';
 import { LockedSlot } from '@/components/feed/LockedSlot';
@@ -17,7 +18,8 @@ import { SpringPager } from '@/components/feed/SpringPager';
 import type { SpringPagerRef } from '@/components/feed/SpringPager';
 import { showInterstitialIfDue } from '@/services/ads';
 import { PROGRESS_CARDS_ENABLED, PRE_ELO_ONBOARDING_WINDOW, SESSION_MANUAL_MIN_CORRECT } from '@/constants';
-import { SessionEndModal } from '@/components/feed/SessionEndModal';
+import { useReinoStore } from '@/stores/useReinoStore';
+import { DaySessionModal } from '@/components/feed/DaySessionModal';
 import { detectSessionStartEvents } from '@/services/feedMessages';
 import type { FeedItem, Puzzle, ProgressMessage } from '@/types';
 import type { SolverStatus } from '@/hooks/usePuzzleSolverLocal';
@@ -36,9 +38,11 @@ export default function FeedScreen() {
   const setFeed        = usePuzzleStore((s) => s.setFeed);
   const sessionHistory = usePuzzleStore((s) => s.sessionHistory);
   const sessionFirstAttemptSolvedCount = usePuzzleStore((s) => s.sessionFirstAttemptSolvedCount);
+  const sessionPuzzleCount = usePuzzleStore((s) => s.sessionPuzzleCount);
   const sessionTotalSolved = usePuzzleStore((s) => s.sessionTotalSolved);
   const sessionTotalFailed = usePuzzleStore((s) => s.sessionTotalFailed);
   const sessionStartTime   = usePuzzleStore((s) => s.sessionStartTime);
+  const livesCount         = useReinoStore((s) => s.lives.current);
   const endSessionStreak   = useUserStore((s) => s.endSessionStreak);
   const streakDays         = useUserStore((s) => s.streakDays);
 
@@ -55,7 +59,8 @@ export default function FeedScreen() {
   const [listHeight,       setListHeight]       = useState(Dimensions.get('window').height - 80);
   const [activeStatus,     setActiveStatus]     = useState<SolverStatus>('idle');
   const [waitingForBuffer, setWaitingForBuffer] = useState(false);
-  const [sessionEndVisible, setSessionEndVisible] = useState(false);
+  const [daySessionVisible,       setDaySessionVisible]      = useState(false);
+  const [daySessionByLives,      setDaySessionByLives]      = useState(false);
 
   // ── Debug panel ──────────────────────────────────────────────────────────
   const [debugVisible, setDebugVisible] = useState(false);
@@ -138,7 +143,9 @@ export default function FeedScreen() {
         if (isCalibrating) {
           const target = firstPuzzleRating ?? Math.round((low! + high!) / 2);
           if (firstPuzzleRating) clearFirstPuzzleRating();
-          puzzles = await buildCalibrationQueue(target, BATCH_SIZE, sessionHistoryRef.current);
+          const fsrsIds = await loadAllProgressPuzzleIds(userId);
+          const calibExclude = [...new Set([...sessionHistoryRef.current, ...fsrsIds])];
+          puzzles = await buildCalibrationQueue(target, BATCH_SIZE, calibExclude);
         } else {
           const isFirstEver = sessionHistoryRef.current.length === 0;
           puzzles = await buildReviewQueue(
@@ -404,17 +411,34 @@ export default function FeedScreen() {
     scrollToNext();
   }, [scrollToNext, addLog]);
 
-  const handleEndSession = useCallback(() => {
+  const sessionCompleted   = sessionFirstAttemptSolvedCount >= SESSION_MANUAL_MIN_CORRECT;
+  const hasStartedSession  = sessionPuzzleCount > 0;
+
+  // Auto-open modal when lives hit 0 (not during calibration)
+  useEffect(() => {
+    if (livesCount === 0 && hasStartedSession && preEloLow === null) {
+      setDaySessionByLives(true);
+      setDaySessionVisible(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [livesCount]);
+
+  const handleOpenDaySession = useCallback(() => {
+    setDaySessionByLives(false);
+    setDaySessionVisible(true);
+  }, []);
+
+  const handleDaySessionClose = useCallback(() => {
+    setDaySessionVisible(false);
+    setDaySessionByLives(false);
+  }, []);
+
+  const handleCompleteSession = useCallback(() => {
     endSessionStreak();
-    setSessionEndVisible(true);
-  }, [endSessionStreak]);
-
-  const handleSessionEndClose = useCallback(() => {
-    setSessionEndVisible(false);
+    setDaySessionVisible(false);
+    setDaySessionByLives(false);
     initSession(eloRef.current);
-  }, [initSession]);
-
-  const sessionEndUnlocked = sessionFirstAttemptSolvedCount >= SESSION_MANUAL_MIN_CORRECT;
+  }, [endSessionStreak, initSession]);
 
   // ── pager enabled: web always scrollable; native blocked while mid-puzzle ─
   const pagerEnabled = Platform.OS === 'web' || activeStatus === 'idle' || activeStatus === 'complete' || activeStatus === 'reviewed';
@@ -543,26 +567,35 @@ export default function FeedScreen() {
         </Animated.View>
       )}
 
-      {/* Terminar sesión — visible cuando se desbloquea el gate */}
-      {sessionEndUnlocked && (
+      {/* Sesión del día — visible desde el primer puzzle */}
+      {hasStartedSession && (
         <TouchableOpacity
-          style={[styles.endSessionBtn, { backgroundColor: colors.surface, borderColor: colors.textSecondary + '44' }]}
-          onPress={handleEndSession}
+          style={[
+            styles.endSessionBtn,
+            {
+              backgroundColor: sessionCompleted ? colors.success + '22' : colors.surface,
+              borderColor:     sessionCompleted ? colors.success + '88' : colors.textSecondary + '44',
+            },
+          ]}
+          onPress={handleOpenDaySession}
           activeOpacity={0.8}
         >
-          <Text style={[styles.endSessionText, { color: colors.textSecondary }]}>
-            {t('session_end.end_session_button')}
+          <Text style={[styles.endSessionText, { color: sessionCompleted ? colors.success : colors.textSecondary }]}>
+            {sessionCompleted ? 'Sesión completa' : 'Sesión activa'}
           </Text>
         </TouchableOpacity>
       )}
 
-      <SessionEndModal
-        visible={sessionEndVisible}
+      <DaySessionModal
+        visible={daySessionVisible}
+        isComplete={sessionCompleted}
+        isBlockedByLives={daySessionByLives}
         streakDays={streakDays}
         sessionTotalSolved={sessionTotalSolved}
         sessionTotalFailed={sessionTotalFailed}
         sessionStartTime={sessionStartTime}
-        onClose={handleSessionEndClose}
+        onClose={handleDaySessionClose}
+        onComplete={handleCompleteSession}
       />
 
       {/* Debug toggle — triple-tap top-right corner */}

@@ -4,13 +4,13 @@ import type { UserPuzzleProgress } from '@/types';
 import type { HallId } from '@/constants/reino';
 import { computeSpeedPoints } from '@/constants/reino';
 
-// True when a puzzle transitions from New/Learning to Review (enters long-term memory)
+// True when a previously-failed puzzle first crosses the 21-day stability threshold
 export function detectCrystalEarned(
   before: UserPuzzleProgress | null,
   after: UserPuzzleProgress,
 ): boolean {
   if (!before) return false;
-  return before.state < 2 && after.state === 2;
+  return after.lapses > 0 && before.stability < 21 && after.stability >= 21;
 }
 
 export async function recordCrown(
