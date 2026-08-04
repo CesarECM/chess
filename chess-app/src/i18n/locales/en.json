@@ -546,6 +546,16 @@
   "common": {
     "back": "Back"
   },
+  "recap": {
+    "title":         "My Recap",
+    "viewRecap":     "📊 View my Recap",
+    "shareButton":   "Share image",
+    "puzzlesSolved": "puzzles solved",
+    "accuracy":      "accuracy",
+    "topHall":       "top hall",
+    "streakLabel":   "current streak",
+    "crowns":        "crowns"
+  },
   "liga": {
     "title":        "Weekly League",
     "week":         "Week of {{start}} – {{end}}",

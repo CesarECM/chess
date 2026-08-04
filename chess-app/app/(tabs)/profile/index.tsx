@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -18,6 +19,7 @@ export default function ProfileScreen() {
   const { colors, typography } = useTheme();
   const { t, i18n } = useTranslation();
   const { user, isGuest } = useAuthStore();
+  const router = useRouter();
   const {
     elo,
     puzzlesCompleted,
@@ -75,6 +77,19 @@ export default function ProfileScreen() {
           </Text>
         )}
       </View>
+
+      {/* Recap button */}
+      <TouchableOpacity
+        style={[styles.recapBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
+        onPress={() => router.push('/profile/recap')}
+        activeOpacity={0.7}
+      >
+        <Text style={{ fontSize: 18 }}>📊</Text>
+        <Text style={[styles.recapBtnText, { color: colors.text, fontSize: typography.size.sm }]}>
+          {t('recap.viewRecap')}
+        </Text>
+        <Text style={[{ color: colors.textSecondary, fontSize: 22, fontWeight: '300' }]}>›</Text>
+      </TouchableOpacity>
 
       <Section label={t('profile.sectionRank')} colors={colors} typography={typography}>
         <RangeBadge elo={elo} />
@@ -226,6 +241,8 @@ const styles = StyleSheet.create({
   identity:     { alignItems: 'center', paddingVertical: 8 },
   displayName:  { fontWeight: '700' },
   guestHint:    { marginTop: 4, textAlign: 'center' },
+  recapBtn:     { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  recapBtnText: { flex: 1, fontWeight: '600' },
   section:      { gap: 8, alignItems: 'stretch' },
   sectionLabel: { letterSpacing: 0.5, fontWeight: '600', marginLeft: 2 },
   statsRow:     { flexDirection: 'row', borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
@@ -236,11 +253,6 @@ const styles = StyleSheet.create({
   card:         { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   emptyCard:    { borderRadius: 12, borderWidth: 1, paddingVertical: 20, paddingHorizontal: 16 },
   divider:      { height: 1 },
-  chartRow:     { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 60, paddingHorizontal: 12, paddingTop: 12 },
-  barWrap:      { flex: 1, alignItems: 'center', gap: 2 },
-  bar:          { width: '100%', borderRadius: 2 },
-  barDate:      { textAlign: 'center' },
-  chartLegend:  { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 10, paddingTop: 4 },
   histRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
   histIcon:     { fontSize: 16, fontWeight: '700', width: 18, textAlign: 'center' },
   histInfo:     { flex: 1, gap: 2 },

@@ -546,6 +546,16 @@
   "common": {
     "back": "Retour"
   },
+  "recap": {
+    "title":         "Mon Récap",
+    "viewRecap":     "📊 Voir mon Récap",
+    "shareButton":   "Partager l'image",
+    "puzzlesSolved": "puzzles résolus",
+    "accuracy":      "précision",
+    "topHall":       "salle dominée",
+    "streakLabel":   "série actuelle",
+    "crowns":        "couronnes"
+  },
   "liga": {
     "title":        "Ligue Hebdomadaire",
     "week":         "Semaine du {{start}} au {{end}}",
