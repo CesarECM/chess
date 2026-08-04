@@ -36,13 +36,24 @@ export const RECALIB_STREAK_WINDOW_UP    = 300;  // search window above current 
 
 export const FSRS_TARGET_RETENTION = 0.9;
 
-// Implicit FSRS rating thresholds (milliseconds)
-// solved < EASY  → Easy(4)
-// solved < HARD  → Good(3)
-// solved ≥ HARD  → Hard(2)
-// failed         → Again(1)
+// Implicit FSRS rating thresholds (milliseconds) — legacy, used by deriveFsrsRating
 export const FSRS_EASY_THRESHOLD_MS = 15_000;   // 15 s
 export const FSRS_HARD_THRESHOLD_MS = 60_000;   // 60 s
+
+// ── 5-State resolution system ────────────────────────────────────────────────
+export const FSRS_STATE_1_FAST  = 4 as const;  // primera, sin pista, ≤60s → Easy
+export const FSRS_STATE_1_SLOW  = 3 as const;  // primera, sin pista, >60s → Good
+export const FSRS_STATE_2       = 3 as const;  // primera, con pista       → Good
+export const FSRS_STATE_3       = 2 as const;  // segunda, sin pista       → Hard
+export const FSRS_STATE_4       = 2 as const;  // segunda, con pista       → Hard
+export const FSRS_STATE_5       = 1 as const;  // no resuelto              → Again
+export const TIME_FAST_THRESHOLD_MS  = 60_000; // ≤60s = estado 1 (rápido)
+
+// ── Crown system ─────────────────────────────────────────────────────────────
+export const CROWN_GOLD_PROBABILITY = 0.12; // en estado 1/1b: 12% Oro, resto Plata
+
+// ── Session ──────────────────────────────────────────────────────────────────
+export const SESSION_MANUAL_MIN_CORRECT = 10; // puzzles estado 1/1b para habilitar botón
 
 export const SUBSCRIPTION_PRICE_USD = 2.99;
 

@@ -33,31 +33,36 @@ interface PuzzleState {
 
 
   // ── Session state (not persisted — resets on app restart) ─────
-  sessionStartElo:            number | null;
-  sessionPuzzleCount:         number;
-  consecutiveSolvedInSession: number;
-  consecutiveFailedInSession: number;
-  sessionEloGainShown:        boolean;
-  sessionPerfectRun5Shown:    boolean;
-  sessionPerfectRun10Shown:   boolean;
-  fsrsReviewsInSession:       number;
-  sessionFsrsReview5Shown:    boolean;
-  calibInsightShown:          boolean;
-  calibMidpointShown:         boolean;
-  sessionCalibInitialRange:   number | null;
-  puzzlesSinceLastBonus:      number;
-  initSession:                (startElo: number) => void;
-  recordSolvedInSession:      () => void;
-  recordFailedInSession:      () => void;
-  resetBonusCounter:          () => void;
-  markSessionEloGainShown:    () => void;
-  markSessionPerfectRun5Shown:  () => void;
-  markSessionPerfectRun10Shown: () => void;
-  recordFsrsReviewInSession:  () => void;
-  markSessionFsrsReview5Shown: () => void;
-  markCalibInsightShown:      () => void;
-  markCalibMidpointShown:     () => void;
-  setSessionCalibInitialRange: (range: number) => void;
+  sessionStartElo:               number | null;
+  sessionStartTime:              number | null;
+  sessionPuzzleCount:            number;
+  sessionTotalSolved:            number;
+  sessionTotalFailed:            number;
+  sessionFirstAttemptSolvedCount: number;
+  consecutiveSolvedInSession:    number;
+  consecutiveFailedInSession:    number;
+  sessionEloGainShown:           boolean;
+  sessionPerfectRun5Shown:       boolean;
+  sessionPerfectRun10Shown:      boolean;
+  fsrsReviewsInSession:          number;
+  sessionFsrsReview5Shown:       boolean;
+  calibInsightShown:             boolean;
+  calibMidpointShown:            boolean;
+  sessionCalibInitialRange:      number | null;
+  puzzlesSinceLastBonus:         number;
+  initSession:                   (startElo: number) => void;
+  recordSolvedInSession:         () => void;
+  recordFirstAttemptSolvedInSession: () => void;
+  recordFailedInSession:         () => void;
+  resetBonusCounter:             () => void;
+  markSessionEloGainShown:       () => void;
+  markSessionPerfectRun5Shown:   () => void;
+  markSessionPerfectRun10Shown:  () => void;
+  recordFsrsReviewInSession:     () => void;
+  markSessionFsrsReview5Shown:   () => void;
+  markCalibInsightShown:         () => void;
+  markCalibMidpointShown:        () => void;
+  setSessionCalibInitialRange:   (range: number) => void;
 
   // ── Solver ────────────────────────────────────────────────────
   currentFen:       string | null;
@@ -111,45 +116,64 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   markPuzzleSkipped: (id) => set((s) => ({ skippedPuzzleIds: [...s.skippedPuzzleIds, id] })),
 
   // ── Session state ──────────────────────────────────────────────
-  sessionStartElo:            null,
-  sessionPuzzleCount:         0,
-  consecutiveSolvedInSession: 0,
-  consecutiveFailedInSession: 0,
-  sessionEloGainShown:        false,
-  sessionPerfectRun5Shown:    false,
-  sessionPerfectRun10Shown:   false,
-  fsrsReviewsInSession:       0,
-  sessionFsrsReview5Shown:    false,
-  calibInsightShown:          false,
-  calibMidpointShown:         false,
-  sessionCalibInitialRange:   null,
-  puzzlesSinceLastBonus:      0,
+  sessionStartElo:               null,
+  sessionStartTime:              null,
+  sessionPuzzleCount:            0,
+  sessionTotalSolved:            0,
+  sessionTotalFailed:            0,
+  sessionFirstAttemptSolvedCount: 0,
+  consecutiveSolvedInSession:    0,
+  consecutiveFailedInSession:    0,
+  sessionEloGainShown:           false,
+  sessionPerfectRun5Shown:       false,
+  sessionPerfectRun10Shown:      false,
+  fsrsReviewsInSession:          0,
+  sessionFsrsReview5Shown:       false,
+  calibInsightShown:             false,
+  calibMidpointShown:            false,
+  sessionCalibInitialRange:      null,
+  puzzlesSinceLastBonus:         0,
 
   initSession: (startElo) => set({
-    sessionStartElo:            startElo,
-    sessionPuzzleCount:         0,
-    consecutiveSolvedInSession: 0,
-    consecutiveFailedInSession: 0,
-    sessionEloGainShown:        false,
-    sessionPerfectRun5Shown:    false,
-    sessionPerfectRun10Shown:   false,
-    fsrsReviewsInSession:       0,
-    sessionFsrsReview5Shown:    false,
-    calibInsightShown:          false,
-    calibMidpointShown:         false,
-    sessionCalibInitialRange:   null,
-    puzzlesSinceLastBonus:      0,
+    sessionStartElo:               startElo,
+    sessionStartTime:              Date.now(),
+    sessionPuzzleCount:            0,
+    sessionTotalSolved:            0,
+    sessionTotalFailed:            0,
+    sessionFirstAttemptSolvedCount: 0,
+    consecutiveSolvedInSession:    0,
+    consecutiveFailedInSession:    0,
+    sessionEloGainShown:           false,
+    sessionPerfectRun5Shown:       false,
+    sessionPerfectRun10Shown:      false,
+    fsrsReviewsInSession:          0,
+    sessionFsrsReview5Shown:       false,
+    calibInsightShown:             false,
+    calibMidpointShown:            false,
+    sessionCalibInitialRange:      null,
+    puzzlesSinceLastBonus:         0,
   }),
 
   recordSolvedInSession: () => set((s) => ({
     sessionPuzzleCount:         s.sessionPuzzleCount + 1,
+    sessionTotalSolved:         s.sessionTotalSolved + 1,
     consecutiveSolvedInSession: s.consecutiveSolvedInSession + 1,
     consecutiveFailedInSession: 0,
     puzzlesSinceLastBonus:      s.puzzlesSinceLastBonus + 1,
   })),
 
+  recordFirstAttemptSolvedInSession: () => set((s) => ({
+    sessionPuzzleCount:             s.sessionPuzzleCount + 1,
+    sessionTotalSolved:             s.sessionTotalSolved + 1,
+    sessionFirstAttemptSolvedCount: s.sessionFirstAttemptSolvedCount + 1,
+    consecutiveSolvedInSession:     s.consecutiveSolvedInSession + 1,
+    consecutiveFailedInSession:     0,
+    puzzlesSinceLastBonus:          s.puzzlesSinceLastBonus + 1,
+  })),
+
   recordFailedInSession: () => set((s) => ({
     sessionPuzzleCount:         s.sessionPuzzleCount + 1,
+    sessionTotalFailed:         s.sessionTotalFailed + 1,
     consecutiveFailedInSession: s.consecutiveFailedInSession + 1,
     consecutiveSolvedInSession: 0,
     puzzlesSinceLastBonus:      s.puzzlesSinceLastBonus + 1,

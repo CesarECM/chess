@@ -481,6 +481,19 @@
   "referral": {
     "shareBtn": "Invitar amigos — +{{days}} días gratis por referido activo"
   },
+  "session_end": {
+    "end_session_button": "Terminar sesión",
+    "modal_title": "Sesión completada",
+    "days": "días",
+    "stat_streak": "Días de racha",
+    "stat_accuracy": "Precisión",
+    "stat_puzzles": "Puzzles resueltos",
+    "stat_time": "Tiempo jugado",
+    "solved": "Resueltos",
+    "failed": "Fallados",
+    "time": "Tiempo",
+    "continue_button": "Continuar"
+  },
   "notification": {
     "title": "Chess Puzzles",
     "streakBody_one": "🔥 Llevas 1 día de racha. ¡No la rompas!",

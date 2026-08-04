@@ -6,7 +6,8 @@ import { applyMove, computeMoveSequence } from '@/services/chess';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { deriveFsrsRating, createProgress, reviewProgress } from '@/services/fsrs';
+import { derivePuzzleOutcome, createProgress, reviewProgress } from '@/services/fsrs';
+import type { CrownType } from '@/services/fsrs';
 import { getOrCreateGuestId } from '@/services/identity';
 import { loadProgress, saveProgress } from '@/services/puzzleProgress';
 import { recordViralityEvent, recordSkipEvent } from '@/services/virality';
@@ -55,6 +56,7 @@ export function usePuzzleSolverLocal(
   const [reviewedAfterSolve, setReviewedAfterSolve] = useState(false);
   const [hintLevel, setHintLevel]   = useState(0);
   const [hintFromTo, setHintFromTo] = useState<{ from: string; to: string } | null>(null);
+  const [lastCrownType, setLastCrownType] = useState<CrownType>(null);
   const [reviewFens, setReviewFens] = useState<string[]>([]);
   const [penaltyResult, setPenaltyResult] = useState<'streakFrozen' | 'streakBroken' | null>(null);
   const [streakBeforeBreak, setStreakBeforeBreak] = useState<number>(0);
@@ -135,6 +137,7 @@ export function usePuzzleSolverLocal(
     hintUsedRef.current     = false;
     wrongAttemptsRef.current = 0;
     setBonusTriggered(null);
+    setLastCrownType(null);
     if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
     setReviewMoveIndex(0);
     setSolverMoveIndex(0);
@@ -331,7 +334,13 @@ export function usePuzzleSolverLocal(
     }
 
     // ── Normal path: FSRS + progress cards + ELO badge ──────────────────────
-    const fsrsRating = deriveFsrsRating(solved, elapsedMs);
+    const { state: puzzleOutcomeState, fsrsRating, crownType } = derivePuzzleOutcome(
+      hintUsedRef.current,
+      wrongAttemptsRef.current,
+      solved,
+      elapsedMs,
+    );
+    setLastCrownType(crownType);
 
     const preUser = solved && PROGRESS_CARDS_ENABLED ? {
       elo:              useUserStore.getState().elo,
@@ -365,7 +374,10 @@ export function usePuzzleSolverLocal(
 
     setLastFsrsRating(fsrsRating);
     const delta = updateElo(puzzleRating, solved);
-    setEloDelta(delta);
+    // Badge solo visible cuando ELO sube en primer intento limpio (estado 1/1b)
+    if (puzzleOutcomeState === 1 || puzzleOutcomeState === '1b') {
+      setEloDelta(delta);
+    }
     addToHistory(puzzleId);
     incrementPuzzleStats(solved, puzzle?.themes ?? []);
 
@@ -397,7 +409,11 @@ export function usePuzzleSolverLocal(
 
     solvedResultRef.current = solved;
     if (solved) {
-      usePuzzleStore.getState().recordSolvedInSession();
+      if (puzzleOutcomeState === 1 || puzzleOutcomeState === '1b') {
+        usePuzzleStore.getState().recordFirstAttemptSolvedInSession();
+      } else {
+        usePuzzleStore.getState().recordSolvedInSession();
+      }
       if (bonusResult) usePuzzleStore.getState().resetBonusCounter();
       setBonusTriggered(bonusResult);
     } else {
@@ -730,9 +746,8 @@ export function usePuzzleSolverLocal(
       });
       boardRef.current?.highlight({ square: from as Square, color: 'rgba(255,215,0,0.85)' });
       setHintFromTo(null);
-      // Registrar fallo inmediatamente — idempotente vía countedRef
-      recordResult(puzzle.id, puzzle.rating, false);
-      hasFailedRef.current = true;
+      // No registrar resultado aquí — se registra al terminar el puzzle (estado 2 o 4)
+      hasFailedRef.current = true; // sin free-retry tras pista
       setHasFailed(true);
       return null;
     }
@@ -766,6 +781,7 @@ export function usePuzzleSolverLocal(
     hasFailed,
     bonusTriggered,
     clearBonusTriggered: () => setBonusTriggered(null),
+    lastCrownType,
     reviewMoveIndex,
     solverMoveIndex,
     reviewedAfterSolve,

@@ -481,6 +481,19 @@
   "referral": {
     "shareBtn": "Convidar amigos — +{{days}} dias grátis por indicação ativa"
   },
+  "session_end": {
+    "end_session_button": "Encerrar sessão",
+    "modal_title": "Sessão concluída",
+    "days": "dias",
+    "stat_streak": "Dias seguidos",
+    "stat_accuracy": "Precisão",
+    "stat_puzzles": "Puzzles resolvidos",
+    "stat_time": "Tempo jogado",
+    "solved": "Resolvidos",
+    "failed": "Falhos",
+    "time": "Tempo",
+    "continue_button": "Continuar"
+  },
   "notification": {
     "title": "Chess Puzzles",
     "streakBody_one": "🔥 Você tem 1 dia de sequência. Não pare agora!",

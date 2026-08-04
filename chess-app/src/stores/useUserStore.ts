@@ -82,6 +82,7 @@ interface UserState {
   soundEnabled: boolean;
   freezes: number;
   freezeLastUsedDate: string | null;
+  lastSessionEndDate: string | null;
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => number;
@@ -100,6 +101,7 @@ interface UserState {
   gainFreeze: () => void;
   consumeFreeze: () => void;
   breakStreak: () => void;
+  endSessionStreak: () => void;
   completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId, levelKey: string) => void;
   setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
@@ -153,6 +155,7 @@ export const useUserStore = create<UserState>()(
       soundEnabled: true,
       freezes: 0,
       freezeLastUsedDate: null,
+      lastSessionEndDate: null,
       calibrationPendingConfirmation: false,
 
       setElo: (elo) => set({ elo }),
@@ -319,33 +322,13 @@ export const useUserStore = create<UserState>()(
         const state = get();
         const today = new Date().toISOString().split('T')[0];
 
-        const wasNewDay = state.lastActiveDate !== today;
-        let { streakDays } = state;
+        // Streak ya no se actualiza aquí — se actualiza en endSessionStreak()
+        const { streakDays } = state;
+        const streakLongest = state.streakLongest;
         let lastActiveDate = state.lastActiveDate;
-        let newFreezes = state.freezes;
-        let newFreezeLastUsedDate = state.freezeLastUsedDate;
 
-        if (wasNewDay) {
-          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-          if (lastActiveDate === yesterday) {
-            // Día consecutivo → incrementar racha
-            streakDays = streakDays + 1;
-          } else if (lastActiveDate !== null && state.freezes > 0 && state.freezeLastUsedDate !== yesterday) {
-            // Rompió la racha por inactividad PERO tiene freeze → proteger racha
-            streakDays = streakDays + 1;
-            newFreezes = state.freezes - 1;
-            newFreezeLastUsedDate = yesterday;
-          } else {
-            // Sin freeze → racha se rompe, empieza desde 1
-            streakDays = 1;
-          }
+        if (state.lastActiveDate !== today) {
           lastActiveDate = today;
-        }
-        const streakLongest = Math.max(state.streakLongest, streakDays);
-
-        // Ganar freeze por hito de 7 días de racha
-        if (solved && wasNewDay && streakDays > 0 && streakDays % 7 === 0) {
-          newFreezes = Math.min(3, newFreezes + 1);
         }
 
         const monday = getMondayISO(today);
@@ -401,8 +384,6 @@ export const useUserStore = create<UserState>()(
           failedByTheme,
           eloHistory,
           unlockedMedals,
-          freezes: newFreezes,
-          freezeLastUsedDate: newFreezeLastUsedDate,
         });
       },
 
@@ -411,6 +392,44 @@ export const useUserStore = create<UserState>()(
       setBoardTheme: (theme) => set({ boardTheme: theme }),
       setPieceSet: (s) => set({ pieceSet: s }),
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
+
+      endSessionStreak: () => {
+        const today = new Date().toISOString().split('T')[0];
+        const { lastSessionEndDate, streakDays, streakLongest, freezes, freezeLastUsedDate, lastActiveDate } = get();
+
+        // Solo contar una sesión por día
+        if (lastSessionEndDate === today) return;
+
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        let newStreak = 1;
+        let newFreezes = freezes;
+        let newFreezeLastUsedDate = freezeLastUsedDate;
+
+        if (lastSessionEndDate === yesterday) {
+          newStreak = streakDays + 1;
+        } else if (lastSessionEndDate !== null && freezes > 0 && freezeLastUsedDate !== yesterday) {
+          // Gap de un día pero tiene freeze → proteger racha
+          newStreak = streakDays + 1;
+          newFreezes = freezes - 1;
+          newFreezeLastUsedDate = yesterday;
+        } else if (lastSessionEndDate === null && lastActiveDate !== null) {
+          // Primera sesión del usuario nuevo o migración: empezar desde streakDays actual
+          newStreak = streakDays > 0 ? streakDays : 1;
+        }
+
+        // Ganar freeze por hito de 7 días de racha
+        if (newStreak > 0 && newStreak % 7 === 0) {
+          newFreezes = Math.min(3, newFreezes + 1);
+        }
+
+        set({
+          streakDays: newStreak,
+          streakLongest: Math.max(streakLongest, newStreak),
+          lastSessionEndDate: today,
+          freezes: newFreezes,
+          freezeLastUsedDate: newFreezeLastUsedDate,
+        });
+      },
 
       gainFreeze: () => {
         const { freezes } = get();
@@ -497,12 +516,13 @@ export const useUserStore = create<UserState>()(
         calibrationPendingConfirmation: false,
         freezes: 0,
         freezeLastUsedDate: null,
+        lastSessionEndDate: null,
         // GDPR no se resetea al hacer logout
       }),
     }),
     {
       name: 'user-store',
-      version: 6,
+      version: 7,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -552,6 +572,10 @@ export const useUserStore = create<UserState>()(
         if (version < 6) {
           return { ...state, freezes: 0, freezeLastUsedDate: null };
         }
+        if (version < 7) {
+          // Migración racha: días con ≥1 puzzle = sesión completada retroactivamente
+          return { ...state, lastSessionEndDate: (state.lastActiveDate as string | null) ?? null };
+        }
         return state;
       },
       partialize: (state) => ({
@@ -592,6 +616,7 @@ export const useUserStore = create<UserState>()(
         soundEnabled: state.soundEnabled,
         freezes: state.freezes,
         freezeLastUsedDate: state.freezeLastUsedDate,
+        lastSessionEndDate: state.lastSessionEndDate,
       }),
     },
   ),

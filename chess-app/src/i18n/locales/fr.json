@@ -481,6 +481,19 @@
   "referral": {
     "shareBtn": "Inviter des amis — +{{days}} jours gratuits par parrainage activé"
   },
+  "session_end": {
+    "end_session_button": "Terminer la session",
+    "modal_title": "Session terminée",
+    "days": "jours",
+    "stat_streak": "Jours de série",
+    "stat_accuracy": "Précision",
+    "stat_puzzles": "Puzzles résolus",
+    "stat_time": "Temps joué",
+    "solved": "Résolus",
+    "failed": "Échoués",
+    "time": "Temps",
+    "continue_button": "Continuer"
+  },
   "notification": {
     "title": "Chess Puzzles",
     "streakBody_one": "🔥 Vous avez 1 jour de série. Ne la brisez pas !",

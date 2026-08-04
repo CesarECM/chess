@@ -481,6 +481,19 @@
   "referral": {
     "shareBtn": "Invite friends — +{{days}} free days per activated referral"
   },
+  "session_end": {
+    "end_session_button": "End session",
+    "modal_title": "Session complete",
+    "days": "days",
+    "stat_streak": "Day streak",
+    "stat_accuracy": "Accuracy",
+    "stat_puzzles": "Puzzles solved",
+    "stat_time": "Time played",
+    "solved": "Solved",
+    "failed": "Failed",
+    "time": "Time",
+    "continue_button": "Continue"
+  },
   "notification": {
     "title": "Chess Puzzles",
     "streakBody_one": "🔥 You have a 1-day streak. Don't break it!",

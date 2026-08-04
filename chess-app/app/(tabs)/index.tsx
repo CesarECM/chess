@@ -16,7 +16,8 @@ import { LockedSlot } from '@/components/feed/LockedSlot';
 import { SpringPager } from '@/components/feed/SpringPager';
 import type { SpringPagerRef } from '@/components/feed/SpringPager';
 import { showInterstitialIfDue } from '@/services/ads';
-import { PROGRESS_CARDS_ENABLED, PRE_ELO_ONBOARDING_WINDOW } from '@/constants';
+import { PROGRESS_CARDS_ENABLED, PRE_ELO_ONBOARDING_WINDOW, SESSION_MANUAL_MIN_CORRECT } from '@/constants';
+import { SessionEndModal } from '@/components/feed/SessionEndModal';
 import { detectSessionStartEvents } from '@/services/feedMessages';
 import type { FeedItem, Puzzle, ProgressMessage } from '@/types';
 import type { SolverStatus } from '@/hooks/usePuzzleSolverLocal';
@@ -34,6 +35,12 @@ export default function FeedScreen() {
   const feed           = usePuzzleStore((s) => s.feed);
   const setFeed        = usePuzzleStore((s) => s.setFeed);
   const sessionHistory = usePuzzleStore((s) => s.sessionHistory);
+  const sessionFirstAttemptSolvedCount = usePuzzleStore((s) => s.sessionFirstAttemptSolvedCount);
+  const sessionTotalSolved = usePuzzleStore((s) => s.sessionTotalSolved);
+  const sessionTotalFailed = usePuzzleStore((s) => s.sessionTotalFailed);
+  const sessionStartTime   = usePuzzleStore((s) => s.sessionStartTime);
+  const endSessionStreak   = useUserStore((s) => s.endSessionStreak);
+  const streakDays         = useUserStore((s) => s.streakDays);
 
   const insertMessagesAfterIndex = usePuzzleStore((s) => s.insertMessagesAfterIndex);
   const insertBeforeLockedSlot   = usePuzzleStore((s) => s.insertBeforeLockedSlot);
@@ -48,6 +55,7 @@ export default function FeedScreen() {
   const [listHeight,       setListHeight]       = useState(Dimensions.get('window').height - 80);
   const [activeStatus,     setActiveStatus]     = useState<SolverStatus>('idle');
   const [waitingForBuffer, setWaitingForBuffer] = useState(false);
+  const [sessionEndVisible, setSessionEndVisible] = useState(false);
 
   // ── Debug panel ──────────────────────────────────────────────────────────
   const [debugVisible, setDebugVisible] = useState(false);
@@ -396,6 +404,18 @@ export default function FeedScreen() {
     scrollToNext();
   }, [scrollToNext, addLog]);
 
+  const handleEndSession = useCallback(() => {
+    endSessionStreak();
+    setSessionEndVisible(true);
+  }, [endSessionStreak]);
+
+  const handleSessionEndClose = useCallback(() => {
+    setSessionEndVisible(false);
+    initSession(eloRef.current);
+  }, [initSession]);
+
+  const sessionEndUnlocked = sessionFirstAttemptSolvedCount >= SESSION_MANUAL_MIN_CORRECT;
+
   // ── pager enabled: web always scrollable; native blocked while mid-puzzle ─
   const pagerEnabled = Platform.OS === 'web' || activeStatus === 'idle' || activeStatus === 'complete' || activeStatus === 'reviewed';
 
@@ -523,6 +543,28 @@ export default function FeedScreen() {
         </Animated.View>
       )}
 
+      {/* Terminar sesión — visible cuando se desbloquea el gate */}
+      {sessionEndUnlocked && (
+        <TouchableOpacity
+          style={[styles.endSessionBtn, { backgroundColor: colors.surface, borderColor: colors.textSecondary + '44' }]}
+          onPress={handleEndSession}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.endSessionText, { color: colors.textSecondary }]}>
+            {t('session_end.end_session_button')}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <SessionEndModal
+        visible={sessionEndVisible}
+        streakDays={streakDays}
+        sessionTotalSolved={sessionTotalSolved}
+        sessionTotalFailed={sessionTotalFailed}
+        sessionStartTime={sessionStartTime}
+        onClose={handleSessionEndClose}
+      />
+
       {/* Debug toggle — triple-tap top-right corner */}
       <TouchableOpacity
         onPress={handleDebugTap}
@@ -549,4 +591,19 @@ const styles = StyleSheet.create({
   profileHintIcon: { fontSize: 36 },
   profileHintText: { fontSize: 13, fontWeight: '600' },
   debugTap:        { position: 'absolute', top: 0, right: 0, width: 60, height: 60 },
+  endSessionBtn: {
+    position: 'absolute',
+    bottom: 80,
+    right: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  endSessionText: { fontSize: 13, fontWeight: '600' },
 });
