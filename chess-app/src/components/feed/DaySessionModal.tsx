@@ -8,14 +8,18 @@ import { showRewardedAdForFreeze } from '@/services/ads';
 import { analytics } from '@/services/analytics';
 import { scheduleBackgroundNotifications } from '@/services/notifications';
 
+interface SummaryStats { solved: number; failed: number; durationMs: number }
+
 interface Props {
   visible:            boolean;
-  isComplete:         boolean;   // gate reached
-  isBlockedByLives:   boolean;   // opened because lives = 0
+  isComplete:         boolean;      // gate reached, not yet confirmed
+  isResumen:          boolean;      // already completed today
+  isBlockedByLives:   boolean;      // opened because lives = 0
   streakDays:         number;
   sessionTotalSolved: number;
   sessionTotalFailed: number;
   sessionStartTime:   number | null;
+  summaryStats:       SummaryStats | null;  // saved stats shown in resumen mode
   onClose:            () => void;
   onComplete:         () => void;
 }
@@ -39,11 +43,13 @@ function formatCountdown(ms: number): string {
 export function DaySessionModal({
   visible,
   isComplete,
+  isResumen,
   isBlockedByLives,
   streakDays,
   sessionTotalSolved,
   sessionTotalFailed,
   sessionStartTime,
+  summaryStats,
   onClose,
   onComplete,
 }: Props) {
@@ -101,8 +107,20 @@ export function DaySessionModal({
   const canRedeemCrystal = crystals >= CRYSTALS_PER_LIFE && lives.current < lives.max;
   const livesBlocked     = isBlockedByLives && lives.current === 0;
 
-  const statusLabel = isComplete ? 'Sesión completa ✓' : 'Sesión activa';
-  const statusColor = isComplete ? colors.success : colors.accent;
+  const statusLabel = isResumen ? 'Resumen del día ✓' : isComplete ? 'Sesión completa ✓' : 'Sesión activa';
+  const statusColor = isResumen || isComplete ? colors.success : colors.accent;
+
+  // In resumen mode, show saved stats; otherwise show live session stats
+  const displaySolved   = isResumen && summaryStats ? summaryStats.solved   : sessionTotalSolved;
+  const displayFailed   = isResumen && summaryStats ? summaryStats.failed   : sessionTotalFailed;
+  const displayDuration = isResumen && summaryStats
+    ? (() => {
+        const secs = Math.round(summaryStats.durationMs / 1000);
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        return m > 0 ? `${m}m ${s}s` : `${s}s`;
+      })()
+    : formatDuration(sessionStartTime);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -114,18 +132,26 @@ export function DaySessionModal({
             {statusLabel}
           </Text>
 
+          {/* ── Streak highlight (resumen only) ─────────────────── */}
+          {isResumen && (
+            <View style={[styles.streakBox, { backgroundColor: colors.success + '18' }]}>
+              <Text style={[styles.streakValue, { color: colors.success }]}>{streakDays}</Text>
+              <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>días de racha 🔥</Text>
+            </View>
+          )}
+
           {/* ── Stats row ──────────────────────────────────────── */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.success }]}>{sessionTotalSolved}</Text>
+              <Text style={[styles.statValue, { color: colors.success }]}>{displaySolved}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Resueltos</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.error }]}>{sessionTotalFailed}</Text>
+              <Text style={[styles.statValue, { color: colors.error }]}>{displayFailed}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Fallados</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.text }]}>{formatDuration(sessionStartTime)}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{displayDuration}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Tiempo</Text>
             </View>
           </View>
@@ -164,8 +190,8 @@ export function DaySessionModal({
             </View>
           )}
 
-          {/* ── Complete session button ────────────────────────── */}
-          {isComplete && (
+          {/* ── Complete session button (only when gate reached and not yet confirmed) ── */}
+          {isComplete && !isResumen && (
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: colors.success }]}
               onPress={handleComplete}
@@ -192,7 +218,7 @@ export function DaySessionModal({
           {!livesBlocked && (
             <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
               <Text style={[styles.closeText, { color: colors.textSecondary }]}>
-                {isComplete ? 'Cerrar' : 'Seguir jugando'}
+                {isResumen || isComplete ? 'Cerrar' : 'Seguir jugando'}
               </Text>
             </TouchableOpacity>
           )}
@@ -220,4 +246,7 @@ const styles = StyleSheet.create({
   reinoBtn:        { width: '100%', paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
   reinoBtnText:    { fontSize: 14, fontWeight: '700' },
   closeText:       { fontSize: 13, fontWeight: '500', paddingVertical: 4 },
+  streakBox:       { width: '100%', borderRadius: 14, paddingVertical: 16, alignItems: 'center', gap: 2 },
+  streakValue:     { fontSize: 48, fontWeight: '800', lineHeight: 54 },
+  streakLabel:     { fontSize: 14, fontWeight: '600' },
 });

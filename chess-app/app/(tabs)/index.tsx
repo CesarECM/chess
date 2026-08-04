@@ -43,7 +43,10 @@ export default function FeedScreen() {
   const sessionTotalFailed = usePuzzleStore((s) => s.sessionTotalFailed);
   const sessionStartTime   = usePuzzleStore((s) => s.sessionStartTime);
   const livesCount         = useReinoStore((s) => s.lives.current);
-  const endSessionStreak   = useUserStore((s) => s.endSessionStreak);
+  const endSessionStreak    = useUserStore((s) => s.endSessionStreak);
+  const completeDaySession  = useUserStore((s) => s.completeDaySession);
+  const dayCompletedDate    = useUserStore((s) => s.dayCompletedDate);
+  const daySummaryStats     = useUserStore((s) => s.daySummaryStats);
   const streakDays         = useUserStore((s) => s.streakDays);
 
   const insertMessagesAfterIndex = usePuzzleStore((s) => s.insertMessagesAfterIndex);
@@ -413,6 +416,8 @@ export default function FeedScreen() {
 
   const sessionCompleted   = sessionFirstAttemptSolvedCount >= SESSION_MANUAL_MIN_CORRECT;
   const hasStartedSession  = sessionPuzzleCount > 0;
+  const today              = new Date().toISOString().split('T')[0];
+  const isResumen          = dayCompletedDate === today;
 
   // Auto-open modal when lives hit 0 (not during calibration)
   useEffect(() => {
@@ -434,11 +439,15 @@ export default function FeedScreen() {
   }, []);
 
   const handleCompleteSession = useCallback(() => {
-    endSessionStreak();
+    const stats = {
+      solved:     sessionTotalSolved,
+      failed:     sessionTotalFailed,
+      durationMs: sessionStartTime ? Date.now() - sessionStartTime : 0,
+    };
+    completeDaySession(stats);
     setDaySessionVisible(false);
     setDaySessionByLives(false);
-    initSession(eloRef.current);
-  }, [endSessionStreak, initSession]);
+  }, [completeDaySession, sessionTotalSolved, sessionTotalFailed, sessionStartTime]);
 
   // ── pager enabled: web always scrollable; native blocked while mid-puzzle ─
   const pagerEnabled = Platform.OS === 'web' || activeStatus === 'idle' || activeStatus === 'complete' || activeStatus === 'reviewed';
@@ -568,20 +577,20 @@ export default function FeedScreen() {
       )}
 
       {/* Sesión del día — visible desde el primer puzzle */}
-      {hasStartedSession && (
+      {(hasStartedSession || isResumen) && (
         <TouchableOpacity
           style={[
             styles.endSessionBtn,
             {
-              backgroundColor: sessionCompleted ? colors.success + '22' : colors.surface,
-              borderColor:     sessionCompleted ? colors.success + '88' : colors.textSecondary + '44',
+              backgroundColor: (isResumen || sessionCompleted) ? colors.success + '22' : colors.surface,
+              borderColor:     (isResumen || sessionCompleted) ? colors.success + '88' : colors.textSecondary + '44',
             },
           ]}
           onPress={handleOpenDaySession}
           activeOpacity={0.8}
         >
-          <Text style={[styles.endSessionText, { color: sessionCompleted ? colors.success : colors.textSecondary }]}>
-            {sessionCompleted ? 'Sesión completa' : 'Sesión activa'}
+          <Text style={[styles.endSessionText, { color: (isResumen || sessionCompleted) ? colors.success : colors.textSecondary }]}>
+            {isResumen ? 'Sesión completa' : sessionCompleted ? 'Sesión completa' : 'Sesión activa'}
           </Text>
         </TouchableOpacity>
       )}
@@ -589,11 +598,13 @@ export default function FeedScreen() {
       <DaySessionModal
         visible={daySessionVisible}
         isComplete={sessionCompleted}
+        isResumen={isResumen}
         isBlockedByLives={daySessionByLives}
         streakDays={streakDays}
         sessionTotalSolved={sessionTotalSolved}
         sessionTotalFailed={sessionTotalFailed}
         sessionStartTime={sessionStartTime}
+        summaryStats={daySummaryStats}
         onClose={handleDaySessionClose}
         onComplete={handleCompleteSession}
       />

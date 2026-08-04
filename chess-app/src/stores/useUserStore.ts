@@ -83,6 +83,8 @@ interface UserState {
   freezes: number;
   freezeLastUsedDate: string | null;
   lastSessionEndDate: string | null;
+  dayCompletedDate:   string | null;
+  daySummaryStats:    { solved: number; failed: number; durationMs: number } | null;
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => number;
@@ -102,6 +104,7 @@ interface UserState {
   consumeFreeze: () => void;
   breakStreak: () => void;
   endSessionStreak: () => void;
+  completeDaySession: (stats: { solved: number; failed: number; durationMs: number }) => void;
   completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId, levelKey: string) => void;
   setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
@@ -156,6 +159,8 @@ export const useUserStore = create<UserState>()(
       freezes: 0,
       freezeLastUsedDate: null,
       lastSessionEndDate: null,
+      dayCompletedDate:   null,
+      daySummaryStats:    null,
       calibrationPendingConfirmation: false,
 
       setElo: (elo) => set({ elo }),
@@ -431,6 +436,12 @@ export const useUserStore = create<UserState>()(
         });
       },
 
+      completeDaySession: (stats) => {
+        const today = new Date().toISOString().split('T')[0];
+        set({ dayCompletedDate: today, daySummaryStats: stats });
+        get().endSessionStreak();
+      },
+
       gainFreeze: () => {
         const { freezes } = get();
         if (freezes >= 3) return;
@@ -517,12 +528,14 @@ export const useUserStore = create<UserState>()(
         freezes: 0,
         freezeLastUsedDate: null,
         lastSessionEndDate: null,
+        dayCompletedDate:   null,
+        daySummaryStats:    null,
         // GDPR no se resetea al hacer logout
       }),
     }),
     {
       name: 'user-store',
-      version: 7,
+      version: 8,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -576,6 +589,9 @@ export const useUserStore = create<UserState>()(
           // Migración racha: días con ≥1 puzzle = sesión completada retroactivamente
           return { ...state, lastSessionEndDate: (state.lastActiveDate as string | null) ?? null };
         }
+        if (version < 8) {
+          return { ...state, dayCompletedDate: null, daySummaryStats: null };
+        }
         return state;
       },
       partialize: (state) => ({
@@ -617,6 +633,8 @@ export const useUserStore = create<UserState>()(
         freezes: state.freezes,
         freezeLastUsedDate: state.freezeLastUsedDate,
         lastSessionEndDate: state.lastSessionEndDate,
+        dayCompletedDate:   state.dayCompletedDate,
+        daySummaryStats:    state.daySummaryStats,
       }),
     },
   ),
