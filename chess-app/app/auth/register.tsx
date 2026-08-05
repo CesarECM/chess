@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/hooks/useTheme';
-import { signUp } from '@/services/auth';
+import { signUp, syncDisplayNameToSupabase } from '@/services/auth';
 import { analytics } from '@/services/analytics';
 import { useUserStore } from '@/stores/useUserStore';
 
@@ -51,6 +51,7 @@ export default function RegisterScreen() {
       if (trimmedName) setDisplayName(trimmedName);
       analytics.track('registration_completed');
       if (session) {
+        if (trimmedName) syncDisplayNameToSupabase(session.user.id, trimmedName).catch(() => {});
         router.replace(returnTo === 'subscription' ? '/subscription' : '/');
       } else {
         setSuccess(true);

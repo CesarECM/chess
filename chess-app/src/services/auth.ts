@@ -91,6 +91,10 @@ export async function syncFreezesToSupabase(userId: string, freezes: number): Pr
   await supabase.from('profiles').update({ freezes }).eq('id', userId);
 }
 
+export async function syncDisplayNameToSupabase(userId: string, displayName: string): Promise<void> {
+  await supabase.from('profiles').update({ display_name: displayName }).eq('id', userId);
+}
+
 export function onAuthStateChange(
   callback: (event: string, user: User | null) => void,
 ) {
