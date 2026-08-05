@@ -91,7 +91,6 @@ function PuzzleCardComponent({
   const calibGlobalHigh  = useUserStore((s) => s.calibGlobalHigh);
   const streakDays       = useUserStore((s) => s.streakDays);
   const puzzlesCompleted = useUserStore((s) => s.puzzlesCompleted);
-  const sessionCount     = usePuzzleStore((s) => s.sessionPuzzleCount);
 
   const { cardRef, isSharing, captureAndShare } = useShareCard();
   const { state: analysisState, analyze, reset: resetAnalysisRaw } = useAnalysis();
@@ -565,11 +564,6 @@ function PuzzleCardComponent({
       )}
       <View style={styles.topRow}>
         <SessionBar />
-        {sessionCount > 0 && (
-          <Text style={[styles.sessionCount, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-            {t('puzzle.sessionCount', { count: sessionCount })}
-          </Text>
-        )}
       </View>
     </>
   );
@@ -1110,7 +1104,6 @@ const styles = StyleSheet.create({
 
   // ── Shared ───────────────────────────────────────────────────────────────
   topRow:         { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sessionCount:   { fontWeight: '600' },
   streakBadge:    { fontWeight: '700' },
   calibBar:       { width: '88%', borderRadius: 8, borderWidth: 1, padding: 10, gap: 8 },
   calibText:      { fontWeight: '600', textAlign: 'center' },
