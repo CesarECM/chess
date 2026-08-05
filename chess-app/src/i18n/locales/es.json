@@ -26,6 +26,7 @@
     "checkEmail": "Revisa tu email",
     "emailSent": "Te enviamos un link de confirmación a {{email}}. Una vez confirmado, inicia sesión.",
     "goToLogin": "Ir al inicio de sesión",
+    "nameOptional": "Nombre (opcional)",
     "hasAccount": "¿Ya tienes cuenta? Inicia sesión",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "resetHint": "Ingresa tu email y te enviaremos un link para restablecer tu contraseña.",
@@ -189,7 +190,11 @@
     "themeSubtitle": "Elige el color del tablero y el set de piezas que más te guste.",
     "continue": "Continuar",
     "start": "¡Empezar!",
-    "skip": "Saltar"
+    "skip": "Saltar",
+    "nameTitle": "¿Cómo te llamamos?",
+    "nameSubtitle": "Tu nombre aparecerá en tu tarjeta de progreso.",
+    "namePlaceholder": "Tu nombre",
+    "defaultName": "Jugador"
   },
   "skipWarning": {
     "title": "Puzzle sin terminar",

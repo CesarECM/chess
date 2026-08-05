@@ -26,6 +26,7 @@
     "checkEmail": "Check your email",
     "emailSent": "We sent a confirmation link to {{email}}. Once confirmed, sign in.",
     "goToLogin": "Go to sign in",
+    "nameOptional": "Name (optional)",
     "hasAccount": "Already have an account? Sign in",
     "forgotPassword": "Forgot your password?",
     "resetHint": "Enter your email and we'll send you a reset link.",
@@ -189,7 +190,11 @@
     "themeSubtitle": "Pick the board color and piece set you like most.",
     "continue": "Continue",
     "start": "Let's play!",
-    "skip": "Skip"
+    "skip": "Skip",
+    "nameTitle": "What should we call you?",
+    "nameSubtitle": "Your name will appear on your progress card.",
+    "namePlaceholder": "Your name",
+    "defaultName": "Player"
   },
   "skipWarning": {
     "title": "Puzzle unfinished",

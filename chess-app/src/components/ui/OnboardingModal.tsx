@@ -1,4 +1,4 @@
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -27,25 +27,25 @@ export function OnboardingModal() {
   const currentBoardTheme   = useUserStore((s) => s.boardTheme);
   const currentPieceSet     = useUserStore((s) => s.pieceSet);
 
-  const [step, setStep]             = useState<0 | 1>(0);
+  const [step, setStep]             = useState<0 | 1 | 2>(0);
   const [selectedLevel, setLevel]   = useState<LevelKey>('casual');
   const [selectedTheme, setTheme]   = useState<BoardThemeId>(currentBoardTheme);
   const [selectedPieces, setPieces] = useState<PieceSetId>(currentPieceSet);
+  const [displayName, setDisplayName] = useState('');
 
   // Show for every user (guest or registered) after GDPR is accepted
   const visible = !onboardingCompleted && gdprConsentDate !== null;
 
   function handleContinue() {
-    if (step === 0) {
-      setStep(1);
-      return;
-    }
+    if (step === 0) { setStep(1); return; }
+    if (step === 1) { setStep(2); return; }
     const level = LEVELS.find((l) => l.key === selectedLevel)!;
-    completeOnboarding(level.elo, selectedTheme, selectedPieces, selectedLevel);
+    const name = displayName.trim() || t('onboarding.defaultName');
+    completeOnboarding(level.elo, selectedTheme, selectedPieces, selectedLevel, name);
   }
 
   function handleSkip() {
-    completeOnboarding(1000, currentBoardTheme, currentPieceSet, 'intermediate');
+    completeOnboarding(1000, currentBoardTheme, currentPieceSet, 'intermediate', t('onboarding.defaultName'));
   }
 
   return (
@@ -54,7 +54,7 @@ export function OnboardingModal() {
         <View style={[styles.card, { backgroundColor: colors.surface, borderRadius: radius.lg }]}>
           {/* Step dots */}
           <View style={styles.dots}>
-            {([0, 1] as const).map((i) => (
+            {([0, 1, 2] as const).map((i) => (
               <View
                 key={i}
                 style={[
@@ -65,7 +65,26 @@ export function OnboardingModal() {
             ))}
           </View>
 
-          {step === 0 ? (
+          {step === 2 ? (
+            <>
+              <Text style={[styles.title, { color: colors.text, fontSize: typography.size.lg }]}>
+                {t('onboarding.nameTitle')}
+              </Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
+                {t('onboarding.nameSubtitle')}
+              </Text>
+              <TextInput
+                style={[styles.nameInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
+                placeholder={t('onboarding.namePlaceholder')}
+                placeholderTextColor={colors.textSecondary}
+                value={displayName}
+                onChangeText={(v) => setDisplayName(v.slice(0, 20))}
+                maxLength={20}
+                autoFocus
+                autoCapitalize="words"
+              />
+            </>
+          ) : step === 0 ? (
             <>
               <Text style={[styles.title, { color: colors.text, fontSize: typography.size.lg }]}>
                 {t('onboarding.levelTitle')}
@@ -190,7 +209,7 @@ export function OnboardingModal() {
             onPress={handleContinue}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.md }]}>
-              {step === 0 ? t('onboarding.continue') : t('onboarding.start')}
+              {step === 2 ? t('onboarding.start') : t('onboarding.continue')}
             </Text>
           </TouchableOpacity>
 
@@ -230,6 +249,8 @@ const styles = StyleSheet.create({
   pieceRow:     { flexDirection: 'row', justifyContent: 'space-around' },
   pieceChip:    { alignItems: 'center', gap: 6, padding: 10, borderWidth: 1.5 },
   queenImg:     { width: 44, height: 44 },
+  // Name step
+  nameInput:    { borderWidth: 1, padding: 14, marginTop: 8 },
   // CTA
   btn:          { paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   btnText:      { fontWeight: '700' },

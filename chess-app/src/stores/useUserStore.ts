@@ -86,6 +86,7 @@ interface UserState {
   dayCompletedDate:   string | null;
   daySummaryStats:    { solved: number; failed: number; durationMs: number } | null;
   seenMessageTypes:   string[];
+  displayName: string;
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => number;
@@ -107,7 +108,8 @@ interface UserState {
   endSessionStreak: () => void;
   completeDaySession: (stats: { solved: number; failed: number; durationMs: number }) => void;
   markMessageSeen: (type: string) => void;
-  completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId, levelKey: string) => void;
+  setDisplayName: (name: string) => void;
+  completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId, levelKey: string, displayName?: string) => void;
   setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
   setPremiumUntil: (date: string) => void;
@@ -164,6 +166,7 @@ export const useUserStore = create<UserState>()(
       dayCompletedDate:   null,
       daySummaryStats:    null,
       seenMessageTypes:   [],
+      displayName: '',
       calibrationPendingConfirmation: false,
 
       setElo: (elo) => set({ elo }),
@@ -451,6 +454,8 @@ export const useUserStore = create<UserState>()(
         set({ seenMessageTypes: [...seenMessageTypes, type] });
       },
 
+      setDisplayName: (name) => set({ displayName: name }),
+
       gainFreeze: () => {
         const { freezes } = get();
         if (freezes >= 3) return;
@@ -466,7 +471,7 @@ export const useUserStore = create<UserState>()(
 
       breakStreak: () => set({ streakDays: 0 }),
 
-      completeOnboarding: (levelElo, theme, pieces, levelKey) => {
+      completeOnboarding: (levelElo, theme, pieces, levelKey, displayName = '') => {
         const { calibrationBounds } = get();
         const clampedTarget = Math.max(calibrationBounds.low, Math.min(calibrationBounds.high, levelElo));
         const startLow  = Math.max(calibrationBounds.low,  clampedTarget - PRE_ELO_ONBOARDING_WINDOW);
@@ -476,6 +481,7 @@ export const useUserStore = create<UserState>()(
           pieceSet: pieces,
           onboardingCompleted: true,
           declaredLevel: levelKey,
+          displayName,
           firstPuzzleRating: clampedTarget,
           preEloLow:       startLow,
           preEloHigh:      startHigh,
@@ -540,12 +546,13 @@ export const useUserStore = create<UserState>()(
         dayCompletedDate:   null,
         daySummaryStats:    null,
         seenMessageTypes:   [],
+        displayName: '',
         // GDPR no se resetea al hacer logout
       }),
     }),
     {
       name: 'user-store',
-      version: 9,
+      version: 10,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -605,6 +612,9 @@ export const useUserStore = create<UserState>()(
         if (version < 9) {
           return { ...state, seenMessageTypes: [] };
         }
+        if (version < 10) {
+          return { ...state, displayName: '' };
+        }
         return state;
       },
       partialize: (state) => ({
@@ -649,6 +659,7 @@ export const useUserStore = create<UserState>()(
         dayCompletedDate:   state.dayCompletedDate,
         daySummaryStats:    state.daySummaryStats,
         seenMessageTypes:   state.seenMessageTypes,
+        displayName:        state.displayName,
       }),
     },
   ),

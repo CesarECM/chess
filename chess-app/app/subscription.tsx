@@ -14,7 +14,7 @@ export default function SubscriptionScreen() {
   const { colors, typography, radius } = useTheme();
   const { t } = useTranslation();
   const router  = useRouter();
-  const { user } = useAuthStore();
+  const { user, isGuest } = useAuthStore();
   const isPremium = useUserStore((s) => s.isPremium);
 
   const [pkg,        setPkg]        = useState<PurchasesPackage | null>(null);
@@ -30,6 +30,10 @@ export default function SubscriptionScreen() {
   }, []);
 
   async function handlePurchase() {
+    if (isGuest) {
+      router.push('/auth/register?returnTo=subscription');
+      return;
+    }
     setBuying(true);
     setMessage(null);
     try {

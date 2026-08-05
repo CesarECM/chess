@@ -26,6 +26,7 @@
     "checkEmail": "Vérifiez votre e-mail",
     "emailSent": "Nous avons envoyé un lien de confirmation à {{email}}. Une fois confirmé, connectez-vous.",
     "goToLogin": "Aller à la connexion",
+    "nameOptional": "Prénom (facultatif)",
     "hasAccount": "Déjà un compte ? Se connecter",
     "forgotPassword": "Mot de passe oublié ?",
     "resetHint": "Entrez votre e-mail et nous vous enverrons un lien de réinitialisation.",
@@ -189,7 +190,11 @@
     "themeSubtitle": "Choisissez la couleur de l'échiquier et le set de pièces.",
     "continue": "Continuer",
     "start": "C'est parti !",
-    "skip": "Passer"
+    "skip": "Passer",
+    "nameTitle": "Comment vous appeler ?",
+    "nameSubtitle": "Votre prénom apparaîtra sur votre carte de progression.",
+    "namePlaceholder": "Votre prénom",
+    "defaultName": "Joueur"
   },
   "skipWarning": {
     "title": "Puzzle inachevé",

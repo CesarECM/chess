@@ -9,23 +9,28 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/hooks/useTheme';
 import { signUp } from '@/services/auth';
 import { analytics } from '@/services/analytics';
+import { useUserStore } from '@/stores/useUserStore';
 
 export default function RegisterScreen() {
   const { colors, typography, radius } = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const storeDisplayName = useUserStore((s) => s.displayName);
+  const setDisplayName   = useUserStore((s) => s.setDisplayName);
 
-  const [email, setEmail] = useState('');
+  const [name, setName]       = useState(storeDisplayName);
+  const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   async function handleRegister() {
@@ -42,9 +47,13 @@ export default function RegisterScreen() {
     setError(null);
     try {
       const { session } = await signUp(email.trim(), password);
-      if (!session) {
+      const trimmedName = name.trim();
+      if (trimmedName) setDisplayName(trimmedName);
+      analytics.track('registration_completed');
+      if (session) {
+        router.replace(returnTo === 'subscription' ? '/subscription' : '/');
+      } else {
         setSuccess(true);
-        analytics.track('registration_completed');
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t('auth.errorRegister'));
@@ -79,6 +88,16 @@ export default function RegisterScreen() {
           {t('auth.createAccount')}
         </Text>
 
+        <TextInput
+          style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
+          placeholder={t('auth.nameOptional')}
+          placeholderTextColor={colors.textSecondary}
+          value={name}
+          onChangeText={(v) => setName(v.slice(0, 20))}
+          maxLength={20}
+          autoCapitalize="words"
+          autoComplete="name"
+        />
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
           placeholder={t('auth.email')}
