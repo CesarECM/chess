@@ -100,8 +100,10 @@ export default function FeedScreen() {
   const puzzleBufferRef      = useRef<Puzzle[]>([]);
   const pendingNextPuzzleRef = useRef(false);
 
-  const profileHintAnim   = useRef(new Animated.Value(0)).current;
-  const profileHintActive = useRef(false);
+  const profileHintAnim      = useRef(new Animated.Value(0)).current;
+  const profileHintActive    = useRef(false);
+  const sessionBtnScale      = useRef(new Animated.Value(1)).current;
+  const prevSessionCompleted = useRef(false);
 
   const preEloLowRef  = useRef(preEloLow);
   const preEloHighRef = useRef(preEloHigh);
@@ -419,6 +421,20 @@ export default function FeedScreen() {
   const today              = new Date().toISOString().split('T')[0];
   const isResumen          = dayCompletedDate === today;
 
+  // Pulso en el botón cuando la sesión pasa a "completa" por primera vez
+  useEffect(() => {
+    if (sessionCompleted && !prevSessionCompleted.current) {
+      Animated.sequence([
+        Animated.timing(sessionBtnScale, { toValue: 1.18, duration: 140, useNativeDriver: true }),
+        Animated.timing(sessionBtnScale, { toValue: 0.93, duration: 100, useNativeDriver: true }),
+        Animated.timing(sessionBtnScale, { toValue: 1.06, duration: 80,  useNativeDriver: true }),
+        Animated.timing(sessionBtnScale, { toValue: 1,    duration: 80,  useNativeDriver: true }),
+      ]).start();
+    }
+    prevSessionCompleted.current = sessionCompleted;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionCompleted]);
+
   // Auto-open modal when lives hit 0 (not during calibration)
   useEffect(() => {
     if (livesCount === 0 && hasStartedSession && preEloLow === null) {
@@ -578,21 +594,23 @@ export default function FeedScreen() {
 
       {/* Sesión del día — visible desde el primer puzzle */}
       {(hasStartedSession || isResumen) && (
-        <TouchableOpacity
-          style={[
-            styles.endSessionBtn,
-            {
-              backgroundColor: (isResumen || sessionCompleted) ? colors.success + '22' : colors.surface,
-              borderColor:     (isResumen || sessionCompleted) ? colors.success + '88' : colors.textSecondary + '44',
-            },
-          ]}
-          onPress={handleOpenDaySession}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.endSessionText, { color: (isResumen || sessionCompleted) ? colors.success : colors.textSecondary }]}>
-            {isResumen ? 'Sesión completa' : sessionCompleted ? 'Sesión completa' : 'Sesión activa'}
-          </Text>
-        </TouchableOpacity>
+        <Animated.View style={[styles.endSessionBtnWrap, { transform: [{ scale: sessionBtnScale }] }]}>
+          <TouchableOpacity
+            style={[
+              styles.endSessionBtn,
+              {
+                backgroundColor: (isResumen || sessionCompleted) ? colors.success + '22' : colors.surface,
+                borderColor:     (isResumen || sessionCompleted) ? colors.success + '88' : colors.textSecondary + '44',
+              },
+            ]}
+            onPress={handleOpenDaySession}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.endSessionText, { color: (isResumen || sessionCompleted) ? colors.success : colors.textSecondary }]}>
+              {isResumen ? 'Sesión completa' : sessionCompleted ? 'Sesión completa' : 'Sesión activa'}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
       )}
 
       <DaySessionModal
@@ -635,10 +653,12 @@ const styles = StyleSheet.create({
   profileHintIcon: { fontSize: 36 },
   profileHintText: { fontSize: 13, fontWeight: '600' },
   debugTap:        { position: 'absolute', top: 0, right: 0, width: 60, height: 60 },
-  endSessionBtn: {
+  endSessionBtnWrap: {
     position: 'absolute',
     bottom: 80,
     right: 16,
+  },
+  endSessionBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,

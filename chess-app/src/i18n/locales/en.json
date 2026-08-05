@@ -241,6 +241,11 @@
       "title": "{{count}} in a row",
       "body": "You're on fire. Keep the focus."
     },
+    "perfect_run_clean": {
+      "title": "{{count}} perfect in a row",
+      "body_5": "No mistakes, no hints. Your crowns are now gold.",
+      "body_10": "Perfect streak of {{count}}. Every crown from here on is gold. 👑"
+    },
     "comeback": {
       "title": "Comeback!",
       "bodies": [

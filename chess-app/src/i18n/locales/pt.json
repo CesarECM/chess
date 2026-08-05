@@ -241,6 +241,11 @@
       "title": "{{count}} acertos seguidos",
       "body": "Você está em chamas. Mantenha o foco."
     },
+    "perfect_run_clean": {
+      "title": "{{count}} perfeitos seguidos",
+      "body_5": "Sem erros nem dicas. Suas coroas agora são de ouro.",
+      "body_10": "Sequência perfeita de {{count}}. Cada coroa daqui em diante é de ouro. 👑"
+    },
     "comeback": {
       "title": "Virada!",
       "bodies": [

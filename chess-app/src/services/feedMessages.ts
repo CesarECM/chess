@@ -13,14 +13,18 @@ export interface PuzzleEventSnapshot {
   medalsAfter:       string[];
   eloHistoryBefore:  EloSnapshot[];
   // Session state before increment
-  sessionPuzzleCountBefore:   number;
-  consecutiveSolvedBefore:    number;
-  consecutiveFailedBefore:    number;
-  consecutiveSolvedAfter:     number;
-  sessionStartElo:            number;
-  sessionEloGainShown:        boolean;
-  sessionPerfectRun5Shown:    boolean;
-  sessionPerfectRun10Shown:   boolean;
+  sessionPuzzleCountBefore:       number;
+  consecutiveSolvedBefore:        number;
+  consecutiveFailedBefore:        number;
+  consecutiveSolvedAfter:         number;
+  consecutiveCleanSolvedBefore:   number;
+  consecutiveCleanSolvedAfter:    number;
+  sessionStartElo:                number;
+  sessionEloGainShown:            boolean;
+  sessionPerfectRun5Shown:        boolean;
+  sessionPerfectRun10Shown:       boolean;
+  sessionCleanRun5Shown:          boolean;
+  sessionCleanRun10Shown:         boolean;
   // FSRS state before this review
   fsrsStateBefore:            number;   // 0=New 1=Learning 2=Review 3=Relearning
   fsrsRepsBefore:             number;
@@ -92,6 +96,24 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       id:      'perfect_run_10',
       kind:    'progress',
       type:    'perfect_run',
+      payload: { count: 10 },
+    });
+  }
+
+  // 5b. Racha limpia en sesión (primer intento, sin pista, sin error)
+  if (!s.sessionCleanRun5Shown && s.consecutiveCleanSolvedAfter === 5) {
+    messages.push({
+      id:      'perfect_run_clean_5',
+      kind:    'progress',
+      type:    'perfect_run_clean',
+      payload: { count: 5 },
+    });
+  }
+  if (!s.sessionCleanRun10Shown && s.consecutiveCleanSolvedAfter === 10) {
+    messages.push({
+      id:      'perfect_run_clean_10',
+      kind:    'progress',
+      type:    'perfect_run_clean',
       payload: { count: 10 },
     });
   }

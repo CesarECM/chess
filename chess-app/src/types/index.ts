@@ -65,7 +65,8 @@ export type MessageType =
   | 'calibration_insight'
   | 'calibration_midpoint'
   | 'calibration_complete'
-  | 'recalibration_streak';
+  | 'recalibration_streak'
+  | 'perfect_run_clean';
 
 export interface ProgressMessage {
   id: string;

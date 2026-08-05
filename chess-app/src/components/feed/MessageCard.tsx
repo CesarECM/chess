@@ -31,6 +31,7 @@ const ICONS: Record<MessageType, string> = {
   calibration_midpoint:   '📊',
   calibration_complete:   '🏆',
   recalibration_streak:   '📈',
+  perfect_run_clean:      '👑',
 };
 
 function getIcon(message: ProgressMessage): string {
@@ -53,6 +54,9 @@ const MULTI_BODY_TYPES: Partial<Record<MessageType, true>> = {
 };
 
 function getBodyKey(message: ProgressMessage): string {
+  if (message.type === 'perfect_run_clean') {
+    return `message.perfect_run_clean.body_${message.payload.count}`;
+  }
   if (MULTI_BODY_TYPES[message.type]) {
     return `message.${message.type}.bodies.${message.payload.bodyIndex ?? 0}`;
   }

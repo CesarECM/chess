@@ -241,6 +241,11 @@
       "title": "{{count}} corrects d'affilée",
       "body": "Vous êtes en forme. Gardez la concentration."
     },
+    "perfect_run_clean": {
+      "title": "{{count}} parfaits d'affilée",
+      "body_5": "Aucune erreur, aucun indice. Vos couronnes sont désormais en or.",
+      "body_10": "Série parfaite de {{count}}. Chaque couronne sera désormais en or. 👑"
+    },
     "comeback": {
       "title": "Retour en force !",
       "bodies": [

@@ -41,6 +41,9 @@ interface PuzzleState {
   sessionFirstAttemptSolvedCount: number;
   consecutiveSolvedInSession:    number;
   consecutiveFailedInSession:    number;
+  consecutiveCleanSolvedInSession: number;
+  sessionCleanRun5Shown:          boolean;
+  sessionCleanRun10Shown:         boolean;
   sessionEloGainShown:           boolean;
   sessionPerfectRun5Shown:       boolean;
   sessionPerfectRun10Shown:      boolean;
@@ -55,6 +58,8 @@ interface PuzzleState {
   recordFirstAttemptSolvedInSession: () => void;
   recordFailedInSession:         () => void;
   resetBonusCounter:             () => void;
+  markSessionCleanRun5Shown:     () => void;
+  markSessionCleanRun10Shown:    () => void;
   markSessionEloGainShown:       () => void;
   markSessionPerfectRun5Shown:   () => void;
   markSessionPerfectRun10Shown:  () => void;
@@ -124,6 +129,9 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   sessionFirstAttemptSolvedCount: 0,
   consecutiveSolvedInSession:    0,
   consecutiveFailedInSession:    0,
+  consecutiveCleanSolvedInSession: 0,
+  sessionCleanRun5Shown:          false,
+  sessionCleanRun10Shown:         false,
   sessionEloGainShown:           false,
   sessionPerfectRun5Shown:       false,
   sessionPerfectRun10Shown:      false,
@@ -143,6 +151,9 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     sessionFirstAttemptSolvedCount: 0,
     consecutiveSolvedInSession:    0,
     consecutiveFailedInSession:    0,
+    consecutiveCleanSolvedInSession: 0,
+    sessionCleanRun5Shown:          false,
+    sessionCleanRun10Shown:         false,
     sessionEloGainShown:           false,
     sessionPerfectRun5Shown:       false,
     sessionPerfectRun10Shown:      false,
@@ -155,32 +166,37 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   }),
 
   recordSolvedInSession: () => set((s) => ({
-    sessionPuzzleCount:         s.sessionPuzzleCount + 1,
-    sessionTotalSolved:         s.sessionTotalSolved + 1,
-    consecutiveSolvedInSession: s.consecutiveSolvedInSession + 1,
-    consecutiveFailedInSession: 0,
-    puzzlesSinceLastBonus:      s.puzzlesSinceLastBonus + 1,
+    sessionPuzzleCount:              s.sessionPuzzleCount + 1,
+    sessionTotalSolved:              s.sessionTotalSolved + 1,
+    consecutiveSolvedInSession:      s.consecutiveSolvedInSession + 1,
+    consecutiveFailedInSession:      0,
+    consecutiveCleanSolvedInSession: 0,
+    puzzlesSinceLastBonus:           s.puzzlesSinceLastBonus + 1,
   })),
 
   recordFirstAttemptSolvedInSession: () => set((s) => ({
-    sessionPuzzleCount:             s.sessionPuzzleCount + 1,
-    sessionTotalSolved:             s.sessionTotalSolved + 1,
-    sessionFirstAttemptSolvedCount: s.sessionFirstAttemptSolvedCount + 1,
-    consecutiveSolvedInSession:     s.consecutiveSolvedInSession + 1,
-    consecutiveFailedInSession:     0,
-    puzzlesSinceLastBonus:          s.puzzlesSinceLastBonus + 1,
+    sessionPuzzleCount:              s.sessionPuzzleCount + 1,
+    sessionTotalSolved:              s.sessionTotalSolved + 1,
+    sessionFirstAttemptSolvedCount:  s.sessionFirstAttemptSolvedCount + 1,
+    consecutiveSolvedInSession:      s.consecutiveSolvedInSession + 1,
+    consecutiveFailedInSession:      0,
+    consecutiveCleanSolvedInSession: s.consecutiveCleanSolvedInSession + 1,
+    puzzlesSinceLastBonus:           s.puzzlesSinceLastBonus + 1,
   })),
 
   recordFailedInSession: () => set((s) => ({
-    sessionPuzzleCount:         s.sessionPuzzleCount + 1,
-    sessionTotalFailed:         s.sessionTotalFailed + 1,
-    consecutiveFailedInSession: s.consecutiveFailedInSession + 1,
-    consecutiveSolvedInSession: 0,
-    puzzlesSinceLastBonus:      s.puzzlesSinceLastBonus + 1,
+    sessionPuzzleCount:              s.sessionPuzzleCount + 1,
+    sessionTotalFailed:              s.sessionTotalFailed + 1,
+    consecutiveFailedInSession:      s.consecutiveFailedInSession + 1,
+    consecutiveSolvedInSession:      0,
+    consecutiveCleanSolvedInSession: 0,
+    puzzlesSinceLastBonus:           s.puzzlesSinceLastBonus + 1,
   })),
 
   resetBonusCounter: () => set({ puzzlesSinceLastBonus: 0 }),
 
+  markSessionCleanRun5Shown:  () => set({ sessionCleanRun5Shown: true }),
+  markSessionCleanRun10Shown: () => set({ sessionCleanRun10Shown: true }),
   markSessionEloGainShown:    () => set({ sessionEloGainShown: true }),
   markSessionPerfectRun5Shown:  () => set({ sessionPerfectRun5Shown: true }),
   markSessionPerfectRun10Shown: () => set({ sessionPerfectRun10Shown: true }),

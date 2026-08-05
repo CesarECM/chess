@@ -296,12 +296,21 @@ export function usePuzzleSolverLocal(
       if (solved) {
         const userId = userIdRef.current ?? '';
 
-        if (calibCrownType) {
-          useReinoStore.getState().addCrown(calibCrownType, puzzleId);
-          recordCrownToDb(userId, puzzleId, calibCrownType).catch(console.error);
+        // Después de recordFirstAttemptSolvedInSession, el valor ya fue incrementado
+        const calibCleanStreak = usePuzzleStore.getState().consecutiveCleanSolvedInSession;
+        const effectiveCalibCrownType = (calibCleanStreak >= 10 && calibCrownType !== null) ? 'gold' : calibCrownType;
+        if (effectiveCalibCrownType) {
+          useReinoStore.getState().addCrown(effectiveCalibCrownType, puzzleId);
+          recordCrownToDb(userId, puzzleId, effectiveCalibCrownType).catch(console.error);
         }
 
         if (calibProgressBefore && progressRef.current && detectCrystalEarned(calibProgressBefore, progressRef.current)) {
+          useReinoStore.getState().addCrystal(puzzleId);
+          recordCrystalToDb(userId, puzzleId).catch(console.error);
+        }
+
+        // Cristal extra al alcanzar exactamente 10 limpios seguidos
+        if (calibCleanStreak === 10) {
           useReinoStore.getState().addCrystal(puzzleId);
           recordCrystalToDb(userId, puzzleId).catch(console.error);
         }
@@ -425,13 +434,20 @@ export function usePuzzleSolverLocal(
       eloHistory:       useUserStore.getState().eloHistory,
     } : null;
 
+    const preCleanStreak = usePuzzleStore.getState().consecutiveCleanSolvedInSession;
+    const isCleanSolve   = solved && (puzzleOutcomeState === 1 || puzzleOutcomeState === '1b');
+    const projectedCleanStreakAfter = isCleanSolve ? preCleanStreak + 1 : 0;
+
     const preSession = solved && PROGRESS_CARDS_ENABLED ? {
       puzzleCount:        usePuzzleStore.getState().sessionPuzzleCount,
       consecutiveSolved:  usePuzzleStore.getState().consecutiveSolvedInSession,
       consecutiveFailed:  usePuzzleStore.getState().consecutiveFailedInSession,
+      consecutiveClean:   preCleanStreak,
       eloGainShown:       usePuzzleStore.getState().sessionEloGainShown,
       perfectRun5Shown:   usePuzzleStore.getState().sessionPerfectRun5Shown,
       perfectRun10Shown:  usePuzzleStore.getState().sessionPerfectRun10Shown,
+      cleanRun5Shown:     usePuzzleStore.getState().sessionCleanRun5Shown,
+      cleanRun10Shown:    usePuzzleStore.getState().sessionCleanRun10Shown,
       startElo:           usePuzzleStore.getState().sessionStartElo ?? useUserStore.getState().elo,
     } : null;
 
@@ -452,14 +468,21 @@ export function usePuzzleSolverLocal(
     if (solved) {
       const userId = userIdRef.current ?? '';
 
-      // Crown
-      if (crownType) {
-        useReinoStore.getState().addCrown(crownType, puzzleId);
-        recordCrownToDb(userId, puzzleId, crownType).catch(console.error);
+      // Crown — override a oro cuando racha limpia ≥ 10
+      const effectiveCrownType = (projectedCleanStreakAfter >= 10 && crownType !== null) ? 'gold' : crownType;
+      if (effectiveCrownType) {
+        useReinoStore.getState().addCrown(effectiveCrownType, puzzleId);
+        recordCrownToDb(userId, puzzleId, effectiveCrownType).catch(console.error);
       }
 
       // Crystal (FSRS long-term memory transition)
       if (updatedProgress && detectCrystalEarned(progressBefore, updatedProgress)) {
+        useReinoStore.getState().addCrystal(puzzleId);
+        recordCrystalToDb(userId, puzzleId).catch(console.error);
+      }
+
+      // Cristal extra al alcanzar exactamente 10 limpios seguidos
+      if (projectedCleanStreakAfter === 10) {
         useReinoStore.getState().addCrystal(puzzleId);
         recordCrystalToDb(userId, puzzleId).catch(console.error);
       }
@@ -554,14 +577,18 @@ export function usePuzzleSolverLocal(
         medalsBefore:             preUser.unlockedMedals,
         medalsAfter:              useUserStore.getState().unlockedMedals,
         eloHistoryBefore:         preUser.eloHistory,
-        sessionPuzzleCountBefore: preSession.puzzleCount,
-        consecutiveSolvedBefore:  preSession.consecutiveSolved,
-        consecutiveFailedBefore:  preSession.consecutiveFailed,
-        consecutiveSolvedAfter:   usePuzzleStore.getState().consecutiveSolvedInSession,
+        sessionPuzzleCountBefore:    preSession.puzzleCount,
+        consecutiveSolvedBefore:     preSession.consecutiveSolved,
+        consecutiveFailedBefore:     preSession.consecutiveFailed,
+        consecutiveSolvedAfter:      usePuzzleStore.getState().consecutiveSolvedInSession,
+        consecutiveCleanSolvedBefore: preSession.consecutiveClean,
+        consecutiveCleanSolvedAfter:  usePuzzleStore.getState().consecutiveCleanSolvedInSession,
         sessionStartElo:             preSession.startElo,
         sessionEloGainShown:         preSession.eloGainShown,
         sessionPerfectRun5Shown:     preSession.perfectRun5Shown,
         sessionPerfectRun10Shown:    preSession.perfectRun10Shown,
+        sessionCleanRun5Shown:       preSession.cleanRun5Shown,
+        sessionCleanRun10Shown:      preSession.cleanRun10Shown,
         fsrsStateBefore:             preFsrs?.state ?? 0,
         fsrsRepsBefore:              preFsrs?.reps ?? 0,
         fsrsStabilityBefore:         preFsrs?.stabilityBefore ?? 0,
@@ -585,6 +612,12 @@ export function usePuzzleSolverLocal(
       }
       if (messages.some((m) => m.type === 'fsrs_review_session')) {
         usePuzzleStore.getState().markSessionFsrsReview5Shown();
+      }
+      if (messages.some((m) => m.type === 'perfect_run_clean' && (m.payload.count as number) === 5)) {
+        usePuzzleStore.getState().markSessionCleanRun5Shown();
+      }
+      if (messages.some((m) => m.type === 'perfect_run_clean' && (m.payload.count as number) === 10)) {
+        usePuzzleStore.getState().markSessionCleanRun10Shown();
       }
       if (preFsrs && preFsrs.state >= 2) {
         usePuzzleStore.getState().recordFsrsReviewInSession();

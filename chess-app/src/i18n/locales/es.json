@@ -241,6 +241,11 @@
       "title": "{{count}} correctos seguidos",
       "body": "Estás en racha. Mantén el foco."
     },
+    "perfect_run_clean": {
+      "title": "{{count}} perfectos seguidos",
+      "body_5": "Sin errores ni pistas. Tus coronas ahora son de oro.",
+      "body_10": "Racha perfecta de {{count}}. Cada corona de aquí en adelante es de oro. 👑"
+    },
     "comeback": {
       "title": "¡Remontada!",
       "bodies": [
