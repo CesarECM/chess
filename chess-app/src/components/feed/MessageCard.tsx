@@ -32,6 +32,9 @@ const ICONS: Record<MessageType, string> = {
   calibration_complete:   '🏆',
   recalibration_streak:   '📈',
   perfect_run_clean:      '👑',
+  reino_crown_first:      '👑',
+  reino_crystal_first:    '💎',
+  liga_intro:             '⚔️',
 };
 
 function getIcon(message: ProgressMessage): string {

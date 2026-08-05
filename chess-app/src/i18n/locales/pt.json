@@ -392,6 +392,18 @@
     "recalibration_streak": {
       "title": "Seu nível subiu",
       "body": "{{count}} recordes seguidos — seu nível real é mais alto do que tínhamos. Ajustando sua calibração."
+    },
+    "reino_crown_first": {
+      "title": "Sua primeira coroa!",
+      "body": "Você ganhou sua primeira coroa. No Reino você pode ver sua coleção crescer — cada tática dominada preenche suas salas."
+    },
+    "reino_crystal_first": {
+      "title": "Seu primeiro cristal!",
+      "body": "Você ganhou um cristal ao dominar um padrão de longo prazo. Acumule cristais para expandir sua capacidade de vidas."
+    },
+    "liga_intro": {
+      "title": "Você está na liga",
+      "body": "Esta semana você entrou na Liga Semanal. No final da semana, os melhores jogadores sobem de divisão."
     }
   },
   "gdpr": {

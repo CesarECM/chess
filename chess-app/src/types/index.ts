@@ -66,7 +66,10 @@ export type MessageType =
   | 'calibration_midpoint'
   | 'calibration_complete'
   | 'recalibration_streak'
-  | 'perfect_run_clean';
+  | 'perfect_run_clean'
+  | 'reino_crown_first'
+  | 'reino_crystal_first'
+  | 'liga_intro';
 
 export interface ProgressMessage {
   id: string;

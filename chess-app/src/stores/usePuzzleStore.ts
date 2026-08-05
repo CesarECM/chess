@@ -53,6 +53,8 @@ interface PuzzleState {
   calibMidpointShown:            boolean;
   sessionCalibInitialRange:      number | null;
   puzzlesSinceLastBonus:         number;
+  sessionMessageCount:           number;
+  lastMessagePuzzleCount:        number;
   initSession:                   (startElo: number) => void;
   recordSolvedInSession:         () => void;
   recordFirstAttemptSolvedInSession: () => void;
@@ -68,6 +70,7 @@ interface PuzzleState {
   markCalibInsightShown:         () => void;
   markCalibMidpointShown:        () => void;
   setSessionCalibInitialRange:   (range: number) => void;
+  recordMessageShown:            () => void;
 
   // ── Solver ────────────────────────────────────────────────────
   currentFen:       string | null;
@@ -141,6 +144,8 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   calibMidpointShown:            false,
   sessionCalibInitialRange:      null,
   puzzlesSinceLastBonus:         0,
+  sessionMessageCount:           0,
+  lastMessagePuzzleCount:        -99,
 
   initSession: (startElo) => set({
     sessionStartElo:               startElo,
@@ -163,6 +168,8 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     calibMidpointShown:            false,
     sessionCalibInitialRange:      null,
     puzzlesSinceLastBonus:         0,
+    sessionMessageCount:           0,
+    lastMessagePuzzleCount:        -99,
   }),
 
   recordSolvedInSession: () => set((s) => ({
@@ -205,6 +212,10 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   markCalibInsightShown:        () => set({ calibInsightShown: true }),
   markCalibMidpointShown:       () => set({ calibMidpointShown: true }),
   setSessionCalibInitialRange:  (range) => set({ sessionCalibInitialRange: range }),
+  recordMessageShown: () => set((s) => ({
+    sessionMessageCount:    s.sessionMessageCount + 1,
+    lastMessagePuzzleCount: s.sessionPuzzleCount,
+  })),
 
   // ── Solver state ──────────────────────────────────────────────
   currentFen:        null,

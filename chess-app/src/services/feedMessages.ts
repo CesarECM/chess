@@ -1,6 +1,39 @@
 import { MILESTONE_THRESHOLDS, RANK_THRESHOLDS } from '@/constants';
 import type { EloSnapshot } from '@/stores/useUserStore';
-import type { ProgressMessage } from '@/types';
+import type { MessageType, ProgressMessage } from '@/types';
+
+const CALIBRATION_TYPES = new Set<MessageType>([
+  'calibration_start', 'calibration_insight', 'calibration_midpoint', 'calibration_complete',
+]);
+
+const FEATURE_INTRO_TYPES = new Set<MessageType>([
+  'reino_crown_first', 'reino_crystal_first', 'liga_intro',
+]);
+
+const MESSAGE_PRIORITY: Record<MessageType, number> = {
+  rank_up:             100,
+  personal_best_elo:   90,
+  milestone_solved:    80,
+  medal:               70,
+  reino_crown_first:   60,
+  reino_crystal_first: 60,
+  liga_intro:          60,
+  perfect_run_clean:   50,
+  perfect_run:         45,
+  comeback:            40,
+  session_elo_gain:    35,
+  fsrs_mastered:       30,
+  fsrs_first_review:   25,
+  fsrs_relearned:      20,
+  fsrs_review_session: 15,
+  streak:              10,
+  weekly_summary:      10,
+  recalibration_streak: 5,
+  calibration_start:   0,
+  calibration_insight: 0,
+  calibration_midpoint: 0,
+  calibration_complete: 0,
+};
 
 export interface PuzzleEventSnapshot {
   // User state before/after
@@ -32,6 +65,18 @@ export interface PuzzleEventSnapshot {
   fsrsStabilityAfter:         number;
   fsrsReviewsInSessionBefore: number;
   sessionFsrsReview5Shown:    boolean;
+  // Reino snapshots (before/after puzzle)
+  totalCrownsBefore:          number;
+  totalCrownsAfter:           number;
+  crystalsBefore:             number;
+  crystalsAfter:              number;
+  weeklyPuzzleCountBefore:    number;
+  weeklyPuzzleCountAfter:     number;
+  // Dosification context
+  seenMessageTypes:           string[];
+  sessionMessageCount:        number;
+  lastMessagePuzzleCount:     number;
+  sessionPuzzleCountAfter:    number;
 }
 
 export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
@@ -180,7 +225,67 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
     });
   }
 
+  // 12. First crown ever (onboarding feature intro — one-time)
+  if (s.totalCrownsBefore === 0 && s.totalCrownsAfter >= 1 && !s.seenMessageTypes.includes('reino_crown_first')) {
+    messages.push({
+      id:      'reino_crown_first',
+      kind:    'progress',
+      type:    'reino_crown_first',
+      payload: {},
+    });
+  }
+
+  // 13. First crystal ever (onboarding feature intro — one-time)
+  if (s.crystalsBefore === 0 && s.crystalsAfter >= 1 && !s.seenMessageTypes.includes('reino_crystal_first')) {
+    messages.push({
+      id:      'reino_crystal_first',
+      kind:    'progress',
+      type:    'reino_crystal_first',
+      payload: {},
+    });
+  }
+
+  // 14. Liga intro: first week with ≥5 puzzles solved (one-time)
+  if (s.weeklyPuzzleCountBefore < 5 && s.weeklyPuzzleCountAfter >= 5 && !s.seenMessageTypes.includes('liga_intro')) {
+    messages.push({
+      id:      'liga_intro',
+      kind:    'progress',
+      type:    'liga_intro',
+      payload: {},
+    });
+  }
+
   return messages;
+}
+
+export function applyDosification(
+  messages: ProgressMessage[],
+  params: {
+    sessionMessageCount:    number;
+    lastMessagePuzzleCount: number;
+    sessionPuzzleCountAfter: number;
+  },
+): ProgressMessage[] {
+  const calibMessages   = messages.filter((m) => CALIBRATION_TYPES.has(m.type));
+  const regularMessages = messages.filter((m) => !CALIBRATION_TYPES.has(m.type));
+
+  if (regularMessages.length === 0) return calibMessages;
+
+  // Session cap: max 3 non-calibration MessageCards per session
+  if (params.sessionMessageCount >= 3) return calibMessages;
+
+  const puzzlesSinceLast = params.sessionPuzzleCountAfter - params.lastMessagePuzzleCount;
+
+  const eligible = regularMessages.filter((m) => {
+    const isIntro    = FEATURE_INTRO_TYPES.has(m.type);
+    const minCooldown = isIntro ? 10 : 3;
+    return puzzlesSinceLast >= minCooldown;
+  });
+
+  if (eligible.length === 0) return calibMessages;
+
+  eligible.sort((a, b) => (MESSAGE_PRIORITY[b.type] ?? 0) - (MESSAGE_PRIORITY[a.type] ?? 0));
+  return [...calibMessages, eligible[0]];
 }
 
 function getMondayISO(dateStr: string): string {

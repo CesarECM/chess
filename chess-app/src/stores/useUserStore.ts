@@ -85,6 +85,7 @@ interface UserState {
   lastSessionEndDate: string | null;
   dayCompletedDate:   string | null;
   daySummaryStats:    { solved: number; failed: number; durationMs: number } | null;
+  seenMessageTypes:   string[];
 
   setElo: (elo: number) => void;
   updateElo: (puzzleRating: number, solved: boolean) => number;
@@ -105,6 +106,7 @@ interface UserState {
   breakStreak: () => void;
   endSessionStreak: () => void;
   completeDaySession: (stats: { solved: number; failed: number; durationMs: number }) => void;
+  markMessageSeen: (type: string) => void;
   completeOnboarding: (levelElo: number, theme: BoardThemeId, pieces: PieceSetId, levelKey: string) => void;
   setGdprConsent: (analytics: boolean) => void;
   setPremium: (value: boolean) => void;
@@ -161,6 +163,7 @@ export const useUserStore = create<UserState>()(
       lastSessionEndDate: null,
       dayCompletedDate:   null,
       daySummaryStats:    null,
+      seenMessageTypes:   [],
       calibrationPendingConfirmation: false,
 
       setElo: (elo) => set({ elo }),
@@ -442,6 +445,12 @@ export const useUserStore = create<UserState>()(
         get().endSessionStreak();
       },
 
+      markMessageSeen: (type) => {
+        const { seenMessageTypes } = get();
+        if (seenMessageTypes.includes(type)) return;
+        set({ seenMessageTypes: [...seenMessageTypes, type] });
+      },
+
       gainFreeze: () => {
         const { freezes } = get();
         if (freezes >= 3) return;
@@ -530,12 +539,13 @@ export const useUserStore = create<UserState>()(
         lastSessionEndDate: null,
         dayCompletedDate:   null,
         daySummaryStats:    null,
+        seenMessageTypes:   [],
         // GDPR no se resetea al hacer logout
       }),
     }),
     {
       name: 'user-store',
-      version: 8,
+      version: 9,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
@@ -592,6 +602,9 @@ export const useUserStore = create<UserState>()(
         if (version < 8) {
           return { ...state, dayCompletedDate: null, daySummaryStats: null };
         }
+        if (version < 9) {
+          return { ...state, seenMessageTypes: [] };
+        }
         return state;
       },
       partialize: (state) => ({
@@ -635,6 +648,7 @@ export const useUserStore = create<UserState>()(
         lastSessionEndDate: state.lastSessionEndDate,
         dayCompletedDate:   state.dayCompletedDate,
         daySummaryStats:    state.daySummaryStats,
+        seenMessageTypes:   state.seenMessageTypes,
       }),
     },
   ),

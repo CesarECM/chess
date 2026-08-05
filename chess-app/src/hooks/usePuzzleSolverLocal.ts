@@ -17,7 +17,7 @@ import { analytics } from '@/services/analytics';
 import { syncFreezesToSupabase } from '@/services/auth';
 import { showRewardedAdForFreeze } from '@/services/ads';
 import { PROGRESS_CARDS_ENABLED, RECALIB_CONSECUTIVE_RECORDS, RECALIB_STREAK_WINDOW_UP } from '@/constants';
-import { detectPuzzleEvents } from '@/services/feedMessages';
+import { detectPuzzleEvents, applyDosification } from '@/services/feedMessages';
 import { useReinoStore } from '@/stores/useReinoStore';
 import {
   detectCrystalEarned,
@@ -434,6 +434,12 @@ export function usePuzzleSolverLocal(
       eloHistory:       useUserStore.getState().eloHistory,
     } : null;
 
+    const preReino = solved && PROGRESS_CARDS_ENABLED ? {
+      totalCrowns:   useReinoStore.getState().crowns.gold + useReinoStore.getState().crowns.silver + useReinoStore.getState().crowns.bronze,
+      crystals:      useReinoStore.getState().crystals,
+      weeklyPuzzles: useUserStore.getState().weeklyPuzzleCount,
+    } : null;
+
     const preCleanStreak = usePuzzleStore.getState().consecutiveCleanSolvedInSession;
     const isCleanSolve   = solved && (puzzleOutcomeState === 1 || puzzleOutcomeState === '1b');
     const projectedCleanStreakAfter = isCleanSolve ? preCleanStreak + 1 : 0;
@@ -567,8 +573,11 @@ export function usePuzzleSolverLocal(
       usePuzzleStore.getState().recordFailedInSession();
     }
 
-    if (solved && PROGRESS_CARDS_ENABLED && preUser && preSession) {
-      const messages = detectPuzzleEvents({
+    if (solved && PROGRESS_CARDS_ENABLED && preUser && preSession && preReino) {
+      const { seenMessageTypes } = useUserStore.getState();
+      const { sessionMessageCount, lastMessagePuzzleCount, sessionPuzzleCount } = usePuzzleStore.getState();
+
+      const rawMessages = detectPuzzleEvents({
         eloBefore:                preUser.elo,
         eloAfter:                 useUserStore.getState().elo,
         eloAllTimeMax:            preUser.eloAllTimeMax,
@@ -595,10 +604,35 @@ export function usePuzzleSolverLocal(
         fsrsStabilityAfter:          updatedProgress?.stability ?? 0,
         fsrsReviewsInSessionBefore:  preFsrs?.reviewsInSession ?? 0,
         sessionFsrsReview5Shown:     preFsrs?.review5Shown ?? false,
+        totalCrownsBefore:           preReino.totalCrowns,
+        totalCrownsAfter:            useReinoStore.getState().crowns.gold + useReinoStore.getState().crowns.silver + useReinoStore.getState().crowns.bronze,
+        crystalsBefore:              preReino.crystals,
+        crystalsAfter:               useReinoStore.getState().crystals,
+        weeklyPuzzleCountBefore:     preReino.weeklyPuzzles,
+        weeklyPuzzleCountAfter:      useUserStore.getState().weeklyPuzzleCount,
+        seenMessageTypes,
+        sessionMessageCount,
+        lastMessagePuzzleCount,
+        sessionPuzzleCountAfter:     sessionPuzzleCount,
+      });
+
+      const messages = applyDosification(rawMessages, {
+        sessionMessageCount,
+        lastMessagePuzzleCount,
+        sessionPuzzleCountAfter: sessionPuzzleCount,
       });
 
       if (messages.length > 0) {
         onMessagesEarnedRef.current?.(messages);
+        const hasRegular = messages.some((m) => !['calibration_start','calibration_insight','calibration_midpoint','calibration_complete'].includes(m.type));
+        if (hasRegular) {
+          usePuzzleStore.getState().recordMessageShown();
+          for (const m of messages) {
+            if (['reino_crown_first','reino_crystal_first','liga_intro'].includes(m.type)) {
+              useUserStore.getState().markMessageSeen(m.type);
+            }
+          }
+        }
       }
 
       if (messages.some((m) => m.type === 'session_elo_gain')) {

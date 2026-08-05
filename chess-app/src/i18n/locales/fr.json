@@ -392,6 +392,18 @@
     "recalibration_streak": {
       "title": "Ton niveau a progressé",
       "body": "{{count}} records d'affilée — ton niveau réel est plus élevé que ce qu'on avait. On ajuste ta calibration."
+    },
+    "reino_crown_first": {
+      "title": "Ta première couronne !",
+      "body": "Tu as gagné ta première couronne. Dans Le Royaume, tu peux voir grandir ta collection — chaque tactique maîtrisée remplit tes salles."
+    },
+    "reino_crystal_first": {
+      "title": "Ton premier cristal !",
+      "body": "Tu as gagné un cristal en maîtrisant un pattern à long terme. Accumule des cristaux pour augmenter ta capacité de vies."
+    },
+    "liga_intro": {
+      "title": "Tu es dans la ligue",
+      "body": "Cette semaine tu as rejoint la Ligue Hebdomadaire. À la fin de la semaine, les meilleurs joueurs montent de division."
     }
   },
   "gdpr": {
