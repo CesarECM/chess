@@ -126,14 +126,8 @@ function AuthGuard() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === 'auth';
-    const isAuthenticated = user !== null || isGuest;
-
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/auth/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)');
-    }
+    // No redirect from auth group — UI gates (e.g. subscription gate) already
+    // prevent authenticated users from reaching register/login screens.
   }, [user, isGuest, isLoading, segments]);
 
   return null;
