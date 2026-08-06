@@ -62,7 +62,8 @@
     "mainLine": "Main line",
     "hint": "Hint",
     "hintMore": "More hint",
-    "hintShow": "Show move"
+    "hintShow": "Show move",
+    "completeSession": "End today's session →"
   },
   "vsEngine": {
     "title": "Playing against the engine",
@@ -409,6 +410,11 @@
     "liga_intro": {
       "title": "You're in the league",
       "body": "This week you joined the Weekly League. At the end of the week, the top players move up a division."
+    },
+    "session_gate_reached": {
+      "title": "Daily session complete!",
+      "body": "You solved 10 clean puzzles. End your session to see your summary, or keep playing.",
+      "cta": "See today's summary →"
     }
   },
   "gdpr": {

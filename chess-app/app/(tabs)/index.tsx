@@ -492,6 +492,7 @@ export default function FeedScreen() {
           height={listHeight}
           isActive={position === 'active'}
           onComplete={scrollToNext}
+          onOpenSession={handleOpenDaySession}
         />
       );
     }
@@ -522,6 +523,8 @@ export default function FeedScreen() {
         backgroundColor={pastBg}
         onForceFailRef={isCurrentlyActive ? activePuzzleForceFailRef : undefined}
         onDebugLog={addLog}
+        sessionGateOpen={sessionCompleted && !isResumen}
+        onOpenDaySession={handleOpenDaySession}
       />
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -6,10 +6,11 @@ import { useIsDesktop } from '@/hooks/useIsDesktop';
 import type { MessageType, ProgressMessage } from '@/types';
 
 interface Props {
-  message:    ProgressMessage;
-  height:     number;
-  isActive:   boolean;
-  onComplete: () => void;
+  message:       ProgressMessage;
+  height:        number;
+  isActive:      boolean;
+  onComplete:    () => void;
+  onOpenSession?: () => void;
 }
 
 const ICONS: Record<MessageType, string> = {
@@ -35,6 +36,7 @@ const ICONS: Record<MessageType, string> = {
   reino_crown_first:      '👑',
   reino_crystal_first:    '💎',
   liga_intro:             '⚔️',
+  session_gate_reached:   '🏁',
 };
 
 function getIcon(message: ProgressMessage): string {
@@ -85,7 +87,7 @@ function useTranslatedPayload(message: ProgressMessage): Record<string, unknown>
 
 const AUTO_ADVANCE_MS = 6000;
 
-function MessageCardComponent({ message, height, isActive, onComplete }: Props) {
+function MessageCardComponent({ message, height, isActive, onComplete, onOpenSession }: Props) {
   const { colors, typography, spacing } = useTheme();
   const { t }         = useTranslation();
   const isDesktop     = useIsDesktop();
@@ -124,14 +126,25 @@ function MessageCardComponent({ message, height, isActive, onComplete }: Props) 
           {t(getBodyKey(message), payload as Record<string, string>)}
         </Text>
 
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 10, marginTop: spacing[4] }]}
-          onPress={onComplete}
-        >
-          <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.md }]}>
-            {t('message.continue')}
-          </Text>
-        </TouchableOpacity>
+        {message.type === 'session_gate_reached' ? (
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: colors.success, borderRadius: 10, marginTop: spacing[4] }]}
+            onPress={() => { onOpenSession?.(); onComplete(); }}
+          >
+            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.md }]}>
+              {t('message.session_gate_reached.cta')}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 10, marginTop: spacing[4] }]}
+            onPress={onComplete}
+          >
+            <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.md }]}>
+              {t('message.continue')}
+            </Text>
+          </TouchableOpacity>
+        )}
 
       </View>
     </View>

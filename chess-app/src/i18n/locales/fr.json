@@ -62,7 +62,8 @@
     "mainLine": "Ligne principale",
     "hint": "Indice",
     "hintMore": "Plus d'indice",
-    "hintShow": "Montrer le coup"
+    "hintShow": "Montrer le coup",
+    "completeSession": "Terminer la session →"
   },
   "vsEngine": {
     "title": "Jouer contre le moteur",
@@ -409,6 +410,11 @@
     "liga_intro": {
       "title": "Tu es dans la ligue",
       "body": "Cette semaine tu as rejoint la Ligue Hebdomadaire. À la fin de la semaine, les meilleurs joueurs montent de division."
+    },
+    "session_gate_reached": {
+      "title": "Session du jour terminée !",
+      "body": "Tu as résolu 10 puzzles propres. Clôture ta session pour voir ton résumé, ou continue à jouer.",
+      "cta": "Voir le résumé →"
     }
   },
   "gdpr": {

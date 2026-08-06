@@ -69,7 +69,8 @@ export type MessageType =
   | 'perfect_run_clean'
   | 'reino_crown_first'
   | 'reino_crystal_first'
-  | 'liga_intro';
+  | 'liga_intro'
+  | 'session_gate_reached';
 
 export interface ProgressMessage {
   id: string;

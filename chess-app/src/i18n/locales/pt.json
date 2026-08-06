@@ -62,7 +62,8 @@
     "mainLine": "Linha principal",
     "hint": "Dica",
     "hintMore": "Mais dica",
-    "hintShow": "Mostrar jogada"
+    "hintShow": "Mostrar jogada",
+    "completeSession": "Encerrar sessão de hoje →"
   },
   "vsEngine": {
     "title": "Jogando contra o motor",
@@ -409,6 +410,11 @@
     "liga_intro": {
       "title": "Você está na liga",
       "body": "Esta semana você entrou na Liga Semanal. No final da semana, os melhores jogadores sobem de divisão."
+    },
+    "session_gate_reached": {
+      "title": "Sessão do dia completa!",
+      "body": "Você resolveu 10 puzzles limpos. Encerre sua sessão para ver o resumo, ou continue jogando.",
+      "cta": "Ver resumo do dia →"
     }
   },
   "gdpr": {

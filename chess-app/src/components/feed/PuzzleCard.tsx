@@ -49,11 +49,14 @@ interface Props {
   backgroundColor?: string;
   onForceFailRef?: MutableRefObject<(() => void) | null>;
   onDebugLog?: (tag: string, msg: string) => void;
+  sessionGateOpen?: boolean;
+  onOpenDaySession?: () => void;
 }
 
 function PuzzleCardComponent({
   puzzle, height, isActive, feedIndex,
   onComplete, onStatusChange, onMessagesEarned, backgroundColor, onForceFailRef, onDebugLog,
+  sessionGateOpen, onOpenDaySession,
 }: Props) {
   const { colors, typography } = useTheme();
   const { t }        = useTranslation();
@@ -955,6 +958,18 @@ function PuzzleCardComponent({
             )}
           </View>
         </>
+      )}
+
+      {/* Gate: persistent "Terminar sesión" button when gate is open */}
+      {isActive && puzzleStatus === 'complete' && sessionGateOpen && (
+        <TouchableOpacity
+          style={[styles.btn, { backgroundColor: colors.success, marginTop: 8, alignSelf: 'stretch' }]}
+          onPress={() => { cancelAutoAdvance(); onOpenDaySession?.(); }}
+        >
+          <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm, fontWeight: '700' }]}>
+            {t('puzzle.completeSession')}
+          </Text>
+        </TouchableOpacity>
       )}
 
       {/* Analysis panel — shown below buttons in all states */}

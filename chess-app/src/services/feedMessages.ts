@@ -1,4 +1,4 @@
-import { MILESTONE_THRESHOLDS, RANK_THRESHOLDS } from '@/constants';
+import { MILESTONE_THRESHOLDS, RANK_THRESHOLDS, SESSION_MANUAL_MIN_CORRECT } from '@/constants';
 import type { EloSnapshot } from '@/stores/useUserStore';
 import type { MessageType, ProgressMessage } from '@/types';
 
@@ -6,11 +6,17 @@ const CALIBRATION_TYPES = new Set<MessageType>([
   'calibration_start', 'calibration_insight', 'calibration_midpoint', 'calibration_complete',
 ]);
 
+// Always shown — bypasses session message cap
+const ALWAYS_SHOW_TYPES = new Set<MessageType>([
+  'session_gate_reached',
+]);
+
 const FEATURE_INTRO_TYPES = new Set<MessageType>([
   'reino_crown_first', 'reino_crystal_first', 'liga_intro',
 ]);
 
 const MESSAGE_PRIORITY: Record<MessageType, number> = {
+  session_gate_reached: 110,
   rank_up:             100,
   personal_best_elo:   90,
   milestone_solved:    80,
@@ -58,6 +64,8 @@ export interface PuzzleEventSnapshot {
   sessionPerfectRun10Shown:       boolean;
   sessionCleanRun5Shown:          boolean;
   sessionCleanRun10Shown:         boolean;
+  sessionGateMessageShown:        boolean;
+  sessionFirstAttemptSolvedCountAfter: number;
   // FSRS state before this review
   fsrsStateBefore:            number;   // 0=New 1=Learning 2=Review 3=Relearning
   fsrsRepsBefore:             number;
@@ -255,6 +263,19 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
     });
   }
 
+  // 15. Session gate reached: total clean solves just crossed the threshold
+  if (
+    !s.sessionGateMessageShown &&
+    s.sessionFirstAttemptSolvedCountAfter >= SESSION_MANUAL_MIN_CORRECT
+  ) {
+    messages.push({
+      id:      'session_gate_reached',
+      kind:    'progress',
+      type:    'session_gate_reached',
+      payload: {},
+    });
+  }
+
   return messages;
 }
 
@@ -267,12 +288,13 @@ export function applyDosification(
   },
 ): ProgressMessage[] {
   const calibMessages   = messages.filter((m) => CALIBRATION_TYPES.has(m.type));
-  const regularMessages = messages.filter((m) => !CALIBRATION_TYPES.has(m.type));
+  const alwaysMessages  = messages.filter((m) => ALWAYS_SHOW_TYPES.has(m.type));
+  const regularMessages = messages.filter((m) => !CALIBRATION_TYPES.has(m.type) && !ALWAYS_SHOW_TYPES.has(m.type));
 
-  if (regularMessages.length === 0) return calibMessages;
+  if (regularMessages.length === 0 && alwaysMessages.length === 0) return calibMessages;
 
-  // Session cap: max 3 non-calibration MessageCards per session
-  if (params.sessionMessageCount >= 3) return calibMessages;
+  // Session cap: max 3 non-calibration MessageCards per session (gate messages bypass this)
+  if (params.sessionMessageCount >= 3) return [...calibMessages, ...alwaysMessages];
 
   const puzzlesSinceLast = params.sessionPuzzleCountAfter - params.lastMessagePuzzleCount;
 
@@ -282,10 +304,10 @@ export function applyDosification(
     return puzzlesSinceLast >= minCooldown;
   });
 
-  if (eligible.length === 0) return calibMessages;
+  if (eligible.length === 0) return [...calibMessages, ...alwaysMessages];
 
   eligible.sort((a, b) => (MESSAGE_PRIORITY[b.type] ?? 0) - (MESSAGE_PRIORITY[a.type] ?? 0));
-  return [...calibMessages, eligible[0]];
+  return [...calibMessages, ...alwaysMessages, eligible[0]];
 }
 
 function getMondayISO(dateStr: string): string {

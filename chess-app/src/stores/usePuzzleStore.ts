@@ -44,6 +44,7 @@ interface PuzzleState {
   consecutiveCleanSolvedInSession: number;
   sessionCleanRun5Shown:          boolean;
   sessionCleanRun10Shown:         boolean;
+  sessionGateMessageShown:        boolean;
   sessionEloGainShown:           boolean;
   sessionPerfectRun5Shown:       boolean;
   sessionPerfectRun10Shown:      boolean;
@@ -62,6 +63,7 @@ interface PuzzleState {
   resetBonusCounter:             () => void;
   markSessionCleanRun5Shown:     () => void;
   markSessionCleanRun10Shown:    () => void;
+  markSessionGateMessageShown:   () => void;
   markSessionEloGainShown:       () => void;
   markSessionPerfectRun5Shown:   () => void;
   markSessionPerfectRun10Shown:  () => void;
@@ -135,6 +137,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   consecutiveCleanSolvedInSession: 0,
   sessionCleanRun5Shown:          false,
   sessionCleanRun10Shown:         false,
+  sessionGateMessageShown:        false,
   sessionEloGainShown:           false,
   sessionPerfectRun5Shown:       false,
   sessionPerfectRun10Shown:      false,
@@ -159,6 +162,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     consecutiveCleanSolvedInSession: 0,
     sessionCleanRun5Shown:          false,
     sessionCleanRun10Shown:         false,
+    sessionGateMessageShown:        false,
     sessionEloGainShown:           false,
     sessionPerfectRun5Shown:       false,
     sessionPerfectRun10Shown:      false,
@@ -204,6 +208,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
 
   markSessionCleanRun5Shown:  () => set({ sessionCleanRun5Shown: true }),
   markSessionCleanRun10Shown: () => set({ sessionCleanRun10Shown: true }),
+  markSessionGateMessageShown: () => set({ sessionGateMessageShown: true }),
   markSessionEloGainShown:    () => set({ sessionEloGainShown: true }),
   markSessionPerfectRun5Shown:  () => set({ sessionPerfectRun5Shown: true }),
   markSessionPerfectRun10Shown: () => set({ sessionPerfectRun10Shown: true }),

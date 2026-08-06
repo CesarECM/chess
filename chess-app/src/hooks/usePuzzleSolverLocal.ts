@@ -454,6 +454,8 @@ export function usePuzzleSolverLocal(
       perfectRun10Shown:  usePuzzleStore.getState().sessionPerfectRun10Shown,
       cleanRun5Shown:     usePuzzleStore.getState().sessionCleanRun5Shown,
       cleanRun10Shown:    usePuzzleStore.getState().sessionCleanRun10Shown,
+      gateMessageShown:   usePuzzleStore.getState().sessionGateMessageShown,
+      firstAttemptCount:  usePuzzleStore.getState().sessionFirstAttemptSolvedCount,
       startElo:           usePuzzleStore.getState().sessionStartElo ?? useUserStore.getState().elo,
     } : null;
 
@@ -598,6 +600,8 @@ export function usePuzzleSolverLocal(
         sessionPerfectRun10Shown:    preSession.perfectRun10Shown,
         sessionCleanRun5Shown:       preSession.cleanRun5Shown,
         sessionCleanRun10Shown:      preSession.cleanRun10Shown,
+        sessionGateMessageShown:     preSession.gateMessageShown,
+        sessionFirstAttemptSolvedCountAfter: usePuzzleStore.getState().sessionFirstAttemptSolvedCount,
         fsrsStateBefore:             preFsrs?.state ?? 0,
         fsrsRepsBefore:              preFsrs?.reps ?? 0,
         fsrsStabilityBefore:         preFsrs?.stabilityBefore ?? 0,
@@ -652,6 +656,9 @@ export function usePuzzleSolverLocal(
       }
       if (messages.some((m) => m.type === 'perfect_run_clean' && (m.payload.count as number) === 10)) {
         usePuzzleStore.getState().markSessionCleanRun10Shown();
+      }
+      if (messages.some((m) => m.type === 'session_gate_reached')) {
+        usePuzzleStore.getState().markSessionGateMessageShown();
       }
       if (preFsrs && preFsrs.state >= 2) {
         usePuzzleStore.getState().recordFsrsReviewInSession();
