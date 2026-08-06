@@ -56,10 +56,13 @@ interface PuzzleState {
   puzzlesSinceLastBonus:         number;
   sessionMessageCount:           number;
   lastMessagePuzzleCount:        number;
+  sessionNudgeShown:             boolean;
+  sessionNudgeThreshold:         number;
+  markSessionNudgeShown:         () => void;
   initSession:                   (startElo: number) => void;
-  recordSolvedInSession:         () => void;
+  recordSolvedInSession:             () => void;
   recordFirstAttemptSolvedInSession: () => void;
-  recordFailedInSession:         () => void;
+  recordFailedInSession:             () => void;
   resetBonusCounter:             () => void;
   markSessionCleanRun5Shown:     () => void;
   markSessionCleanRun10Shown:    () => void;
@@ -149,6 +152,10 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   puzzlesSinceLastBonus:         0,
   sessionMessageCount:           0,
   lastMessagePuzzleCount:        -99,
+  sessionNudgeShown:             false,
+  sessionNudgeThreshold:         3,
+
+  markSessionNudgeShown: () => set({ sessionNudgeShown: true }),
 
   initSession: (startElo) => set({
     sessionStartElo:               startElo,
@@ -174,6 +181,8 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     puzzlesSinceLastBonus:         0,
     sessionMessageCount:           0,
     lastMessagePuzzleCount:        -99,
+    sessionNudgeShown:             false,
+    sessionNudgeThreshold:         Math.floor(Math.random() * 3) + 3, // 3, 4, or 5
   }),
 
   recordSolvedInSession: () => set((s) => ({

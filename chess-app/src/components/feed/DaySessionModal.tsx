@@ -11,17 +11,18 @@ import { scheduleBackgroundNotifications } from '@/services/notifications';
 interface SummaryStats { solved: number; failed: number; durationMs: number }
 
 interface Props {
-  visible:            boolean;
-  isComplete:         boolean;      // gate reached, not yet confirmed
-  isResumen:          boolean;      // already completed today
-  isBlockedByLives:   boolean;      // opened because lives = 0
-  streakDays:         number;
-  sessionTotalSolved: number;
-  sessionTotalFailed: number;
-  sessionStartTime:   number | null;
-  summaryStats:       SummaryStats | null;  // saved stats shown in resumen mode
-  onClose:            () => void;
-  onComplete:         () => void;
+  visible:                      boolean;
+  isComplete:                   boolean;      // gate reached, not yet confirmed
+  isResumen:                    boolean;      // already completed today
+  isBlockedByLives:             boolean;      // opened because lives = 0
+  streakDays:                   number;
+  sessionTotalSolved:           number;
+  sessionTotalFailed:           number;
+  sessionStartTime:             number | null;
+  summaryStats:                 SummaryStats | null;  // saved stats shown in resumen mode
+  sessionFirstAttemptSolvedCount: number;
+  onClose:                      () => void;
+  onComplete:                   () => void;
 }
 
 function formatDuration(startTime: number | null): string {
@@ -50,6 +51,7 @@ export function DaySessionModal({
   sessionTotalFailed,
   sessionStartTime,
   summaryStats,
+  sessionFirstAttemptSolvedCount,
   onClose,
   onComplete,
 }: Props) {
@@ -135,8 +137,24 @@ export function DaySessionModal({
           {/* ── Streak highlight (resumen only) ─────────────────── */}
           {isResumen && (
             <View style={[styles.streakBox, { backgroundColor: colors.success + '18' }]}>
-              <Text style={[styles.streakValue, { color: colors.success }]}>{streakDays}</Text>
-              <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>días de racha 🔥</Text>
+              {streakDays <= 1 ? (
+                <>
+                  <Text style={[styles.streakValue, { color: colors.success }]}>🔥</Text>
+                  <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>
+                    {streakDays === 0 ? 'Primera sesión completada' : 'Día 1 de tu racha — no la rompas'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.streakValue, { color: colors.success }]}>{streakDays}</Text>
+                  <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>días de racha 🔥</Text>
+                  {streakDays >= 7 && streakDays % 7 !== 0 && (
+                    <Text style={[styles.streakHint, { color: colors.textSecondary }]}>
+                      {`Faltan ${7 - (streakDays % 7)} días para tu próximo freeze 🧊`}
+                    </Text>
+                  )}
+                </>
+              )}
             </View>
           )}
 
@@ -154,6 +172,22 @@ export function DaySessionModal({
               <Text style={[styles.statValue, { color: colors.text }]}>{displayDuration}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Tiempo</Text>
             </View>
+          </View>
+
+          {/* ── Session progress dots (N/10 clean solves) ─────── */}
+          <View style={styles.dotsRow}>
+            {Array.from({ length: 10 }, (_, i) => {
+              const filled = isResumen ? true : i < sessionFirstAttemptSolvedCount;
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    { backgroundColor: filled ? colors.success : colors.textSecondary + '33' },
+                  ]}
+                />
+              );
+            })}
           </View>
 
           {/* ── Lives recharge section (when blocked by 0 lives) ── */}
@@ -237,6 +271,8 @@ const styles = StyleSheet.create({
   statItem:        { alignItems: 'center', gap: 2 },
   statValue:       { fontSize: 22, fontWeight: '700' },
   statLabel:       { fontSize: 12, fontWeight: '500' },
+  dotsRow:       { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' },
+  dot:           { width: 8, height: 8, borderRadius: 4 },
   rechargeBox:     { width: '100%', borderRadius: 14, borderWidth: 1, padding: 14, gap: 10, alignItems: 'center' },
   rechargeTitle:   { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   rechargeBtn:     { width: '100%', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
@@ -246,7 +282,8 @@ const styles = StyleSheet.create({
   reinoBtn:        { width: '100%', paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
   reinoBtnText:    { fontSize: 14, fontWeight: '700' },
   closeText:       { fontSize: 13, fontWeight: '500', paddingVertical: 4 },
-  streakBox:       { width: '100%', borderRadius: 14, paddingVertical: 16, alignItems: 'center', gap: 2 },
+  streakBox:       { width: '100%', borderRadius: 14, paddingVertical: 16, alignItems: 'center', gap: 4 },
   streakValue:     { fontSize: 48, fontWeight: '800', lineHeight: 54 },
   streakLabel:     { fontSize: 14, fontWeight: '600' },
+  streakHint:      { fontSize: 12, fontWeight: '500', marginTop: 2 },
 });

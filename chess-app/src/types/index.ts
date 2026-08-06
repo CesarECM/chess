@@ -70,7 +70,8 @@ export type MessageType =
   | 'reino_crown_first'
   | 'reino_crystal_first'
   | 'liga_intro'
-  | 'session_gate_reached';
+  | 'session_gate_reached'
+  | 'session_progress_nudge';
 
 export interface ProgressMessage {
   id: string;

@@ -47,8 +47,9 @@ export const SpringPager = forwardRef<SpringPagerRef, SpringPagerProps>(
         activeIdxSV.value = index;
         const target = -index * itemHeightSV.value;
         translateY.value = animated ? withSpring(target, SPRING_CONFIG) : target;
+        onIndexChange(index);
       },
-    }), [activeIdxSV, itemHeightSV, translateY]);
+    }), [activeIdxSV, itemHeightSV, translateY, onIndexChange]);
 
     const gesture = Gesture.Pan()
       .enabled(enabled)

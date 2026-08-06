@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, type ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
@@ -37,6 +37,7 @@ const ICONS: Record<MessageType, string> = {
   reino_crystal_first:    '💎',
   liga_intro:             '⚔️',
   session_gate_reached:   '🏁',
+  session_progress_nudge: '🎯',
 };
 
 function getIcon(message: ProgressMessage): string {
@@ -46,21 +47,25 @@ function getIcon(message: ProgressMessage): string {
 }
 
 const MULTI_BODY_TYPES: Partial<Record<MessageType, true>> = {
-  fsrs_mastered:          true,
-  streak:                 true,
-  fsrs_first_review:      true,
-  comeback:               true,
-  session_elo_gain:       true,
-  fsrs_relearned:         true,
-  calibration_start:      true,
-  calibration_insight:    true,
-  calibration_midpoint:   true,
-  calibration_complete:   true,
+  fsrs_mastered:           true,
+  streak:                  true,
+  fsrs_first_review:       true,
+  comeback:                true,
+  session_elo_gain:        true,
+  fsrs_relearned:          true,
+  calibration_start:       true,
+  calibration_insight:     true,
+  calibration_midpoint:    true,
+  calibration_complete:    true,
+  session_progress_nudge:  true,
 };
 
 function getBodyKey(message: ProgressMessage): string {
   if (message.type === 'perfect_run_clean') {
     return `message.perfect_run_clean.body_${message.payload.count}`;
+  }
+  if (message.type === 'session_gate_reached' && message.payload.firstQualityIntro) {
+    return 'message.session_gate_reached.body_quality';
   }
   if (MULTI_BODY_TYPES[message.type]) {
     return `message.${message.type}.bodies.${message.payload.bodyIndex ?? 0}`;
@@ -84,6 +89,24 @@ function useTranslatedPayload(message: ProgressMessage): Record<string, unknown>
   }
   return message.payload;
 }
+
+function ProgressDots({ count, successColor, trackColor }: { count: number; successColor: string; trackColor: string }) {
+  return (
+    <View style={dotStyles.row}>
+      {Array.from({ length: 10 }, (_, i) => (
+        <View
+          key={i}
+          style={[dotStyles.dot, { backgroundColor: i < count ? successColor : trackColor }]}
+        />
+      ))}
+    </View>
+  );
+}
+
+const dotStyles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+});
 
 const AUTO_ADVANCE_MS = 6000;
 
@@ -125,6 +148,14 @@ function MessageCardComponent({ message, height, isActive, onComplete, onOpenSes
         <Text style={[styles.body, { color: colors.textSecondary, fontSize: typography.size.md }]}>
           {t(getBodyKey(message), payload as Record<string, string>)}
         </Text>
+
+        {message.type === 'session_progress_nudge' && (
+          <ProgressDots
+            count={message.payload.count as number}
+            successColor={colors.success}
+            trackColor={colors.textSecondary + '33'}
+          />
+        )}
 
         {message.type === 'session_gate_reached' ? (
           <TouchableOpacity

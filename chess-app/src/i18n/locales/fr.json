@@ -413,8 +413,17 @@
     },
     "session_gate_reached": {
       "title": "Session du jour terminée !",
-      "body": "Tu as résolu 10 puzzles propres. Clôture ta session pour voir ton résumé, ou continue à jouer.",
+      "body": "Tu as résolu 10 puzzles propres. Confirme avant minuit pour que ça compte dans ta série.",
+      "body_quality": "Tu as terminé 10 puzzles sans utiliser d'indices — c'est ça qui compte. Confirme avant minuit.",
       "cta": "Voir le résumé →"
+    },
+    "session_progress_nudge": {
+      "title": "Session d'aujourd'hui",
+      "bodies": {
+        "0": "Tu es sur la bonne voie — sans indices.",
+        "1": "Bon rythme. Continue comme ça.",
+        "2": "Série propre, continue à avancer."
+      }
     }
   },
   "gdpr": {

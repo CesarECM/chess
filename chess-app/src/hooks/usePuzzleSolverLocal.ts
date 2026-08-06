@@ -456,6 +456,8 @@ export function usePuzzleSolverLocal(
       cleanRun10Shown:    usePuzzleStore.getState().sessionCleanRun10Shown,
       gateMessageShown:   usePuzzleStore.getState().sessionGateMessageShown,
       firstAttemptCount:  usePuzzleStore.getState().sessionFirstAttemptSolvedCount,
+      nudgeShown:         usePuzzleStore.getState().sessionNudgeShown,
+      nudgeThreshold:     usePuzzleStore.getState().sessionNudgeThreshold,
       startElo:           usePuzzleStore.getState().sessionStartElo ?? useUserStore.getState().elo,
     } : null;
 
@@ -528,11 +530,9 @@ export function usePuzzleSolverLocal(
     // ─────────────────────────────────────────────────────────────────────────
 
     setLastFsrsRating(fsrsRating);
-    const delta = updateElo(puzzleRating, solved);
-    // Badge solo visible cuando ELO sube en primer intento limpio (estado 1/1b)
-    if (puzzleOutcomeState === 1 || puzzleOutcomeState === '1b') {
-      setEloDelta(delta);
-    }
+    const eloWin = puzzleOutcomeState === 1 || puzzleOutcomeState === '1b';
+    const delta  = updateElo(puzzleRating, eloWin);
+    if (eloWin) setEloDelta(delta);
     addToHistory(puzzleId);
     incrementPuzzleStats(solved, puzzle?.themes ?? []);
 
@@ -569,6 +569,10 @@ export function usePuzzleSolverLocal(
       } else {
         usePuzzleStore.getState().recordSolvedInSession();
       }
+      // Ambicioso sin pista: pagó con vida por no pedir ayuda
+      if (puzzleOutcomeState === 3 && useUserStore.getState().preEloLow === null) {
+        useReinoStore.getState().loseLife();
+      }
       if (bonusResult) usePuzzleStore.getState().resetBonusCounter();
       setBonusTriggered(bonusResult);
     } else {
@@ -600,8 +604,10 @@ export function usePuzzleSolverLocal(
         sessionPerfectRun10Shown:    preSession.perfectRun10Shown,
         sessionCleanRun5Shown:       preSession.cleanRun5Shown,
         sessionCleanRun10Shown:      preSession.cleanRun10Shown,
-        sessionGateMessageShown:     preSession.gateMessageShown,
-        sessionFirstAttemptSolvedCountAfter: usePuzzleStore.getState().sessionFirstAttemptSolvedCount,
+        sessionGateMessageShown:              preSession.gateMessageShown,
+        sessionFirstAttemptSolvedCountAfter:  usePuzzleStore.getState().sessionFirstAttemptSolvedCount,
+        sessionNudgeShown:                    preSession.nudgeShown,
+        sessionNudgeThreshold:                preSession.nudgeThreshold,
         fsrsStateBefore:             preFsrs?.state ?? 0,
         fsrsRepsBefore:              preFsrs?.reps ?? 0,
         fsrsStabilityBefore:         preFsrs?.stabilityBefore ?? 0,
@@ -659,6 +665,13 @@ export function usePuzzleSolverLocal(
       }
       if (messages.some((m) => m.type === 'session_gate_reached')) {
         usePuzzleStore.getState().markSessionGateMessageShown();
+        const gateMsg = messages.find((m) => m.type === 'session_gate_reached');
+        if (gateMsg?.payload.firstQualityIntro) {
+          useUserStore.getState().markMessageSeen('gate_quality_intro');
+        }
+      }
+      if (messages.some((m) => m.type === 'session_progress_nudge')) {
+        usePuzzleStore.getState().markSessionNudgeShown();
       }
       if (preFsrs && preFsrs.state >= 2) {
         usePuzzleStore.getState().recordFsrsReviewInSession();

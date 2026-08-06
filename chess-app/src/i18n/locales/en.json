@@ -413,8 +413,17 @@
     },
     "session_gate_reached": {
       "title": "Daily session complete!",
-      "body": "You solved 10 clean puzzles. End your session to see your summary, or keep playing.",
+      "body": "You solved 10 clean puzzles. Confirm before midnight to count toward your streak.",
+      "body_quality": "You finished 10 puzzles without relying on hints — that's what counts. Confirm before midnight.",
       "cta": "See today's summary →"
+    },
+    "session_progress_nudge": {
+      "title": "Today's session",
+      "bodies": {
+        "0": "You're on track — no hints needed.",
+        "1": "Good pace. Keep it up.",
+        "2": "Clean streak, keep going."
+      }
     }
   },
   "gdpr": {

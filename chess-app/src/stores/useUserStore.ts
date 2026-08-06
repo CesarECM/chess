@@ -96,7 +96,6 @@ interface UserState {
   startRecalibration: (newLow: number, newHigh: number) => void;
   setCalibrationBounds: (low: number, high: number) => void;
   clearFirstPuzzleRating: () => void;
-  updateStreak: () => void;
   setNotificationStreakHour: (hour: number) => void;
   setPreferredLanguage: (lang: string | null) => void;
   setBoardTheme: (theme: BoardThemeId) => void;
@@ -315,19 +314,6 @@ export const useUserStore = create<UserState>()(
       setCalibrationBounds: (low, high) => set({ calibrationBounds: { low, high } }),
 
       clearFirstPuzzleRating: () => set({ firstPuzzleRating: null }),
-
-      updateStreak: () => {
-        const today = new Date().toISOString().split('T')[0];
-        const { lastActiveDate, streakDays, streakLongest } = get();
-        if (lastActiveDate === today) return;
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-        const newStreak = lastActiveDate === yesterday ? streakDays + 1 : 1;
-        set({
-          streakDays: newStreak,
-          streakLongest: Math.max(streakLongest, newStreak),
-          lastActiveDate: today,
-        });
-      },
 
       incrementPuzzleStats: (solved, themes) => {
         const state = get();

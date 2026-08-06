@@ -413,8 +413,17 @@
     },
     "session_gate_reached": {
       "title": "Sessão do dia completa!",
-      "body": "Você resolveu 10 puzzles limpos. Encerre sua sessão para ver o resumo, ou continue jogando.",
+      "body": "Você resolveu 10 puzzles limpos. Confirme antes da meia-noite para contar na sua sequência.",
+      "body_quality": "Você completou 10 puzzles sem depender de dicas — isso é o que conta. Confirme antes da meia-noite.",
       "cta": "Ver resumo do dia →"
+    },
+    "session_progress_nudge": {
+      "title": "Sessão de hoje",
+      "bodies": {
+        "0": "Você está no caminho certo — sem dicas.",
+        "1": "Bom ritmo. Continue assim.",
+        "2": "Série limpa, continue avançando."
+      }
     }
   },
   "gdpr": {

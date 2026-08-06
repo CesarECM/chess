@@ -53,7 +53,7 @@ export const TIME_FAST_THRESHOLD_MS  = 60_000; // ≤60s = estado 1 (rápido)
 export const CROWN_GOLD_PROBABILITY = 0.12; // en estado 1/1b: 12% Oro, resto Plata
 
 // ── Session ──────────────────────────────────────────────────────────────────
-export const SESSION_MANUAL_MIN_CORRECT = 10; // puzzles estado 1/1b para habilitar botón
+export const SESSION_MANUAL_MIN_CORRECT = 10; // puzzles resueltos sin pista (estados 1/1b/3) para habilitar gate de sesión
 
 export const SUBSCRIPTION_PRICE_USD = 2.99;
 

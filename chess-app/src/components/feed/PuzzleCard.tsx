@@ -566,7 +566,10 @@ function PuzzleCardComponent({
         </View>
       )}
       <View style={styles.topRow}>
-        <SessionBar />
+        <SessionBar
+          sessionGateOpen={sessionGateOpen}
+          onOpenSession={onOpenDaySession ? () => { cancelAutoAdvance(); onOpenDaySession(); } : undefined}
+        />
       </View>
     </>
   );
@@ -958,18 +961,6 @@ function PuzzleCardComponent({
             )}
           </View>
         </>
-      )}
-
-      {/* Gate: persistent "Terminar sesión" button when gate is open */}
-      {isActive && puzzleStatus === 'complete' && sessionGateOpen && (
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.success, marginTop: 8, alignSelf: 'stretch' }]}
-          onPress={() => { cancelAutoAdvance(); onOpenDaySession?.(); }}
-        >
-          <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.sm, fontWeight: '700' }]}>
-            {t('puzzle.completeSession')}
-          </Text>
-        </TouchableOpacity>
       )}
 
       {/* Analysis panel — shown below buttons in all states */}

@@ -16,7 +16,8 @@ const FEATURE_INTRO_TYPES = new Set<MessageType>([
 ]);
 
 const MESSAGE_PRIORITY: Record<MessageType, number> = {
-  session_gate_reached: 110,
+  session_gate_reached:   110,
+  session_progress_nudge: 105,
   rank_up:             100,
   personal_best_elo:   90,
   milestone_solved:    80,
@@ -66,6 +67,8 @@ export interface PuzzleEventSnapshot {
   sessionCleanRun10Shown:         boolean;
   sessionGateMessageShown:        boolean;
   sessionFirstAttemptSolvedCountAfter: number;
+  sessionNudgeShown:              boolean;
+  sessionNudgeThreshold:          number;
   // FSRS state before this review
   fsrsStateBefore:            number;   // 0=New 1=Learning 2=Review 3=Relearning
   fsrsRepsBefore:             number;
@@ -272,7 +275,26 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       id:      'session_gate_reached',
       kind:    'progress',
       type:    'session_gate_reached',
-      payload: {},
+      payload: {
+        firstQualityIntro: !s.seenMessageTypes.includes('gate_quality_intro'),
+      },
+    });
+  }
+
+  // 16. Session progress nudge: random milestone between solve 3–5, before gate, non-calibrating
+  if (
+    !s.sessionNudgeShown &&
+    s.sessionFirstAttemptSolvedCountAfter >= s.sessionNudgeThreshold &&
+    s.sessionFirstAttemptSolvedCountAfter < SESSION_MANUAL_MIN_CORRECT
+  ) {
+    messages.push({
+      id:      `session_progress_nudge_${Date.now()}`,
+      kind:    'progress',
+      type:    'session_progress_nudge',
+      payload: {
+        count:     s.sessionFirstAttemptSolvedCountAfter,
+        bodyIndex: Math.floor(Math.random() * 3),
+      },
     });
   }
 
