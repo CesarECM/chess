@@ -33,7 +33,13 @@
     "sendReset": "Enviar link",
     "resetSent": "Enviamos um link para {{email}}. Verifique sua caixa de entrada.",
     "backToSignIn": "Voltar para o login",
-    "errorResetPassword": "Erro ao enviar o link de recuperação"
+    "errorResetPassword": "Erro ao enviar o link de recuperação",
+    "updatePasswordTitle": "Nova senha",
+    "newPassword": "Nova senha",
+    "confirmNewPassword": "Confirmar nova senha",
+    "updatePassword": "Salvar senha",
+    "passwordUpdated": "Senha atualizada!",
+    "errorUpdatePassword": "Erro ao atualizar a senha"
   },
   "puzzle": {
     "statusIdle": "Adversário move…",
@@ -123,7 +129,12 @@
     "historyEmpty": "Você ainda não resolveu nenhum puzzle.",
     "historyLoading": "Carregando…",
     "historyMore": "Ver mais",
-    "historyPuzzle": "Puzzle {{rating}} · ELO {{elo}}"
+    "historyPuzzle": "Puzzle {{rating}} · ELO {{elo}}",
+    "sectionAccount": "CONTA",
+    "accountName": "Nome",
+    "accountEmail": "Email",
+    "accountId": "ID",
+    "accountGuest": "Convidado"
   },
   "progress": {
     "sectionSummary": "RESUMO GERAL",
@@ -172,7 +183,13 @@
     "termsOfService": "Termos de serviço",
     "faq": "Ajuda e perguntas frequentes",
     "sectionSupport": "SUPORTE",
-    "contactSupport": "Contatar suporte"
+    "contactSupport": "Contatar suporte",
+    "deleteAccount": "Excluir conta",
+    "deleteAccountTitle": "Excluir conta?",
+    "deleteAccountMsg": "Esta ação é permanente. Todo o seu progresso e dados serão excluídos.",
+    "deleteAccountConfirm": "Excluir",
+    "deleteAccountCancel": "Cancelar",
+    "deleteAccountError": "Erro ao excluir a conta"
   },
   "onboarding": {
     "levelTitle": "Qual é o seu nível?",
@@ -424,6 +441,22 @@
         "1": "Bom ritmo. Continue assim.",
         "2": "Série limpa, continue avançando."
       }
+    },
+    "tutorial_clean_solve": {
+      "title": "Resolução perfeita!",
+      "body": "Primeira tentativa, sem dicas — seu ELO sobe, você ganha uma coroa dourada ou prateada, e este puzzle conta para sua sessão do dia."
+    },
+    "tutorial_hint_used": {
+      "title": "Você usou uma dica",
+      "body": "Seu ELO caiu um pouco, mas suas vidas estão salvas. A dica é sua rede de segurança — use-a quando precisar."
+    },
+    "tutorial_retry_no_hint": {
+      "title": "Aposta arriscada",
+      "body": "Você errou mas resolveu sem ajuda — isso tem um preço: −1 vida e o ELO cai. Da próxima vez, uma dica protege suas vidas."
+    },
+    "tutorial_failed_final": {
+      "title": "Este puzzle ganhou",
+      "body": "Você perdeu uma vida e seu ELO caiu. As vidas se recarregam com o tempo, ou você pode usar cristais para recuperá-las."
     }
   },
   "gdpr": {

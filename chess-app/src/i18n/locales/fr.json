@@ -33,7 +33,13 @@
     "sendReset": "Envoyer le lien",
     "resetSent": "Nous avons envoyé un lien à {{email}}. Vérifiez votre boîte de réception.",
     "backToSignIn": "Retour à la connexion",
-    "errorResetPassword": "Erreur lors de l'envoi du lien"
+    "errorResetPassword": "Erreur lors de l'envoi du lien",
+    "updatePasswordTitle": "Nouveau mot de passe",
+    "newPassword": "Nouveau mot de passe",
+    "confirmNewPassword": "Confirmer le nouveau mot de passe",
+    "updatePassword": "Enregistrer le mot de passe",
+    "passwordUpdated": "Mot de passe mis à jour !",
+    "errorUpdatePassword": "Erreur lors de la mise à jour du mot de passe"
   },
   "puzzle": {
     "statusIdle": "Adversaire joue…",
@@ -123,7 +129,12 @@
     "historyEmpty": "Vous n'avez pas encore résolu de puzzle.",
     "historyLoading": "Chargement…",
     "historyMore": "Voir plus",
-    "historyPuzzle": "Puzzle {{rating}} · ELO {{elo}}"
+    "historyPuzzle": "Puzzle {{rating}} · ELO {{elo}}",
+    "sectionAccount": "COMPTE",
+    "accountName": "Nom",
+    "accountEmail": "Email",
+    "accountId": "ID",
+    "accountGuest": "Invité"
   },
   "progress": {
     "sectionSummary": "RÉSUMÉ GÉNÉRAL",
@@ -172,7 +183,13 @@
     "termsOfService": "Conditions d'utilisation",
     "faq": "Aide et questions fréquentes",
     "sectionSupport": "SUPPORT",
-    "contactSupport": "Contacter le support"
+    "contactSupport": "Contacter le support",
+    "deleteAccount": "Supprimer le compte",
+    "deleteAccountTitle": "Supprimer le compte ?",
+    "deleteAccountMsg": "Cette action est irréversible. Toutes vos données seront supprimées définitivement.",
+    "deleteAccountConfirm": "Supprimer",
+    "deleteAccountCancel": "Annuler",
+    "deleteAccountError": "Erreur lors de la suppression du compte"
   },
   "onboarding": {
     "levelTitle": "Quel est votre niveau ?",
@@ -424,6 +441,22 @@
         "1": "Bon rythme. Continue comme ça.",
         "2": "Série propre, continue à avancer."
       }
+    },
+    "tutorial_clean_solve": {
+      "title": "Résolution parfaite !",
+      "body": "Premier essai, sans indice — ton ELO monte, tu gagnes une couronne dorée ou argentée, et ce puzzle compte pour ta session du jour."
+    },
+    "tutorial_hint_used": {
+      "title": "Tu as utilisé un indice",
+      "body": "Ton ELO a baissé un peu, mais tes vies sont sauvegardées. L'indice est ton filet de sécurité — utilise-le quand tu en as besoin."
+    },
+    "tutorial_retry_no_hint": {
+      "title": "Pari sans filet",
+      "body": "Tu as échoué mais l'as résolu sans aide — ça a un prix : −1 vie et l'ELO baisse. La prochaine fois, un indice protège tes vies."
+    },
+    "tutorial_failed_final": {
+      "title": "Ce puzzle a gagné",
+      "body": "Tu as perdu une vie et ton ELO a baissé. Les vies se rechargent avec le temps, ou tu peux utiliser des cristaux pour les récupérer."
     }
   },
   "gdpr": {

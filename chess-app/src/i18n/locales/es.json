@@ -33,7 +33,13 @@
     "sendReset": "Enviar link",
     "resetSent": "Te enviamos un link a {{email}}. Revisa tu bandeja de entrada.",
     "backToSignIn": "Volver al inicio de sesión",
-    "errorResetPassword": "Error al enviar el link de recuperación"
+    "errorResetPassword": "Error al enviar el link de recuperación",
+    "updatePasswordTitle": "Nueva contraseña",
+    "newPassword": "Nueva contraseña",
+    "confirmNewPassword": "Confirmar nueva contraseña",
+    "updatePassword": "Guardar contraseña",
+    "passwordUpdated": "¡Contraseña actualizada!",
+    "errorUpdatePassword": "Error al actualizar la contraseña"
   },
   "puzzle": {
     "statusIdle": "Oponente mueve…",
@@ -123,7 +129,12 @@
     "historyEmpty": "Aún no has resuelto ningún puzzle.",
     "historyLoading": "Cargando…",
     "historyMore": "Ver más",
-    "historyPuzzle": "Puzzle {{rating}} · ELO {{elo}}"
+    "historyPuzzle": "Puzzle {{rating}} · ELO {{elo}}",
+    "sectionAccount": "CUENTA",
+    "accountName": "Nombre",
+    "accountEmail": "Email",
+    "accountId": "ID",
+    "accountGuest": "Invitado"
   },
   "progress": {
     "sectionSummary": "RESUMEN GENERAL",
@@ -172,7 +183,13 @@
     "termsOfService": "Términos de servicio",
     "faq": "Ayuda y preguntas frecuentes",
     "sectionSupport": "SOPORTE",
-    "contactSupport": "Contactar soporte"
+    "contactSupport": "Contactar soporte",
+    "deleteAccount": "Eliminar cuenta",
+    "deleteAccountTitle": "¿Eliminar cuenta?",
+    "deleteAccountMsg": "Esta acción es irreversible. Todo tu progreso y datos serán eliminados permanentemente.",
+    "deleteAccountConfirm": "Eliminar",
+    "deleteAccountCancel": "Cancelar",
+    "deleteAccountError": "Error al eliminar la cuenta"
   },
   "onboarding": {
     "levelTitle": "¿Cuál es tu nivel?",
@@ -424,6 +441,22 @@
         "1": "Buen ritmo. Sigue así.",
         "2": "Racha limpia, sigue sumando."
       }
+    },
+    "tutorial_clean_solve": {
+      "title": "¡Solve perfecto!",
+      "body": "Primer intento, sin pistas — tu ELO sube, ganas corona de oro o plata, y este puzzle cuenta para tu sesión del día."
+    },
+    "tutorial_hint_used": {
+      "title": "Usaste una pista",
+      "body": "Tu ELO bajó un poco, pero tus vidas están a salvo. La pista es tu red de seguridad — úsala cuando lo necesites."
+    },
+    "tutorial_retry_no_hint": {
+      "title": "Apuesta sin red",
+      "body": "Fallaste y lo resolviste sin ayuda — eso tiene un precio: −1 vida y ELO baja. La próxima vez, una pista protege tus vidas."
+    },
+    "tutorial_failed_final": {
+      "title": "Este puzzle ganó",
+      "body": "Perdiste una vida y tu ELO bajó. Tus vidas se recargan con el tiempo, o puedes usar cristales para recuperarlas."
     }
   },
   "gdpr": {

@@ -33,7 +33,13 @@
     "sendReset": "Send link",
     "resetSent": "We sent a link to {{email}}. Check your inbox.",
     "backToSignIn": "Back to sign in",
-    "errorResetPassword": "Error sending the reset link"
+    "errorResetPassword": "Error sending the reset link",
+    "updatePasswordTitle": "New password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "updatePassword": "Save password",
+    "passwordUpdated": "Password updated!",
+    "errorUpdatePassword": "Error updating password"
   },
   "puzzle": {
     "statusIdle": "Opponent moves…",
@@ -123,7 +129,12 @@
     "historyEmpty": "You haven't solved any puzzles yet.",
     "historyLoading": "Loading…",
     "historyMore": "Load more",
-    "historyPuzzle": "Puzzle {{rating}} · ELO {{elo}}"
+    "historyPuzzle": "Puzzle {{rating}} · ELO {{elo}}",
+    "sectionAccount": "ACCOUNT",
+    "accountName": "Name",
+    "accountEmail": "Email",
+    "accountId": "ID",
+    "accountGuest": "Guest"
   },
   "progress": {
     "sectionSummary": "SUMMARY",
@@ -172,7 +183,13 @@
     "termsOfService": "Terms of service",
     "faq": "Help & FAQ",
     "sectionSupport": "SUPPORT",
-    "contactSupport": "Contact support"
+    "contactSupport": "Contact support",
+    "deleteAccount": "Delete account",
+    "deleteAccountTitle": "Delete account?",
+    "deleteAccountMsg": "This action is permanent. All your progress and data will be deleted.",
+    "deleteAccountConfirm": "Delete",
+    "deleteAccountCancel": "Cancel",
+    "deleteAccountError": "Error deleting account"
   },
   "onboarding": {
     "levelTitle": "What's your level?",
@@ -424,6 +441,22 @@
         "1": "Good pace. Keep it up.",
         "2": "Clean streak, keep going."
       }
+    },
+    "tutorial_clean_solve": {
+      "title": "Perfect solve!",
+      "body": "First attempt, no hints — your ELO goes up, you earn a gold or silver crown, and this puzzle counts toward your daily session."
+    },
+    "tutorial_hint_used": {
+      "title": "You used a hint",
+      "body": "Your ELO dropped a bit, but your lives are safe. A hint is your safety net — use it when you need it."
+    },
+    "tutorial_retry_no_hint": {
+      "title": "Risky move",
+      "body": "You failed but solved it without help — that has a price: −1 life and ELO drops. Next time, a hint keeps your lives safe."
+    },
+    "tutorial_failed_final": {
+      "title": "This puzzle won",
+      "body": "You lost a life and your ELO dropped. Lives recharge over time, or you can use crystals to recover them."
     }
   },
   "gdpr": {

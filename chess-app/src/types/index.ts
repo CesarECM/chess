@@ -71,7 +71,11 @@ export type MessageType =
   | 'reino_crystal_first'
   | 'liga_intro'
   | 'session_gate_reached'
-  | 'session_progress_nudge';
+  | 'session_progress_nudge'
+  | 'tutorial_hint_used'
+  | 'tutorial_retry_no_hint'
+  | 'tutorial_failed_final'
+  | 'tutorial_clean_solve';
 
 export interface ProgressMessage {
   id: string;

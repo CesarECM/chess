@@ -577,6 +577,21 @@ export function usePuzzleSolverLocal(
       setBonusTriggered(bonusResult);
     } else {
       usePuzzleStore.getState().recordFailedInSession();
+      // T3 tutorial — primer fallo final (estado 5): informar sobre pérdida de vida y cristales
+      if (PROGRESS_CARDS_ENABLED && onMessagesEarnedRef.current) {
+        const { seenMessageTypes } = useUserStore.getState();
+        const { sessionMessageCount } = usePuzzleStore.getState();
+        if (sessionMessageCount < 3 && !seenMessageTypes.includes('tutorial_failed_final')) {
+          onMessagesEarnedRef.current([{
+            id:      `tutorial_failed_final_${Date.now()}`,
+            kind:    'progress',
+            type:    'tutorial_failed_final',
+            payload: {},
+          }]);
+          useUserStore.getState().markMessageSeen('tutorial_failed_final');
+          usePuzzleStore.getState().recordMessageShown();
+        }
+      }
     }
 
     if (solved && PROGRESS_CARDS_ENABLED && preUser && preSession && preReino) {
@@ -624,6 +639,8 @@ export function usePuzzleSolverLocal(
         sessionMessageCount,
         lastMessagePuzzleCount,
         sessionPuzzleCountAfter:     sessionPuzzleCount,
+        hintUsed:                    hintUsedRef.current,
+        puzzleOutcomeState:          puzzleOutcomeState,
       });
 
       const messages = applyDosification(rawMessages, {
@@ -638,7 +655,10 @@ export function usePuzzleSolverLocal(
         if (hasRegular) {
           usePuzzleStore.getState().recordMessageShown();
           for (const m of messages) {
-            if (['reino_crown_first','reino_crystal_first','liga_intro'].includes(m.type)) {
+            if ([
+              'reino_crown_first', 'reino_crystal_first', 'liga_intro',
+              'tutorial_hint_used', 'tutorial_retry_no_hint', 'tutorial_clean_solve',
+            ].includes(m.type)) {
               useUserStore.getState().markMessageSeen(m.type);
             }
           }

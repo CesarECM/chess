@@ -35,6 +35,10 @@ const MESSAGE_PRIORITY: Record<MessageType, number> = {
   fsrs_review_session: 15,
   streak:              10,
   weekly_summary:      10,
+  tutorial_clean_solve:    9,
+  tutorial_hint_used:      8,
+  tutorial_retry_no_hint:  7,
+  tutorial_failed_final:   6,
   recalibration_streak: 5,
   calibration_start:   0,
   calibration_insight: 0,
@@ -88,6 +92,9 @@ export interface PuzzleEventSnapshot {
   sessionMessageCount:        number;
   lastMessagePuzzleCount:     number;
   sessionPuzzleCountAfter:    number;
+  // Puzzle outcome (for tutorial detection)
+  hintUsed:           boolean;
+  puzzleOutcomeState: 1 | '1b' | 2 | 3 | 4 | 5;
 }
 
 export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
@@ -295,6 +302,45 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
         count:     s.sessionFirstAttemptSolvedCountAfter,
         bodyIndex: Math.floor(Math.random() * 3),
       },
+    });
+  }
+
+  // 17. Tutorial — primer solve limpio (estado 1 ó 1b): ELO sube, corona oro/plata
+  if (
+    !s.seenMessageTypes.includes('tutorial_clean_solve') &&
+    (s.puzzleOutcomeState === 1 || s.puzzleOutcomeState === '1b')
+  ) {
+    messages.push({
+      id:   'tutorial_clean_solve',
+      kind: 'progress',
+      type: 'tutorial_clean_solve',
+      payload: {},
+    });
+  }
+
+  // 18. Tutorial — primera pista usada (estados 2 ó 4: resuelto con pista)
+  if (
+    !s.seenMessageTypes.includes('tutorial_hint_used') &&
+    s.hintUsed
+  ) {
+    messages.push({
+      id:   'tutorial_hint_used',
+      kind: 'progress',
+      type: 'tutorial_hint_used',
+      payload: {},
+    });
+  }
+
+  // 19. Tutorial — primer reintento sin pista (estado 3: falló 1ª vez, resolvió sin pista)
+  if (
+    !s.seenMessageTypes.includes('tutorial_retry_no_hint') &&
+    s.puzzleOutcomeState === 3
+  ) {
+    messages.push({
+      id:   'tutorial_retry_no_hint',
+      kind: 'progress',
+      type: 'tutorial_retry_no_hint',
+      payload: {},
     });
   }
 
