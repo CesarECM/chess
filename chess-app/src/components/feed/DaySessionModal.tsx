@@ -265,7 +265,7 @@ export function DaySessionModal({
 
 const styles = StyleSheet.create({
   backdrop:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  card:            { width: '100%', borderRadius: 20, padding: 24, alignItems: 'center', gap: 16 },
+  card:            { width: '100%', maxWidth: 480, borderRadius: 20, padding: 24, alignItems: 'center', gap: 16 },
   status:          { fontWeight: '700', textAlign: 'center' },
   statsRow:        { flexDirection: 'row', width: '100%', justifyContent: 'space-around' },
   statItem:        { alignItems: 'center', gap: 2 },
