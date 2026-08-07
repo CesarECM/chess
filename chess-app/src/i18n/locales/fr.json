@@ -222,6 +222,7 @@
   },
   "feed": {
     "loadError": "Impossible de charger les puzzles. Vérifiez votre connexion.",
+    "retry": "Réessayer",
     "viewProfile": "Voir le profil",
     "lockedSlot": "Résolvez ce puzzle pour continuer",
     "goToPuzzle": "← Retour au puzzle",
@@ -645,6 +646,62 @@
       "promoted": "🎉 Vous avez monté de division !",
       "demoted":  "📉 Vous avez chuté de division",
       "neutral":  "Vous avez conservé votre division"
+    }
+  },
+  "a11y": {
+    "sessionBar": {
+      "piece":      "{{piece}}, niveau ELO {{elo}}",
+      "streak":     "Série de {{days}} jours",
+      "crowns":     "Couronnes: or {{gold}}, argent {{silver}}, bronze {{bronze}}",
+      "crystals":   "Cristaux: {{count}}",
+      "speed":      "Points de vitesse: {{count}}",
+      "lives":      "Vies: {{count}}",
+      "arcCounting": "Progression de session: {{count}} sur 10",
+      "arcGateOpen": "Session du jour disponible",
+      "arcResumen":  "Session complétée aujourd'hui",
+      "arcHint":     "Appuyer pour ouvrir la session du jour"
+    },
+    "messageCard": {
+      "card":        "Succès: {{title}}",
+      "icon":        "Icône de succès",
+      "continue":    "Continuer au prochain puzzle",
+      "openSession": "Ouvrir la session du jour"
+    },
+    "puzzle": {
+      "board":          "Échiquier",
+      "navBack":        "Coup précédent de la solution",
+      "navForward":     "Coup suivant de la solution",
+      "moveNavBack":    "Coup précédent dans la partie",
+      "moveNavForward": "Coup suivant dans la partie",
+      "startAutoplay":  "Démarrer la lecture automatique",
+      "stopAutoplay":   "Arrêter la lecture automatique",
+      "closeAnalysis":  "Fermer l'analyse",
+      "closeVsEngine":  "Quitter le mode contre le moteur",
+      "pvLine":         "Ligne {{index}}: évaluation {{eval}}, coups {{moves}}",
+      "vsEnginePlay":   "Jouer contre le moteur depuis cette position",
+      "mainLineBtn":    "Retour à la ligne principale",
+      "status":         "Statut: {{status}}"
+    },
+    "nav": {
+      "castle": "Le Royaume, onglet",
+      "logo":   "Chess Puzzles, aller à l'accueil"
+    },
+    "auth": {
+      "emailInput":    "Champ adresse e-mail",
+      "nameInput":     "Champ prénom (facultatif)",
+      "passwordInput": "Champ mot de passe",
+      "newPasswordInput": "Champ nouveau mot de passe",
+      "confirmPasswordInput": "Champ confirmer le mot de passe",
+      "signInBtn":     "Se connecter",
+      "googleBtn":     "Continuer avec Google",
+      "registerLink":  "Créer un nouveau compte",
+      "guestLink":     "Continuer comme invité",
+      "forgotLink":    "Mot de passe oublié",
+      "sendResetBtn":  "Envoyer le lien de récupération",
+      "backToSignIn":  "Retour à la connexion",
+      "createBtn":     "Créer un compte",
+      "savePasswordBtn": "Enregistrer le mot de passe",
+      "goToLoginLink": "Aller à la connexion"
     }
   }
 }

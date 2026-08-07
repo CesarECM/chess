@@ -222,6 +222,7 @@
   },
   "feed": {
     "loadError": "Could not load puzzles. Check your connection.",
+    "retry": "Retry",
     "viewProfile": "View profile",
     "lockedSlot": "Solve this puzzle to continue",
     "goToPuzzle": "← Back to puzzle",
@@ -645,6 +646,62 @@
       "promoted": "🎉 You moved up a division!",
       "demoted":  "📉 You dropped a division",
       "neutral":  "You stayed in your division"
+    }
+  },
+  "a11y": {
+    "sessionBar": {
+      "piece":      "{{piece}}, ELO level {{elo}}",
+      "streak":     "{{days}}-day streak",
+      "crowns":     "Crowns: gold {{gold}}, silver {{silver}}, bronze {{bronze}}",
+      "crystals":   "Crystals: {{count}}",
+      "speed":      "Speed points: {{count}}",
+      "lives":      "Lives: {{count}}",
+      "arcCounting": "Session progress: {{count}} of 10",
+      "arcGateOpen": "Day session available",
+      "arcResumen":  "Session completed today",
+      "arcHint":     "Tap to open the day session"
+    },
+    "messageCard": {
+      "card":        "Achievement: {{title}}",
+      "icon":        "Achievement icon",
+      "continue":    "Continue to next puzzle",
+      "openSession": "Open day session"
+    },
+    "puzzle": {
+      "board":          "Chess board",
+      "navBack":        "Previous move in solution",
+      "navForward":     "Next move in solution",
+      "moveNavBack":    "Previous move in play line",
+      "moveNavForward": "Next move in play line",
+      "startAutoplay":  "Start autoplay",
+      "stopAutoplay":   "Stop autoplay",
+      "closeAnalysis":  "Close analysis",
+      "closeVsEngine":  "Exit vs engine mode",
+      "pvLine":         "Line {{index}}: evaluation {{eval}}, moves {{moves}}",
+      "vsEnginePlay":   "Play against engine from this position",
+      "mainLineBtn":    "Return to main line",
+      "status":         "Status: {{status}}"
+    },
+    "nav": {
+      "castle": "The Kingdom, tab",
+      "logo":   "Chess Puzzles, go to home"
+    },
+    "auth": {
+      "emailInput":    "Email address field",
+      "nameInput":     "Name field (optional)",
+      "passwordInput": "Password field",
+      "newPasswordInput": "New password field",
+      "confirmPasswordInput": "Confirm password field",
+      "signInBtn":     "Sign in",
+      "googleBtn":     "Continue with Google",
+      "registerLink":  "Create new account",
+      "guestLink":     "Continue as guest",
+      "forgotLink":    "Forgot my password",
+      "sendResetBtn":  "Send recovery link",
+      "backToSignIn":  "Back to sign in",
+      "createBtn":     "Create account",
+      "savePasswordBtn": "Save password",
+      "goToLoginLink": "Go to sign in"
     }
   }
 }

@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, ActivityIndicator, Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DebugPanel } from '@/components/debug/DebugPanel';
 import type { DebugEntry } from '@/components/debug/DebugPanel';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { syncStreakToSupabase } from '@/services/auth';
 import { usePuzzleStore, LOCKED_SLOT } from '@/stores/usePuzzleStore';
 import { buildReviewQueue, buildCalibrationQueue } from '@/services/reviewQueue';
 import { getOrCreateGuestId } from '@/services/identity';
 import { cachePuzzles, getCachedPuzzles } from '@/services/puzzleCache';
 import { loadAllProgressPuzzleIds } from '@/services/puzzleProgress';
 import { PuzzleCard } from '@/components/feed/PuzzleCard';
+import { PuzzleCardSkeleton } from '@/components/feed/PuzzleCardSkeleton';
 import { MessageCard } from '@/components/feed/MessageCard';
 import { LockedSlot } from '@/components/feed/LockedSlot';
 import { SpringPager } from '@/components/feed/SpringPager';
@@ -58,6 +61,7 @@ export default function FeedScreen() {
 
   const [isLoading,        setIsLoading]        = useState(true);
   const [hasError,         setHasError]         = useState(false);
+  const [retryCount,       setRetryCount]       = useState(0);
   const [activeIndex,      setActiveIndex]      = useState(0);
   const [listHeight,       setListHeight]       = useState(Dimensions.get('window').height - 80);
   const [activeStatus,     setActiveStatus]     = useState<SolverStatus>('idle');
@@ -114,6 +118,13 @@ export default function FeedScreen() {
   listHeightRef.current     = listHeight;
   preEloLowRef.current      = preEloLow;
   preEloHighRef.current     = preEloHigh;
+
+  const handleRetry = useCallback(() => {
+    initializedRef.current = false;
+    setHasError(false);
+    setIsLoading(true);
+    setRetryCount((c) => c + 1);
+  }, []);
 
   // ── Initial feed load ────────────────────────────────────────────────────
   useEffect(() => {
@@ -219,7 +230,7 @@ export default function FeedScreen() {
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onboardingCompleted]);
+  }, [onboardingCompleted, retryCount]);
 
   // ── Prefetch: fills buffer when it runs low ───────────────────────────────
   useEffect(() => {
@@ -445,6 +456,11 @@ export default function FeedScreen() {
       durationMs: sessionStartTime ? Date.now() - sessionStartTime : 0,
     };
     completeDaySession(stats);
+    const { isGuest, user } = useAuthStore.getState();
+    if (!isGuest && user?.id) {
+      const { streakDays, streakLongest } = useUserStore.getState();
+      syncStreakToSupabase(user.id, streakDays, streakLongest).catch(() => {});
+    }
     setDaySessionVisible(false);
     setDaySessionByLives(false);
   }, [completeDaySession, sessionTotalSolved, sessionTotalFailed, sessionStartTime]);
@@ -515,11 +531,7 @@ export default function FeedScreen() {
   }, [listHeight, activeIndex, solvedPuzzleIds, waitingForBuffer, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned, goToActivePuzzle, handleSkipFromLockedSlot]);
 
   if (isLoading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.accent} />
-      </View>
-    );
+    return <PuzzleCardSkeleton height={listHeight} />;
   }
 
   if (hasError || feed.length === 0) {
@@ -528,6 +540,16 @@ export default function FeedScreen() {
         <Text style={{ color: colors.error, fontSize: typography.size.md, fontWeight: '500', textAlign: 'center', paddingHorizontal: 32 }}>
           {t('feed.loadError')}
         </Text>
+        <TouchableOpacity
+          onPress={handleRetry}
+          style={[styles.retryButton, { backgroundColor: colors.accent }]}
+          accessibilityRole="button"
+          accessibilityLabel={t('feed.retry')}
+        >
+          <Text style={{ color: colors.surface, fontWeight: '600', fontSize: typography.size.md }}>
+            {t('feed.retry')}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -616,6 +638,7 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container:       { flex: 1 },
   centered:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  retryButton:     { marginTop: 20, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 8 },
   profileHint:     { position: 'absolute', bottom: 40, alignSelf: 'center', alignItems: 'center', gap: 6 },
   profileHintIcon: { fontSize: 36 },
   profileHintText: { fontSize: 13, fontWeight: '600' },

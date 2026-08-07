@@ -222,6 +222,7 @@
   },
   "feed": {
     "loadError": "Não foi possível carregar os puzzles. Verifique sua conexão.",
+    "retry": "Tentar novamente",
     "viewProfile": "Ver perfil",
     "lockedSlot": "Resolva este puzzle para continuar",
     "goToPuzzle": "← Voltar ao puzzle",
@@ -645,6 +646,62 @@
       "promoted": "🎉 Você subiu de divisão!",
       "demoted":  "📉 Você caiu de divisão",
       "neutral":  "Você ficou na sua divisão"
+    }
+  },
+  "a11y": {
+    "sessionBar": {
+      "piece":      "{{piece}}, nível ELO {{elo}}",
+      "streak":     "Sequência de {{days}} dias",
+      "crowns":     "Coroas: ouro {{gold}}, prata {{silver}}, bronze {{bronze}}",
+      "crystals":   "Cristais: {{count}}",
+      "speed":      "Pontos de velocidade: {{count}}",
+      "lives":      "Vidas: {{count}}",
+      "arcCounting": "Progresso da sessão: {{count}} de 10",
+      "arcGateOpen": "Sessão do dia disponível",
+      "arcResumen":  "Sessão concluída hoje",
+      "arcHint":     "Toque para abrir a sessão do dia"
+    },
+    "messageCard": {
+      "card":        "Conquista: {{title}}",
+      "icon":        "Ícone de conquista",
+      "continue":    "Continuar para o próximo puzzle",
+      "openSession": "Abrir sessão do dia"
+    },
+    "puzzle": {
+      "board":          "Tabuleiro de xadrez",
+      "navBack":        "Movimento anterior da solução",
+      "navForward":     "Próximo movimento da solução",
+      "moveNavBack":    "Movimento anterior na partida",
+      "moveNavForward": "Próximo movimento na partida",
+      "startAutoplay":  "Iniciar reprodução automática",
+      "stopAutoplay":   "Parar reprodução automática",
+      "closeAnalysis":  "Fechar análise",
+      "closeVsEngine":  "Sair do modo versus motor",
+      "pvLine":         "Linha {{index}}: avaliação {{eval}}, movimentos {{moves}}",
+      "vsEnginePlay":   "Jogar contra o motor a partir desta posição",
+      "mainLineBtn":    "Voltar à linha principal",
+      "status":         "Status: {{status}}"
+    },
+    "nav": {
+      "castle": "O Reino, aba",
+      "logo":   "Chess Puzzles, ir ao início"
+    },
+    "auth": {
+      "emailInput":    "Campo de endereço de e-mail",
+      "nameInput":     "Campo de nome (opcional)",
+      "passwordInput": "Campo de senha",
+      "newPasswordInput": "Campo de nova senha",
+      "confirmPasswordInput": "Campo de confirmar senha",
+      "signInBtn":     "Entrar",
+      "googleBtn":     "Continuar com o Google",
+      "registerLink":  "Criar nova conta",
+      "guestLink":     "Continuar como convidado",
+      "forgotLink":    "Esqueci minha senha",
+      "sendResetBtn":  "Enviar link de recuperação",
+      "backToSignIn":  "Voltar para o login",
+      "createBtn":     "Criar conta",
+      "savePasswordBtn": "Salvar senha",
+      "goToLoginLink": "Ir para o login"
     }
   }
 }
