@@ -928,33 +928,33 @@ function PuzzleCardComponent({
         </>
       )}
 
-      {/* complete: secondary buttons visible during 1.4s auto-advance window; tapping cancels the timer */}
+      {/* complete: primary outlined full-width + ghost secondaries during 1.4s auto-advance window */}
       {isActive && puzzleStatus === 'complete' && (
         <>
+          <TouchableOpacity
+            style={[styles.btn, styles.btnOutline, { borderColor: colors.border, alignSelf: 'stretch' }]}
+            onPress={() => { cancelAutoAdvance(); startReview(); }}
+          >
+            <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+              {t('puzzle.reviewMove')}
+            </Text>
+          </TouchableOpacity>
           <View style={styles.row}>
             <TouchableOpacity
-              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
-              onPress={() => { cancelAutoAdvance(); startReview(); }}
-            >
-              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
-                {t('puzzle.reviewMove')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btn, styles.btnOutline, { borderColor: colors.border, flex: 1 }]}
+              style={[styles.btn, { flex: 1, opacity: 0.5 }]}
               onPress={() => { cancelAutoAdvance(); handleAnalyze(); }}
             >
-              <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+              <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
                 {t('puzzle.analyze')}
               </Text>
             </TouchableOpacity>
             {Platform.OS !== 'web' && (
               <TouchableOpacity
-                style={[styles.btn, styles.btnOutline, { borderColor: colors.border, opacity: isSharing ? 0.5 : 1 }]}
+                style={[styles.btn, { flex: 1, opacity: isSharing ? 0.25 : 0.5 }]}
                 onPress={captureAndShare}
                 disabled={isSharing}
               >
-                <Text style={[styles.btnText, { color: colors.text, fontSize: typography.size.sm }]}>
+                <Text style={[styles.btnText, { color: colors.textSecondary, fontSize: typography.size.sm }]}>
                   {isSharing ? '…' : t('puzzle.share')}
                 </Text>
               </TouchableOpacity>
