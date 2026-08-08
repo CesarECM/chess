@@ -12,7 +12,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
-import { usePuzzleSolverLocal, type SolverStatus } from '@/hooks/usePuzzleSolverLocal';
+import { usePuzzleSolverLocal, type SolverStatus, type DailyCompleteResult } from '@/hooks/usePuzzleSolverLocal';
 import { useShareCard } from '@/hooks/useShareCard';
 import { useAnalysis } from '@/services/analysis/useAnalysis';
 import { useBatchEval } from '@/services/analysis/useBatchEval';
@@ -23,6 +23,7 @@ import { SessionBar } from '@/components/feed/SessionBar';
 import { RangeBadge } from '@/components/ui/RangeBadge';
 import { ShareCard } from '@/components/ui/ShareCard';
 import type { Puzzle, ProgressMessage } from '@/types';
+import * as a11y from '@/constants/a11y';
 
 const DESKTOP_PANEL_WIDTH = 320;
 const PIECE_COLOR_WHITE   = '#f0d9b5';
@@ -51,12 +52,13 @@ interface Props {
   onDebugLog?: (tag: string, msg: string) => void;
   sessionGateOpen?: boolean;
   onOpenDaySession?: () => void;
+  onDailyComplete?: (result: DailyCompleteResult) => void;
 }
 
 function PuzzleCardComponent({
   puzzle, height, isActive, feedIndex,
   onComplete, onStatusChange, onMessagesEarned, backgroundColor, onForceFailRef, onDebugLog,
-  sessionGateOpen, onOpenDaySession,
+  sessionGateOpen, onOpenDaySession, onDailyComplete,
 }: Props) {
   const { colors, typography } = useTheme();
   const { t }        = useTranslation();
@@ -158,7 +160,7 @@ function PuzzleCardComponent({
     reviewSan, reviewFens, jumpToReviewIndex,
     eloDelta, clearEloDelta, getCurrentFen,
     penaltyResult, clearPenalty, streakBeforeBreak, onWatchAdForFreeze,
-  } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned);
+  } = usePuzzleSolverLocal(puzzle, boardRef, isActive, handleMessagesEarned, onDailyComplete);
 
   const isInReview = puzzleStatus === 'reviewing' || puzzleStatus === 'reviewed';
   const { evals: reviewEvals } = useBatchEval(reviewFens, isActive && isInReview);
@@ -589,7 +591,10 @@ function PuzzleCardComponent({
   );
 
   const statusText = (
-    <Text style={[styles.status, { color: statusColor, fontSize: typography.size.md }]}>
+    <Text
+      style={[styles.status, { color: statusColor, fontSize: typography.size.md }]}
+      {...a11y.liveText(t('a11y.puzzle.status', { status: statusLabels[puzzleStatus] }))}
+    >
       {statusLabels[puzzleStatus]}
     </Text>
   );
@@ -605,7 +610,7 @@ function PuzzleCardComponent({
             <Text style={[styles.analysisTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
               {t('vsEngine.title')}
             </Text>
-            <TouchableOpacity onPress={handleExitVsEngine} hitSlop={8}>
+            <TouchableOpacity onPress={handleExitVsEngine} hitSlop={8} {...a11y.btn(t('a11y.puzzle.closeVsEngine'))}>
               <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -644,13 +649,14 @@ function PuzzleCardComponent({
                   onPress={handleBackToMainLine}
                   hitSlop={8}
                   style={[styles.mainLineBtn, { borderColor: colors.border }]}
+                  {...a11y.btn(t('a11y.puzzle.mainLineBtn'))}
                 >
                   <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>
                     ← {t('puzzle.mainLine')}
                   </Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={handleResetAnalysis} hitSlop={8}>
+              <TouchableOpacity onPress={handleResetAnalysis} hitSlop={8} {...a11y.btn(t('a11y.puzzle.closeAnalysis'))}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -682,6 +688,7 @@ function PuzzleCardComponent({
                         style={styles.pvRow}
                         activeOpacity={0.5}
                         onPress={() => pv.moves && handlePvClick(pv.moves)}
+                        {...a11y.btn(t('a11y.puzzle.pvLine', { index: i + 1, eval: evalStr, moves: moveLabel }))}
                       >
                         <Text style={[styles.pvEval, { color: colors.text, fontSize: typography.size.xs }]}>{evalStr}</Text>
                         <Text style={[styles.pvMoves, { color: colors.textSecondary, fontSize: typography.size.xs }]} numberOfLines={1}>
@@ -695,6 +702,7 @@ function PuzzleCardComponent({
                   <TouchableOpacity
                     style={[styles.vsEngineBtn, { borderColor: colors.border }]}
                     onPress={handleStartVsEngine}
+                    {...a11y.btn(t('a11y.puzzle.vsEnginePlay'))}
                   >
                     <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>
                       ⚔ {t('vsEngine.play')}
@@ -724,6 +732,7 @@ function PuzzleCardComponent({
         style={[styles.navBtn, { opacity: reviewMoveIndex <= 0 ? 0.25 : 1 }]}
         onPress={() => { stopAutoplay(); wrappedBackReview(); }}
         disabled={reviewMoveIndex <= 0}
+        {...a11y.btn(t('a11y.puzzle.navBack'))}
       >
         <Text style={[styles.navBtnText, { color: colors.text }]}>‹</Text>
       </TouchableOpacity>
@@ -742,6 +751,7 @@ function PuzzleCardComponent({
         <TouchableOpacity
           style={styles.navBtn}
           onPress={isAutoplaying ? stopAutoplay : startAutoplay}
+          {...a11y.btn(isAutoplaying ? t('a11y.puzzle.stopAutoplay') : t('a11y.puzzle.startAutoplay'))}
         >
           <Text style={[styles.navBtnText, { color: colors.accent, fontSize: 22 }]}>
             {isAutoplaying ? '■' : '▶'}
@@ -753,6 +763,7 @@ function PuzzleCardComponent({
         style={[styles.navBtn, { opacity: reviewMoveIndex >= puzzle.moves.length ? 0.25 : 1 }]}
         onPress={() => { stopAutoplay(); wrappedAdvanceReview(); }}
         disabled={reviewMoveIndex >= puzzle.moves.length}
+        {...a11y.btn(t('a11y.puzzle.navForward'))}
       >
         <Text style={[styles.navBtnText, { color: colors.text }]}>›</Text>
       </TouchableOpacity>
@@ -786,6 +797,7 @@ function PuzzleCardComponent({
             style={[styles.navBtn, { opacity: (playNavIdx === null ? solverMoveIndex : playNavIdx) <= 0 ? 0.25 : 1 }]}
             onPress={handlePlayNavBack}
             disabled={(playNavIdx === null ? solverMoveIndex : playNavIdx) <= 0}
+            {...a11y.btn(t('a11y.puzzle.moveNavBack'))}
           >
             <Text style={[styles.navBtnText, { color: colors.text }]}>‹</Text>
           </TouchableOpacity>
@@ -793,6 +805,7 @@ function PuzzleCardComponent({
             style={[styles.navBtn, { opacity: playNavIdx === null ? 0.25 : 1 }]}
             onPress={handlePlayNavForward}
             disabled={playNavIdx === null}
+            {...a11y.btn(t('a11y.puzzle.moveNavForward'))}
           >
             <Text style={[styles.navBtnText, { color: colors.text }]}>›</Text>
           </TouchableOpacity>

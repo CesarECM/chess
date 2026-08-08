@@ -703,5 +703,18 @@
       "savePasswordBtn": "Salvar senha",
       "goToLoginLink": "Ir para o login"
     }
+  },
+  "daily": {
+    "revealTitle": "Era o Puzzle do Dia!",
+    "shareTitle": "Puzzle do Dia",
+    "shareSolved": "✓ Resolvido",
+    "shareFailed": "✗ Não resolvido",
+    "themeLabel": "Tática do dia",
+    "attempts_one": "{{count}} tentativa",
+    "attempts_other": "{{count}} tentativas",
+    "rewardSolved": "Recompensa por resolver",
+    "rewardFailed": "Recompensa por participar",
+    "shareBtn": "Compartilhar",
+    "continueBtn": "Continuar jogando"
   }
 }

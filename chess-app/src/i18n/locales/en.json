@@ -703,5 +703,18 @@
       "savePasswordBtn": "Save password",
       "goToLoginLink": "Go to sign in"
     }
+  },
+  "daily": {
+    "revealTitle": "That was the Daily Puzzle!",
+    "shareTitle": "Daily Puzzle",
+    "shareSolved": "✓ Solved",
+    "shareFailed": "✗ Not solved",
+    "themeLabel": "Tactic of the day",
+    "attempts_one": "{{count}} attempt",
+    "attempts_other": "{{count}} attempts",
+    "rewardSolved": "Reward for solving",
+    "rewardFailed": "Reward for playing",
+    "shareBtn": "Share",
+    "continueBtn": "Keep playing"
   }
 }

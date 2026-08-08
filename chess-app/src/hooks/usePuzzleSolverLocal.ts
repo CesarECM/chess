@@ -14,6 +14,7 @@ import { recordViralityEvent, recordSkipEvent } from '@/services/virality';
 import { recordSolveEvent } from '@/services/solveHistory';
 import { trackReferralPuzzle } from '@/services/referral';
 import { analytics } from '@/services/analytics';
+import { saveDailyResult } from '@/services/dailyPuzzle';
 import { syncFreezesToSupabase } from '@/services/auth';
 import { showRewardedAdForFreeze } from '@/services/ads';
 import { PROGRESS_CARDS_ENABLED, RECALIB_CONSECUTIVE_RECORDS, RECALIB_STREAK_WINDOW_UP } from '@/constants';
@@ -32,6 +33,13 @@ import { useLigaStore } from '@/stores/useLigaStore';
 import { assignToLeagueIfNeeded, incrementLigaScore } from '@/services/liga';
 
 export type SolverStatus = 'idle' | 'playing' | 'retry' | 'failed' | 'reviewing' | 'reviewed' | 'complete';
+
+export interface DailyCompleteResult {
+  solved:            boolean;
+  firstAttemptClean: boolean;
+  attempts:          number;
+  theme:             string;
+}
 
 const HIGHLIGHT_FROM = 'rgba(255, 165, 0, 0.75)';
 const HIGHLIGHT_TO   = 'rgba(255, 165, 0, 0.50)';
@@ -58,6 +66,7 @@ export function usePuzzleSolverLocal(
   boardRef: RefObject<ChessboardRef | null>,
   isActive: boolean,
   onMessagesEarned?: (messages: ProgressMessage[]) => void,
+  onDailyComplete?: (result: DailyCompleteResult) => void,
 ) {
   const [puzzleStatus, setPuzzleStatus] = useState<SolverStatus>('idle');
   const [eloDelta, setEloDelta] = useState<number | null>(null);
@@ -91,6 +100,8 @@ export function usePuzzleSolverLocal(
   const solvedResultRef    = useRef<boolean | null>(null); // null = no result yet
   const onMessagesEarnedRef = useRef(onMessagesEarned);
   onMessagesEarnedRef.current = onMessagesEarned;
+  const onDailyCompleteRef = useRef(onDailyComplete);
+  onDailyCompleteRef.current = onDailyComplete;
   const reviewFensRef = useRef<string[]>([]);
   const reviewSansRef = useRef<string[]>([]);
 
@@ -211,6 +222,13 @@ export function usePuzzleSolverLocal(
         is_easy_injection:    puzzle.isEasyInjection ?? false,
         session_puzzle_index: usePuzzleStore.getState().sessionPuzzleCount,
       });
+
+      if (puzzle.isDailyPuzzle) {
+        analytics.track('daily_puzzle_started', {
+          puzzle_id: puzzle.id,
+          date:      new Date().toISOString().split('T')[0],
+        });
+      }
 
       setTimeout(() => { solveStartRef.current = Date.now(); }, 400);
     }, 500);
@@ -728,6 +746,40 @@ export function usePuzzleSolverLocal(
 
     if (!useAuthStore.getState().isGuest && userId) {
       trackReferralPuzzle(userId).catch(console.error);
+    }
+
+    // Daily puzzle: save result + fire event + notify FeedScreen
+    if (puzzle?.isDailyPuzzle) {
+      const today            = new Date().toISOString().split('T')[0];
+      const attempts         = wrongAttemptsRef.current + 1;
+      const firstAttemptClean = solved && wrongAttemptsRef.current === 0 && !hintUsedRef.current;
+      const theme            = puzzle.themes[0] ?? 'other';
+
+      const dailyResult = { puzzleId, date: today, solved, firstAttemptClean, attempts, theme };
+      saveDailyResult(dailyResult).catch(console.error);
+
+      // Daily rewards (stub for MPS #62 cofres): granted once via countedRef idempotency
+      const reinoStore = useReinoStore.getState();
+      if (solved) {
+        reinoStore.addCrown('gold',   puzzleId);
+        reinoStore.addCrown('silver', puzzleId);
+        reinoStore.addCrown('silver', puzzleId);
+        reinoStore.addCrystal(puzzleId);
+        reinoStore.addCrystal(puzzleId);
+      } else {
+        reinoStore.addCrown('bronze', puzzleId);
+      }
+
+      analytics.track('daily_puzzle_completed', {
+        puzzle_id:           puzzleId,
+        date:                today,
+        solved,
+        first_attempt_clean: firstAttemptClean,
+        attempts,
+        theme,
+      });
+
+      onDailyCompleteRef.current?.(dailyResult);
     }
   }
 

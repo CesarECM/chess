@@ -10,6 +10,9 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { syncStreakToSupabase } from '@/services/auth';
 import { usePuzzleStore, LOCKED_SLOT } from '@/stores/usePuzzleStore';
 import { buildReviewQueue, buildCalibrationQueue } from '@/services/reviewQueue';
+import { getDailyPuzzleForFeed } from '@/services/dailyPuzzle';
+import { DailyPuzzleReveal } from '@/components/feed/DailyPuzzleReveal';
+import type { DailyCompleteResult } from '@/hooks/usePuzzleSolverLocal';
 import { getOrCreateGuestId } from '@/services/identity';
 import { cachePuzzles, getCachedPuzzles } from '@/services/puzzleCache';
 import { loadAllProgressPuzzleIds } from '@/services/puzzleProgress';
@@ -68,6 +71,8 @@ export default function FeedScreen() {
   const [waitingForBuffer, setWaitingForBuffer] = useState(false);
   const [daySessionVisible,       setDaySessionVisible]      = useState(false);
   const [daySessionByLives,      setDaySessionByLives]      = useState(false);
+  const [dailyRevealVisible,     setDailyRevealVisible]     = useState(false);
+  const [dailyRevealData,        setDailyRevealData]        = useState<{ result: DailyCompleteResult; puzzleId: string } | null>(null);
 
   // ── Debug panel ──────────────────────────────────────────────────────────
   const [debugVisible, setDebugVisible] = useState(false);
@@ -153,23 +158,32 @@ export default function FeedScreen() {
         const { preEloLow: low, preEloHigh: high, firstPuzzleRating, clearFirstPuzzleRating } = useUserStore.getState();
         const isCalibrating = low !== null;
 
-        let puzzles: import('@/types').Puzzle[];
-        if (isCalibrating) {
-          const target = firstPuzzleRating ?? Math.round((low! + high!) / 2);
-          if (firstPuzzleRating) clearFirstPuzzleRating();
-          const fsrsIds = await loadAllProgressPuzzleIds(userId);
-          const calibExclude = [...new Set([...sessionHistoryRef.current, ...fsrsIds])];
-          puzzles = await buildCalibrationQueue(target, BATCH_SIZE, calibExclude);
-        } else {
-          const isFirstEver = sessionHistoryRef.current.length === 0;
-          puzzles = await buildReviewQueue(
-            userId,
-            eloRef.current,
-            BATCH_SIZE,
-            sessionHistoryRef.current,
-            { guaranteeEasyFirst: isFirstEver, sessionSeed: Date.now() },
-          );
-        }
+        // Fetch daily puzzle in parallel with the regular queue
+        const [dailyPuzzle, puzzlesFromQueue] = await Promise.all([
+          isCalibrating ? Promise.resolve(null) : getDailyPuzzleForFeed(),
+          (async (): Promise<import('@/types').Puzzle[]> => {
+            if (isCalibrating) {
+              const target = firstPuzzleRating ?? Math.round((low! + high!) / 2);
+              if (firstPuzzleRating) clearFirstPuzzleRating();
+              const fsrsIds = await loadAllProgressPuzzleIds(userId);
+              const calibExclude = [...new Set([...sessionHistoryRef.current, ...fsrsIds])];
+              return buildCalibrationQueue(target, BATCH_SIZE, calibExclude);
+            }
+            const isFirstEver = sessionHistoryRef.current.length === 0;
+            return buildReviewQueue(
+              userId,
+              eloRef.current,
+              BATCH_SIZE,
+              sessionHistoryRef.current,
+              { guaranteeEasyFirst: isFirstEver, sessionSeed: Date.now() },
+            );
+          })(),
+        ]);
+
+        // Prepend daily puzzle to queue (incognito — no visual difference)
+        const puzzles = dailyPuzzle
+          ? [dailyPuzzle, ...puzzlesFromQueue]
+          : puzzlesFromQueue;
         if (!cancelled) {
           if (puzzles.length) {
             cachePuzzles(puzzles);
@@ -444,6 +458,17 @@ export default function FeedScreen() {
     setDaySessionVisible(true);
   }, []);
 
+  const handleDailyComplete = useCallback((result: DailyCompleteResult, puzzleId: string) => {
+    setTimeout(() => {
+      setDailyRevealData({ result, puzzleId });
+      setDailyRevealVisible(true);
+    }, 800);
+  }, []);
+
+  const handleDailyRevealClose = useCallback(() => {
+    setDailyRevealVisible(false);
+  }, []);
+
   const handleDaySessionClose = useCallback(() => {
     setDaySessionVisible(false);
     setDaySessionByLives(false);
@@ -525,10 +550,13 @@ export default function FeedScreen() {
         onDebugLog={addLog}
         sessionGateOpen={sessionCompleted && !isResumen}
         onOpenDaySession={handleOpenDaySession}
+        onDailyComplete={puzzle.isDailyPuzzle
+          ? (result) => handleDailyComplete(result, puzzle.id)
+          : undefined}
       />
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listHeight, activeIndex, solvedPuzzleIds, waitingForBuffer, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned, goToActivePuzzle, handleSkipFromLockedSlot]);
+  }, [listHeight, activeIndex, solvedPuzzleIds, waitingForBuffer, scrollToNext, handleComplete, onActiveStatusChange, handleMessagesEarned, goToActivePuzzle, handleSkipFromLockedSlot, handleDailyComplete]);
 
   if (isLoading) {
     return <PuzzleCardSkeleton height={listHeight} />;
@@ -599,6 +627,15 @@ export default function FeedScreen() {
             {t('feed.viewProfile')}
           </Text>
         </Animated.View>
+      )}
+
+      {dailyRevealData && (
+        <DailyPuzzleReveal
+          visible={dailyRevealVisible}
+          result={dailyRevealData.result}
+          puzzleId={dailyRevealData.puzzleId}
+          onClose={handleDailyRevealClose}
+        />
       )}
 
       <DaySessionModal

@@ -28,6 +28,7 @@ export interface Puzzle {
   themes: TacticType[];
   gameUrl?: string;
   isEasyInjection?: boolean;
+  isDailyPuzzle?: boolean;
 }
 
 export interface UserPuzzleProgress {

@@ -703,5 +703,18 @@
       "savePasswordBtn": "Enregistrer le mot de passe",
       "goToLoginLink": "Aller à la connexion"
     }
+  },
+  "daily": {
+    "revealTitle": "C'était le Puzzle du Jour !",
+    "shareTitle": "Puzzle du Jour",
+    "shareSolved": "✓ Résolu",
+    "shareFailed": "✗ Non résolu",
+    "themeLabel": "Tactique du jour",
+    "attempts_one": "{{count}} essai",
+    "attempts_other": "{{count}} essais",
+    "rewardSolved": "Récompense pour avoir résolu",
+    "rewardFailed": "Récompense pour avoir joué",
+    "shareBtn": "Partager",
+    "continueBtn": "Continuer à jouer"
   }
 }
