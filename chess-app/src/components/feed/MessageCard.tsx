@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import type { MessageType, ProgressMessage } from '@/types';
+import * as a11y from '@/constants/a11y';
 
 interface Props {
   message:       ProgressMessage;
@@ -42,6 +43,8 @@ const ICONS: Record<MessageType, string> = {
   tutorial_retry_no_hint: '⚠️',
   tutorial_failed_final:  '💔',
   tutorial_clean_solve:   '⭐',
+  chest_earned:           '🎁',
+  chest_slot_full:        '📦',
 };
 
 function getIcon(message: ProgressMessage): string {
@@ -134,19 +137,28 @@ function MessageCardComponent({ message, height, isActive, onComplete, onOpenSes
     return () => { if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; } };
   }, [isActive]);
 
+  const cardTitle = t(`message.${message.type}.title`, payload as Record<string, string>);
+
   return (
-    <View style={[styles.card, { height, backgroundColor: colors.background }]}>
+    <View
+      style={[styles.card, { height, backgroundColor: colors.background }]}
+      accessibilityLabel={t('a11y.messageCard.card', { title: cardTitle })}
+      accessible
+    >
       <View style={[
         styles.inner,
         { backgroundColor: colors.accent + '14', borderColor: colors.accent + '30', borderRadius: 20 },
         isDesktop && styles.innerDesktop,
       ]}>
-        <Text style={[styles.icon, { color: message.type === 'rank_up' ? colors.accent : undefined }]}>
+        <Text
+          style={[styles.icon, { color: message.type === 'rank_up' ? colors.accent : undefined }]}
+          {...a11y.img(t('a11y.messageCard.icon'))}
+        >
           {icon}
         </Text>
 
         <Text style={[styles.title, { color: colors.text, fontSize: typography.size.xl }]}>
-          {t(`message.${message.type}.title`, payload as Record<string, string>)}
+          {cardTitle}
         </Text>
 
         <Text style={[styles.body, { color: colors.textSecondary, fontSize: typography.size.md }]}>
@@ -165,6 +177,7 @@ function MessageCardComponent({ message, height, isActive, onComplete, onOpenSes
           <TouchableOpacity
             style={[styles.btn, { backgroundColor: colors.success, borderRadius: 10, marginTop: spacing[4] }]}
             onPress={() => { onOpenSession?.(); onComplete(); }}
+            {...a11y.btn(t('a11y.messageCard.openSession'))}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.md }]}>
               {t('message.session_gate_reached.cta')}
@@ -174,6 +187,7 @@ function MessageCardComponent({ message, height, isActive, onComplete, onOpenSes
           <TouchableOpacity
             style={[styles.btn, { backgroundColor: colors.accent, borderRadius: 10, marginTop: spacing[4] }]}
             onPress={onComplete}
+            {...a11y.btn(t('a11y.messageCard.continue'))}
           >
             <Text style={[styles.btnText, { color: '#fff', fontSize: typography.size.md }]}>
               {t('message.continue')}

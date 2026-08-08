@@ -447,6 +447,10 @@
       "title": "Résolution parfaite !",
       "body": "Premier essai, sans indice — ton ELO monte, tu gagnes une couronne dorée ou argentée, et ce puzzle compte pour ta session du jour."
     },
+    "chest_slot_full": {
+      "title": "📦 Coffres pleins",
+      "body": "Tes 3 emplacements de coffre sont occupés. Ouvre-en un dans Le Royaume pour continuer à acheter !"
+    },
     "tutorial_hint_used": {
       "title": "Tu as utilisé un indice",
       "body": "Ton ELO a baissé un peu, mais tes vies sont sauvegardées. L'indice est ton filet de sécurité — utilise-le quand tu en as besoin."
@@ -599,6 +603,35 @@
       "trophy":    "Trophée",
       "board":     "Échiquier",
       "special":   "Spécial"
+    }
+  },
+  "chests": {
+    "section": {
+      "slots": "COFFRES ACTIFS",
+      "shop":  "BOUTIQUE DE COFFRES"
+    },
+    "type": {
+      "wood":   "Bois",
+      "silver": "Argent",
+      "gold":   "Or"
+    },
+    "slot": {
+      "open": "Ouvrir !"
+    },
+    "shop": {
+      "buy":     "Acheter",
+      "full":    "Complet",
+      "noFunds": "Pas assez"
+    },
+    "modal": {
+      "title":              "Coffre Ouvert !",
+      "rare":               "✨ RARE !",
+      "common":             "RÉCOMPENSE",
+      "lifeBonus_one":      "+1 vie immédiate",
+      "lifeBonus_other":    "+{{count}} vies immédiates",
+      "streakFreeze_one":   "1 gel de série",
+      "streakFreeze_other": "{{count}} gels de série",
+      "close":              "Super !"
     }
   },
   "notification": {

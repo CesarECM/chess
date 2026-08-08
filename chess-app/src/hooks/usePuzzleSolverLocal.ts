@@ -18,6 +18,7 @@ import { saveDailyResult } from '@/services/dailyPuzzle';
 import { syncFreezesToSupabase } from '@/services/auth';
 import { showRewardedAdForFreeze } from '@/services/ads';
 import { PROGRESS_CARDS_ENABLED, RECALIB_CONSECUTIVE_RECORDS, RECALIB_STREAK_WINDOW_UP } from '@/constants';
+import { CHEST_SLOT_MAX } from '@/constants/chests';
 import { detectPuzzleEvents, applyDosification } from '@/services/feedMessages';
 import { useReinoStore } from '@/stores/useReinoStore';
 import {
@@ -653,6 +654,7 @@ export function usePuzzleSolverLocal(
         crystalsAfter:               useReinoStore.getState().crystals,
         weeklyPuzzleCountBefore:     preReino.weeklyPuzzles,
         weeklyPuzzleCountAfter:      useUserStore.getState().weeklyPuzzleCount,
+        chestsSlotsFull:             useReinoStore.getState().chests.length >= CHEST_SLOT_MAX,
         seenMessageTypes,
         sessionMessageCount,
         lastMessagePuzzleCount,

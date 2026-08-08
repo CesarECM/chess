@@ -12,7 +12,7 @@ const ALWAYS_SHOW_TYPES = new Set<MessageType>([
 ]);
 
 const FEATURE_INTRO_TYPES = new Set<MessageType>([
-  'reino_crown_first', 'reino_crystal_first', 'liga_intro',
+  'reino_crown_first', 'reino_crystal_first', 'liga_intro', 'chest_slot_full',
 ]);
 
 const MESSAGE_PRIORITY: Record<MessageType, number> = {
@@ -44,6 +44,8 @@ const MESSAGE_PRIORITY: Record<MessageType, number> = {
   calibration_insight: 0,
   calibration_midpoint: 0,
   calibration_complete: 0,
+  chest_slot_full:     95,
+  chest_earned:        85,
 };
 
 export interface PuzzleEventSnapshot {
@@ -87,6 +89,7 @@ export interface PuzzleEventSnapshot {
   crystalsAfter:              number;
   weeklyPuzzleCountBefore:    number;
   weeklyPuzzleCountAfter:     number;
+  chestsSlotsFull:            boolean;
   // Dosification context
   seenMessageTypes:           string[];
   sessionMessageCount:        number;
@@ -340,6 +343,16 @@ export function detectPuzzleEvents(s: PuzzleEventSnapshot): ProgressMessage[] {
       id:   'tutorial_retry_no_hint',
       kind: 'progress',
       type: 'tutorial_retry_no_hint',
+      payload: {},
+    });
+  }
+
+  // chest_slot_full: remind user to open chests when all slots occupied
+  if (s.chestsSlotsFull) {
+    messages.push({
+      id:   'chest_slot_full',
+      kind: 'progress',
+      type: 'chest_slot_full',
       payload: {},
     });
   }

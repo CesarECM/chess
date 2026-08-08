@@ -485,15 +485,19 @@ export const useUserStore = create<UserState>()(
       setPremium: (value) => set({ isPremium: value }),
       setPremiumUntil: (date) => set({ premiumUntil: date }),
 
-      hydrate: (profile) => set({
-        elo: profile.elo,
-        preEloLow:  profile.preEloLow  ?? (profile.isCalibrated ? null : PRE_ELO_LOWER),
-        preEloHigh: profile.preEloHigh ?? (profile.isCalibrated ? null : PRE_ELO_UPPER),
-        streakDays: profile.streakCurrent,
-        streakLongest: profile.streakLongest,
-        isPremium: profile.isPremium,
-        freezes: profile.freezes ?? 0,
-      }),
+      hydrate: (profile) => {
+        const today = new Date().toISOString().split('T')[0];
+        const { lastSessionEndDate, streakDays, streakLongest } = get();
+        set({
+          elo: profile.elo,
+          preEloLow:  profile.preEloLow  ?? (profile.isCalibrated ? null : PRE_ELO_LOWER),
+          preEloHigh: profile.preEloHigh ?? (profile.isCalibrated ? null : PRE_ELO_UPPER),
+          streakDays: lastSessionEndDate === today ? streakDays : profile.streakCurrent,
+          streakLongest: Math.max(streakLongest, profile.streakLongest),
+          isPremium: profile.isPremium,
+          freezes: profile.freezes ?? 0,
+        });
+      },
 
       reset: () => set({
         elo: 800,

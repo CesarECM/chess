@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -6,11 +7,17 @@ import { useReinoStore } from '@/stores/useReinoStore';
 import { useLigaStore } from '@/stores/useLigaStore';
 import { HALLS, CROWN_COLORS } from '@/constants/reino';
 import { HallCard } from '@/components/reino/HallCard';
+import { ChestSlotGrid } from '@/components/reino/ChestSlotGrid';
+import { ChestShop } from '@/components/reino/ChestShop';
+import { ChestOpenModal } from '@/components/reino/ChestOpenModal';
+import type { ChestContents } from '@/types';
 
 export default function ReinoScreen() {
   const { colors, typography } = useTheme();
   const { t }      = useTranslation();
   const router     = useRouter();
+
+  const [openedContents, setOpenedContents] = useState<ChestContents | null>(null);
 
   const crowns             = useReinoStore((s) => s.crowns);
   const crystals           = useReinoStore((s) => s.crystals);
@@ -25,6 +32,7 @@ export default function ReinoScreen() {
   const crystalHall  = HALLS.find((h) => h.isCrystal)!;
 
   return (
+    <>
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
@@ -85,6 +93,17 @@ export default function ReinoScreen() {
         </View>
       </View>
 
+      {/* ── Cofres ── */}
+      <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+        {t('chests.section.slots')}
+      </Text>
+      <ChestSlotGrid onContentsReady={setOpenedContents} />
+
+      <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+        {t('chests.section.shop')}
+      </Text>
+      <ChestShop />
+
       {/* ── Liga semanal ── */}
       <TouchableOpacity
         style={[styles.ligaButton, { borderColor: colors.border, backgroundColor: colors.background }]}
@@ -142,6 +161,12 @@ export default function ReinoScreen() {
         </View>
       )}
     </ScrollView>
+
+    <ChestOpenModal
+      contents={openedContents}
+      onClose={() => setOpenedContents(null)}
+    />
+    </>
   );
 }
 

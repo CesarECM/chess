@@ -291,6 +291,23 @@ Al finalizar cada tarea entrega un resumen indicando:
 
 ---
 
+# Cierre de sesión
+
+Cuando el usuario diga **"Cerramos la sesión"**, ejecutar obligatoriamente los siguientes pasos antes de terminar:
+
+1. **Revisar avances de la sesión** — listar qué Subsprints se completaron, qué quedó a medias y qué surgió como nuevo (bugs encontrados, decisiones tomadas, cambios de alcance).
+
+2. **Actualizar la Ruta de Acción Maestra** (`memory/project_ruta_accion_maestra.md`) — marcar como ✅ lo completado, ajustar el estado de lo pendiente, e insertar cualquier ítem nuevo en la fase que le corresponda arquitectónicamente.
+
+3. **Actualizar los archivos de memoria afectados** — si una MPS cambió de estado, si surgió un bug nuevo, si se tomó una decisión técnica relevante, actualizar el archivo de memoria correspondiente y el índice `MEMORY.md`.
+
+4. **Entregar resumen de cierre** con:
+   - Qué se completó en la sesión.
+   - Qué quedó pendiente y dónde queda en la ruta.
+   - Cuál es el siguiente paso recomendado para la próxima sesión.
+
+---
+
 # Reglas generales
 
 * Nunca escribas código antes de completar los pasos correspondientes.

@@ -95,6 +95,21 @@ export async function syncDisplayNameToSupabase(userId: string, displayName: str
   await supabase.from('profiles').update({ display_name: displayName }).eq('id', userId);
 }
 
+export async function syncStreakToSupabase(userId: string, streakCurrent: number, streakLongest: number): Promise<void> {
+  await supabase.from('profiles').update({ streak_current: streakCurrent, streak_longest: streakLongest }).eq('id', userId);
+}
+
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase.rpc('delete_user');
+  if (error) throw error;
+  await signOut();
+}
+
 export function onAuthStateChange(
   callback: (event: string, user: User | null) => void,
 ) {

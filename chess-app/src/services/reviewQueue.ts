@@ -220,9 +220,10 @@ export async function buildReviewQueue(
   options: { guaranteeEasyFirst?: boolean; sessionSeed?: number } = {},
 ): Promise<Puzzle[]> {
   // ── Tier 1: FSRS repasos vencidos ─────────────────────────────────────────
-  const due        = await loadDueProgress(userId);
-  const dueIds     = due.map((p) => p.puzzleId);
-  const duePuzzles = await fetchPuzzlesByIds(dueIds);
+  const excludedSet = new Set(excludeIds);
+  const due         = await loadDueProgress(userId);
+  const dueIds      = due.map((p) => p.puzzleId).filter((id) => !excludedSet.has(id));
+  const duePuzzles  = await fetchPuzzlesByIds(dueIds);
 
   const remaining = batchSize - duePuzzles.length;
   if (remaining <= 0) return duePuzzles.slice(0, batchSize);
@@ -352,10 +353,12 @@ export async function buildReviewQueue(
         : () => Math.random();
 
       // Pick random slots from picked (not duePuzzles indices)
+      // Cap to easyPool.length to guarantee unique puzzles per slot
+      const actualInjectionCount = Math.min(injectionCount, easyPool.length);
       const availableSlots = picked.map((_, i) => i);
       const injectionSlots: number[] = [];
       const slotPool = availableSlots.slice();
-      for (let i = 0; i < injectionCount && slotPool.length > 0; i++) {
+      for (let i = 0; i < actualInjectionCount && slotPool.length > 0; i++) {
         const pick = Math.floor(rand() * slotPool.length);
         injectionSlots.push(slotPool[pick]);
         slotPool.splice(pick, 1);
@@ -363,7 +366,7 @@ export async function buildReviewQueue(
 
       const easyShuffled = shuffled(easyPool);
       injectionSlots.forEach((slotIdx, i) => {
-        const easyPuzzle = easyShuffled[i % easyShuffled.length];
+        const easyPuzzle = easyShuffled[i];
         if (easyPuzzle) {
           picked[slotIdx] = { ...easyPuzzle, isEasyInjection: true };
         }

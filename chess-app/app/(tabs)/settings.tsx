@@ -1,4 +1,4 @@
-import { Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
-import { signOut } from '@/services/auth';
+import { signOut, deleteAccount } from '@/services/auth';
 import { scheduleStreakReminder } from '@/services/notifications';
 import i18n, { getDeviceLocale } from '@/i18n';
 import type { ThemePreference } from '@/stores/useThemeStore';
@@ -71,6 +71,27 @@ export default function SettingsScreen() {
     } catch {
       reset();
     }
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      t('settings.deleteAccountTitle'),
+      t('settings.deleteAccountMsg'),
+      [
+        { text: t('settings.deleteAccountCancel'), style: 'cancel' },
+        {
+          text: t('settings.deleteAccountConfirm'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+            } catch {
+              Alert.alert(t('settings.deleteAccountError'));
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -184,6 +205,14 @@ export default function SettingsScreen() {
             >
               <Text style={[styles.label, { color: colors.error, fontSize: typography.size.md }]}>
                 {t('settings.signOut')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.row, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+              onPress={handleDeleteAccount}
+            >
+              <Text style={[styles.label, { color: colors.error, fontSize: typography.size.md, opacity: 0.6 }]}>
+                {t('settings.deleteAccount')}
               </Text>
             </TouchableOpacity>
           </View>

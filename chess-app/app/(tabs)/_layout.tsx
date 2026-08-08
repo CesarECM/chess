@@ -1,17 +1,19 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
+import * as a11y from '@/constants/a11y';
 
+// mcIcon uses MaterialCommunityIcons; icon uses Ionicons
 const NAV_ITEMS = [
-  { name: 'index',    href: '/',          icon: 'home'      as const, emoji: null  },
-  { name: 'reino',    href: '/reino',     icon: null,                 emoji: '🏰' },
-  { name: 'profile',  href: '/profile',   icon: 'person'    as const, emoji: null  },
-  { name: 'progress', href: '/progress',  icon: 'bar-chart' as const, emoji: null  },
-  { name: 'settings', href: '/settings',  icon: 'settings'  as const, emoji: null  },
+  { name: 'index',    href: '/',          icon: 'home'      as const, mcIcon: null          },
+  { name: 'reino',    href: '/reino',     icon: null,                 mcIcon: 'castle' as const },
+  { name: 'profile',  href: '/profile',   icon: 'person'    as const, mcIcon: null          },
+  { name: 'progress', href: '/progress',  icon: 'bar-chart' as const, mcIcon: null          },
+  { name: 'settings', href: '/settings',  icon: 'settings'  as const, mcIcon: null          },
 ] as const;
 
 function DesktopHeader() {
@@ -22,7 +24,12 @@ function DesktopHeader() {
 
   return (
     <View style={[styles.header, { backgroundColor: colors.tabBar, borderBottomColor: colors.tabBarBorder }]}>
-      <Text style={[styles.logo, { color: colors.text, fontSize: typography.size.md }]}>
+      <Text
+        style={[styles.logo, { color: colors.text, fontSize: typography.size.md }]}
+        {...a11y.decorative()}
+        accessibilityLabel={t('a11y.nav.logo')}
+        accessible
+      >
         ♟ Chess Puzzles
       </Text>
       <View style={styles.nav}>
@@ -31,16 +38,19 @@ function DesktopHeader() {
             ? pathname === '/'
             : pathname.startsWith(`/${item.name}`);
           const iconColor = isActive ? colors.tabBarActive : colors.tabBarInactive;
+          const tabLabel  = t(`tab.${item.name === 'index' ? 'feed' : item.name}`);
           return (
             <TouchableOpacity
               key={item.name}
               onPress={() => router.push(item.href)}
               style={styles.navItem}
+              {...a11y.btn(tabLabel)}
+              accessibilityState={{ selected: isActive }}
             >
-              {item.emoji ? (
-                <Text style={{ fontSize: 16 }}>{item.emoji}</Text>
+              {item.mcIcon ? (
+                <MaterialCommunityIcons name={item.mcIcon} size={16} color={iconColor} {...a11y.decorative()} />
               ) : (
-                <Ionicons name={item.icon!} size={16} color={iconColor} />
+                <Ionicons name={item.icon!} size={16} color={iconColor} {...a11y.decorative()} />
               )}
               <Text style={[
                 styles.navLabel,
@@ -49,7 +59,7 @@ function DesktopHeader() {
                   fontSize: typography.size.sm,
                 },
               ]}>
-                {t(`tab.${item.name === 'index' ? 'feed' : item.name}`)}
+                {tabLabel}
               </Text>
               {isActive && (
                 <View style={[styles.navIndicator, { backgroundColor: colors.accent }]} />
@@ -91,7 +101,9 @@ export default function TabsLayout() {
           name="reino"
           options={{
             title: t('tab.reino'),
-            tabBarIcon: () => <Text style={{ fontSize: 22 }}>🏰</Text>,
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="castle" size={24} color={color} {...a11y.decorative()} />
+            ),
           }}
         />
         <Tabs.Screen

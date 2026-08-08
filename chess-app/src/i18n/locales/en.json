@@ -447,6 +447,10 @@
       "title": "Perfect solve!",
       "body": "First attempt, no hints — your ELO goes up, you earn a gold or silver crown, and this puzzle counts toward your daily session."
     },
+    "chest_slot_full": {
+      "title": "📦 Chests full",
+      "body": "All 3 chest slots are taken. Open one in The Kingdom to keep buying!"
+    },
     "tutorial_hint_used": {
       "title": "You used a hint",
       "body": "Your ELO dropped a bit, but your lives are safe. A hint is your safety net — use it when you need it."
@@ -599,6 +603,35 @@
       "trophy":    "Trophy",
       "board":     "Board",
       "special":   "Special"
+    }
+  },
+  "chests": {
+    "section": {
+      "slots": "ACTIVE CHESTS",
+      "shop":  "CHEST SHOP"
+    },
+    "type": {
+      "wood":   "Wood",
+      "silver": "Silver",
+      "gold":   "Gold"
+    },
+    "slot": {
+      "open": "Open!"
+    },
+    "shop": {
+      "buy":     "Buy",
+      "full":    "Full",
+      "noFunds": "Not enough"
+    },
+    "modal": {
+      "title":              "Chest Opened!",
+      "rare":               "✨ RARE!",
+      "common":             "REWARD",
+      "lifeBonus_one":      "+1 immediate life",
+      "lifeBonus_other":    "+{{count}} immediate lives",
+      "streakFreeze_one":   "1 streak freeze",
+      "streakFreeze_other": "{{count}} streak freezes",
+      "close":              "Awesome!"
     }
   },
   "notification": {

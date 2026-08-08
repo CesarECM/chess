@@ -12,7 +12,14 @@ import {
   HALLS,
   type HallId,
 } from '@/constants/reino';
+import type { ChestType, ChestSlot, ChestContents, CollectedItem } from '@/types';
+import { CHEST_DEFS, CHEST_SLOT_MAX, CHEST_RARE_PROBABILITY } from '@/constants/chests';
+import { useUserStore } from '@/stores/useUserStore';
 import { analytics } from '@/services/analytics';
+
+function makeId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
 
 export interface HallProgressEntry {
   level: number;
@@ -27,6 +34,8 @@ interface ReinoState {
   lives:               { current: number; max: number; lastRechargeAt: string };
   hallProgress:        Partial<Record<HallId, HallProgressEntry>>;
   crystalHallUnlocked: boolean;
+  chests:              ChestSlot[];
+  collectedItems:      CollectedItem[];
 }
 
 interface ReinoActions {
@@ -34,11 +43,16 @@ interface ReinoActions {
   addCrystal:            (puzzleId: string) => void;
   addSpeedPoints:        (points: number, percentile: number) => void;
   loseLife:              () => void;
-  gainLife:              (source: 'ad' | 'crystal' | 'recharge') => void;
+  gainLife:              (source: 'ad' | 'crystal' | 'recharge' | 'chest') => void;
   redeemCrystalForLife:  () => boolean;
   rechargeLives:         () => void;
   incrementHallProgress: (hallId: HallId, puzzleId: string) => void;
   reset:                 () => void;
+  // ── Chests (logic in Sprint 2) ──────────────────────────────────────────────
+  buyChest:            (type: ChestType) => boolean;
+  openChest:           (id: string, earlyOpen?: boolean) => ChestContents | null;
+  reduceChestTimer:    (id: string, crystalsToSpend: number) => boolean;
+  checkUnlockedChests: () => ChestSlot[];
 }
 
 const INITIAL_STATE: ReinoState = {
@@ -49,6 +63,8 @@ const INITIAL_STATE: ReinoState = {
   lives:               { current: LIVES_BASE, max: LIVES_BASE, lastRechargeAt: new Date().toISOString() },
   hallProgress:        {},
   crystalHallUnlocked: false,
+  chests:              [],
+  collectedItems:      [],
 };
 
 export const useReinoStore = create<ReinoState & ReinoActions>()(
@@ -184,6 +200,125 @@ export const useReinoStore = create<ReinoState & ReinoActions>()(
             },
           };
         });
+      },
+
+      // ── Chests ────────────────────────────────────────────────────────────────
+
+      buyChest: (type) => {
+        const s   = get();
+        const def = CHEST_DEFS[type];
+        if (s.chests.length >= CHEST_SLOT_MAX) {
+          analytics.track('chest_slot_full', { slots: s.chests.length });
+          return false;
+        }
+        if (
+          s.crowns.bronze < def.cost.bronze ||
+          s.crowns.silver < def.cost.silver ||
+          s.crowns.gold   < def.cost.gold
+        ) return false;
+
+        const now     = new Date();
+        const unlockAt = new Date(now.getTime() + def.timerHours * 3_600_000).toISOString();
+        const slot: ChestSlot = {
+          id:          makeId(),
+          type,
+          purchasedAt: now.toISOString(),
+          unlockAt,
+        };
+
+        set((prev) => ({
+          crowns: {
+            bronze: prev.crowns.bronze - def.cost.bronze,
+            silver: prev.crowns.silver - def.cost.silver,
+            gold:   prev.crowns.gold   - def.cost.gold,
+          },
+          chests: [...prev.chests, slot],
+        }));
+
+        analytics.track('chest_earned', {
+          chest_type:     type,
+          slots_occupied: s.chests.length + 1,
+          cost_bronze:    def.cost.bronze,
+          cost_silver:    def.cost.silver,
+          cost_gold:      def.cost.gold,
+        });
+        return true;
+      },
+
+      openChest: (id, earlyOpen = false) => {
+        const s    = get();
+        const slot = s.chests.find((c) => c.id === id);
+        if (!slot) return null;
+        if (new Date(slot.unlockAt).getTime() > Date.now()) return null;
+
+        const def    = CHEST_DEFS[slot.type];
+        const isRare = Math.random() < CHEST_RARE_PROBABILITY;
+        const reward = isRare ? def.rareReward : def.commonReward;
+
+        const now   = new Date().toISOString();
+        const items: CollectedItem[] = reward.cosmetics.map((type) => ({
+          id:         makeId(),
+          type,
+          acquiredAt: now,
+        }));
+
+        // Apply life bonus (capped at current max by gainLife)
+        for (let i = 0; i < reward.lifeBonus; i++) {
+          get().gainLife('chest');
+        }
+
+        // Apply streak freezes via useUserStore
+        for (let i = 0; i < reward.streakFreeze; i++) {
+          useUserStore.getState().gainFreeze();
+        }
+
+        set((prev) => ({
+          chests:         prev.chests.filter((c) => c.id !== id),
+          collectedItems: [...prev.collectedItems, ...items],
+        }));
+
+        const contents: ChestContents = { isRare, items, lifeBonus: reward.lifeBonus, streakFreeze: reward.streakFreeze };
+
+        const eventName = earlyOpen ? 'chest_opened_early' : 'chest_opened';
+        analytics.track(eventName, {
+          chest_type:    slot.type,
+          is_rare:       isRare,
+          life_bonus:    reward.lifeBonus,
+          streak_freeze: reward.streakFreeze,
+          cosmetics:     reward.cosmetics,
+        });
+        return contents;
+      },
+
+      reduceChestTimer: (id, crystalsToSpend) => {
+        const s    = get();
+        const slot = s.chests.find((c) => c.id === id);
+        if (!slot) return false;
+        if (s.crystals < crystalsToSpend || crystalsToSpend <= 0) return false;
+
+        const def          = CHEST_DEFS[slot.type];
+        const hoursToReduce = crystalsToSpend / def.reducePerHour;
+        const currentUnlock = new Date(slot.unlockAt).getTime();
+        const newUnlock     = Math.max(Date.now(), currentUnlock - hoursToReduce * 3_600_000);
+
+        set((prev) => ({
+          crystals: prev.crystals - crystalsToSpend,
+          chests:   prev.chests.map((c) =>
+            c.id === id ? { ...c, unlockAt: new Date(newUnlock).toISOString() } : c
+          ),
+        }));
+
+        analytics.track('chest_timer_reduced', {
+          chest_type:      slot.type,
+          crystals_spent:  crystalsToSpend,
+          hours_reduced:   hoursToReduce,
+        });
+        return true;
+      },
+
+      checkUnlockedChests: () => {
+        const now = Date.now();
+        return get().chests.filter((c) => new Date(c.unlockAt).getTime() <= now);
       },
 
       reset: () => set(INITIAL_STATE),

@@ -8,6 +8,7 @@ interface AuthState {
   user: User | null;
   isGuest: boolean;
   isLoading: boolean;
+  isPasswordRecovery: boolean;
   setUser: (user: User | null) => void;
   setGuest: () => void;
   reset: () => void;
@@ -18,15 +19,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isGuest: true,
   isLoading: true,
+  isPasswordRecovery: false,
   setUser: (user) => set({ user, isGuest: false, isLoading: false }),
   setGuest: () => set({ user: null, isGuest: true, isLoading: false }),
-  reset: () => set({ user: null, isGuest: true, isLoading: false }),
+  reset: () => set({ user: null, isGuest: true, isLoading: false, isPasswordRecovery: false }),
 
   initAuth: () => {
     const { data: { subscription } } = onAuthStateChange(async (event, user) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        set({ isPasswordRecovery: true, isLoading: false });
+        return;
+      }
       if (user) {
-        // Migrate local guest progress first so the profile already has the
-        // accumulated ELO/calibration/streak when we load it below.
         await migrateGuestProgress(user.id);
         const profile = await getProfile(user.id);
         if (profile) useUserStore.getState().hydrate(profile);
@@ -34,10 +38,10 @@ export const useAuthStore = create<AuthState>((set) => ({
           user: { ...user, elo: profile?.elo ?? 800 },
           isGuest: false,
           isLoading: false,
+          isPasswordRecovery: false,
         });
       } else {
-        // INITIAL_SESSION with no session, or SIGNED_OUT
-        set({ user: null, isGuest: true, isLoading: false });
+        set({ user: null, isGuest: true, isLoading: false, isPasswordRecovery: false });
         if (event === 'SIGNED_OUT') useUserStore.getState().reset();
       }
     });

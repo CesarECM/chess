@@ -5,7 +5,8 @@ import * as Sharing from 'expo-sharing';
 import { analytics } from './analytics';
 import { useUserStore } from '@/stores/useUserStore';
 import { useReinoStore } from '@/stores/useReinoStore';
-import type { HallId, HallProgressEntry } from '@/constants/reino';
+import type { HallId } from '@/constants/reino';
+import type { HallProgressEntry } from '@/stores/useReinoStore';
 
 export async function captureAndShare(viewRef: RefObject<View | null>): Promise<void> {
   if (!viewRef.current) return;

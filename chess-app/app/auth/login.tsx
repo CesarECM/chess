@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { signIn, signInWithGoogle, resetPassword } from '@/services/auth';
+import * as a11y from '@/constants/a11y';
 
 export default function LoginScreen() {
   const { colors, typography, radius } = useTheme();
@@ -97,17 +98,23 @@ export default function LoginScreen() {
                 style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
                 placeholder={t('auth.email')}
                 placeholderTextColor={colors.textSecondary}
+                accessibilityLabel={t('a11y.auth.emailInput')}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
               />
-              {error ? <Text style={[styles.error, { color: colors.error, fontSize: typography.size.sm }]}>{error}</Text> : null}
-              <Pressable style={[styles.btn, { backgroundColor: colors.accent, borderRadius: radius.md }]} onPress={handleResetPassword} disabled={loading}>
+              {error ? <Text style={[styles.error, { color: colors.error, fontSize: typography.size.sm }]} {...a11y.alert(error)}>{error}</Text> : null}
+              <Pressable
+                style={[styles.btn, { backgroundColor: colors.accent, borderRadius: radius.md }]}
+                onPress={handleResetPassword}
+                disabled={loading}
+                {...a11y.btn(t('a11y.auth.sendResetBtn'))}
+              >
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { fontSize: typography.size.md }]}>{t('auth.sendReset')}</Text>}
               </Pressable>
-              <Pressable style={styles.link} onPress={() => setForgotMode(false)}>
+              <Pressable style={styles.link} onPress={() => setForgotMode(false)} {...a11y.btn(t('a11y.auth.backToSignIn'))}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm }}>{t('auth.backToSignIn')}</Text>
               </Pressable>
             </>
@@ -118,6 +125,7 @@ export default function LoginScreen() {
               style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
               placeholder={t('auth.email')}
               placeholderTextColor={colors.textSecondary}
+              accessibilityLabel={t('a11y.auth.emailInput')}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -128,44 +136,55 @@ export default function LoginScreen() {
               style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
               placeholder={t('auth.password')}
               placeholderTextColor={colors.textSecondary}
+              accessibilityLabel={t('a11y.auth.passwordInput')}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="current-password"
             />
 
-            {error ? <Text style={[styles.error, { color: colors.error, fontSize: typography.size.sm }]}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: colors.error, fontSize: typography.size.sm }]} {...a11y.alert(error)}>{error}</Text> : null}
 
-            <Pressable style={[styles.btn, { backgroundColor: colors.accent, borderRadius: radius.md }]} onPress={handleSignIn} disabled={loading}>
+            <Pressable
+              style={[styles.btn, { backgroundColor: colors.accent, borderRadius: radius.md }]}
+              onPress={handleSignIn}
+              disabled={loading}
+              {...a11y.btn(t('a11y.auth.signInBtn'))}
+            >
               {loading
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={[styles.btnText, { fontSize: typography.size.md }]}>{t('auth.signIn')}</Text>
               }
             </Pressable>
 
-            <Pressable style={styles.link} onPress={() => setForgotMode(true)}>
+            <Pressable style={styles.link} onPress={() => setForgotMode(true)} {...a11y.btn(t('a11y.auth.forgotLink'))}>
               <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>{t('auth.forgotPassword')}</Text>
             </Pressable>
 
-            <View style={styles.divider}>
+            <View style={styles.divider} {...a11y.decorative()}>
               <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
               <Text style={{ color: colors.textSecondary, fontSize: typography.size.sm, marginHorizontal: 8 }}>{t('auth.or')}</Text>
               <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
             </View>
 
-            <Pressable style={[styles.btnOutline, { borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface }]} onPress={handleGoogle} disabled={loading}>
+            <Pressable
+              style={[styles.btnOutline, { borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface }]}
+              onPress={handleGoogle}
+              disabled={loading}
+              {...a11y.btn(t('a11y.auth.googleBtn'))}
+            >
               <Text style={[styles.btnOutlineText, { color: colors.text, fontSize: typography.size.md }]}>
                 {t('auth.signInWithGoogle')}
               </Text>
             </Pressable>
 
-            <Pressable style={styles.link} onPress={() => router.push('/auth/register' as Href)}>
+            <Pressable style={styles.link} onPress={() => router.push('/auth/register' as Href)} {...a11y.btn(t('a11y.auth.registerLink'))}>
               <Text style={{ color: colors.accent, fontSize: typography.size.sm }}>
                 {t('auth.noAccount')}
               </Text>
             </Pressable>
 
-            <Pressable style={styles.link} onPress={setGuest}>
+            <Pressable style={styles.link} onPress={setGuest} {...a11y.btn(t('a11y.auth.guestLink'))}>
               <Text style={{ color: colors.textSecondary, fontSize: typography.size.xs }}>
                 {t('auth.continueAsGuest')}
               </Text>

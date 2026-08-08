@@ -16,6 +16,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { signUp, syncDisplayNameToSupabase } from '@/services/auth';
 import { analytics } from '@/services/analytics';
 import { useUserStore } from '@/stores/useUserStore';
+import * as a11y from '@/constants/a11y';
 
 export default function RegisterScreen() {
   const { colors, typography, radius } = useTheme();
@@ -93,6 +94,7 @@ export default function RegisterScreen() {
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
           placeholder={t('auth.nameOptional')}
           placeholderTextColor={colors.textSecondary}
+          accessibilityLabel={t('a11y.auth.nameInput')}
           value={name}
           onChangeText={(v) => setName(v.slice(0, 20))}
           maxLength={20}
@@ -103,6 +105,7 @@ export default function RegisterScreen() {
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
           placeholder={t('auth.email')}
           placeholderTextColor={colors.textSecondary}
+          accessibilityLabel={t('a11y.auth.emailInput')}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -113,6 +116,7 @@ export default function RegisterScreen() {
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
           placeholder={t('auth.passwordMin')}
           placeholderTextColor={colors.textSecondary}
+          accessibilityLabel={t('a11y.auth.passwordInput')}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -122,22 +126,28 @@ export default function RegisterScreen() {
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: radius.md, fontSize: typography.size.md }]}
           placeholder={t('auth.confirmPassword')}
           placeholderTextColor={colors.textSecondary}
+          accessibilityLabel={t('a11y.auth.confirmPasswordInput')}
           value={confirm}
           onChangeText={setConfirm}
           secureTextEntry
           autoComplete="new-password"
         />
 
-        {error ? <Text style={[styles.error, { color: colors.error, fontSize: typography.size.sm }]}>{error}</Text> : null}
+        {error ? <Text style={[styles.error, { color: colors.error, fontSize: typography.size.sm }]} {...a11y.alert(error)}>{error}</Text> : null}
 
-        <Pressable style={[styles.btn, { backgroundColor: colors.accent, borderRadius: radius.md }]} onPress={handleRegister} disabled={loading}>
+        <Pressable
+          style={[styles.btn, { backgroundColor: colors.accent, borderRadius: radius.md }]}
+          onPress={handleRegister}
+          disabled={loading}
+          {...a11y.btn(t('a11y.auth.createBtn'))}
+        >
           {loading
             ? <ActivityIndicator color="#fff" />
             : <Text style={[styles.btnText, { fontSize: typography.size.md }]}>{t('auth.createAccount')}</Text>
           }
         </Pressable>
 
-        <Pressable style={styles.link} onPress={() => router.back()}>
+        <Pressable style={styles.link} onPress={() => router.back()} {...a11y.btn(t('a11y.auth.backToSignIn'))}>
           <Text style={{ color: colors.accent, fontSize: typography.size.sm }}>
             {t('auth.hasAccount')}
           </Text>

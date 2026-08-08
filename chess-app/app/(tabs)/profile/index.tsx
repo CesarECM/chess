@@ -72,9 +72,20 @@ export default function ProfileScreen() {
           {isGuest ? t('profile.guestName') : (user?.email?.split('@')[0] ?? t('profile.guestName'))}
         </Text>
         {isGuest && (
-          <Text style={[styles.guestHint, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
-            {t('profile.guestHint')}
-          </Text>
+          <>
+            <Text style={[styles.guestHint, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+              {t('profile.guestHint')}
+            </Text>
+            <TouchableOpacity
+              style={[styles.signInBtn, { borderColor: colors.tabBarActive }]}
+              onPress={() => router.push('/auth/login')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.signInBtnText, { color: colors.tabBarActive, fontSize: typography.size.sm }]}>
+                {t('auth.signIn')}
+              </Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
 
@@ -164,6 +175,16 @@ export default function ProfileScreen() {
         )}
       </Section>
 
+      <Section label={t('profile.sectionAccount')} colors={colors} typography={typography}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <AccountRow label={t('profile.accountName')} value={isGuest ? t('profile.accountGuest') : (useUserStore.getState().displayName || (user?.email?.split('@')[0] ?? '—'))} colors={colors} typography={typography} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <AccountRow label={t('profile.accountEmail')} value={isGuest ? '—' : (user?.email ?? '—')} colors={colors} typography={typography} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <AccountRow label={t('profile.accountId')} value={user?.id ?? t('profile.accountGuest')} mono colors={colors} typography={typography} />
+        </View>
+      </Section>
+
       <Section label={t('profile.sectionMedals', { unlocked: unlockedMedals.length })} colors={colors} typography={typography}>
         <MedalGrid unlockedMedals={unlockedMedals} />
       </Section>
@@ -196,6 +217,29 @@ function HistoryRow({
       </View>
       <Text style={[{ color: colors.textSecondary, fontSize: typography.size.xs }]}>
         {dateStr}
+      </Text>
+    </View>
+  );
+}
+
+function AccountRow({ label, value, mono = false, colors, typography }: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  colors: ReturnType<typeof useTheme>['colors'];
+  typography: ReturnType<typeof useTheme>['typography'];
+}) {
+  return (
+    <View style={styles.accountRow}>
+      <Text style={[styles.accountLabel, { color: colors.textSecondary, fontSize: typography.size.xs }]}>
+        {label}
+      </Text>
+      <Text
+        style={[styles.accountValue, { color: colors.text, fontSize: typography.size.xs }, mono && styles.accountMono]}
+        numberOfLines={1}
+        ellipsizeMode="middle"
+      >
+        {value}
       </Text>
     </View>
   );
@@ -258,4 +302,10 @@ const styles = StyleSheet.create({
   histInfo:     { flex: 1, gap: 2 },
   histTactic:   { fontWeight: '500' },
   loadMoreBtn:  { paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, marginTop: 2 },
+  accountRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 12 },
+  accountLabel: { fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase', flexShrink: 0 },
+  accountValue: { flex: 1, textAlign: 'right' },
+  accountMono:  { fontFamily: 'monospace' },
+  signInBtn:    { marginTop: 12, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 8 },
+  signInBtnText:{ fontWeight: '600' },
 });

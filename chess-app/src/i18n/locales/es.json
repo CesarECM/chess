@@ -447,6 +447,10 @@
       "title": "¡Solve perfecto!",
       "body": "Primer intento, sin pistas — tu ELO sube, ganas corona de oro o plata, y este puzzle cuenta para tu sesión del día."
     },
+    "chest_slot_full": {
+      "title": "📦 Cofres llenos",
+      "body": "Tus 3 ranuras de cofre están ocupadas. ¡Abre uno en El Reino para seguir comprando!"
+    },
     "tutorial_hint_used": {
       "title": "Usaste una pista",
       "body": "Tu ELO bajó un poco, pero tus vidas están a salvo. La pista es tu red de seguridad — úsala cuando lo necesites."
@@ -599,6 +603,35 @@
       "trophy":    "Trofeo",
       "board":     "Tablero",
       "special":   "Especial"
+    }
+  },
+  "chests": {
+    "section": {
+      "slots": "COFRES ACTIVOS",
+      "shop":  "TIENDA DE COFRES"
+    },
+    "type": {
+      "wood":   "Madera",
+      "silver": "Plata",
+      "gold":   "Oro"
+    },
+    "slot": {
+      "open": "¡Abrir!"
+    },
+    "shop": {
+      "buy":     "Comprar",
+      "full":    "Lleno",
+      "noFunds": "Sin coronas"
+    },
+    "modal": {
+      "title":              "¡Cofre Abierto!",
+      "rare":               "✨ ¡RARO!",
+      "common":             "RECOMPENSA",
+      "lifeBonus_one":      "+1 vida inmediata",
+      "lifeBonus_other":    "+{{count}} vidas inmediatas",
+      "streakFreeze_one":   "1 freeze de racha",
+      "streakFreeze_other": "{{count}} freezes de racha",
+      "close":              "¡Genial!"
     }
   },
   "notification": {

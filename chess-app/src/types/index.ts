@@ -76,7 +76,9 @@ export type MessageType =
   | 'tutorial_hint_used'
   | 'tutorial_retry_no_hint'
   | 'tutorial_failed_final'
-  | 'tutorial_clean_solve';
+  | 'tutorial_clean_solve'
+  | 'chest_earned'
+  | 'chest_slot_full';
 
 export interface ProgressMessage {
   id: string;
@@ -91,3 +93,27 @@ export interface LockedSlotItem {
 }
 
 export type FeedItem = Puzzle | ProgressMessage | LockedSlotItem;
+
+// ── Chests ─────────────────────────────────────────────────────────────────────
+
+export type ChestType = 'wood' | 'silver' | 'gold';
+
+export interface ChestSlot {
+  id:          string;
+  type:        ChestType;
+  purchasedAt: string;  // ISO timestamp
+  unlockAt:    string;  // ISO timestamp = purchasedAt + timerHours
+}
+
+export interface CollectedItem {
+  id:         string;
+  type:       import('@/constants/reino').ItemType;
+  acquiredAt: string;  // ISO timestamp
+}
+
+export interface ChestContents {
+  isRare:      boolean;
+  items:       CollectedItem[];  // cosmetics added to collection
+  lifeBonus:   number;
+  streakFreeze: number;
+}

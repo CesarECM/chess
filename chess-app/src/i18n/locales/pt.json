@@ -447,6 +447,10 @@
       "title": "Resolução perfeita!",
       "body": "Primeira tentativa, sem dicas — seu ELO sobe, você ganha uma coroa dourada ou prateada, e este puzzle conta para sua sessão do dia."
     },
+    "chest_slot_full": {
+      "title": "📦 Baús cheios",
+      "body": "Seus 3 slots de baú estão ocupados. Abra um no Reino para continuar comprando!"
+    },
     "tutorial_hint_used": {
       "title": "Você usou uma dica",
       "body": "Seu ELO caiu um pouco, mas suas vidas estão salvas. A dica é sua rede de segurança — use-a quando precisar."
@@ -599,6 +603,35 @@
       "trophy":    "Troféu",
       "board":     "Tabuleiro",
       "special":   "Especial"
+    }
+  },
+  "chests": {
+    "section": {
+      "slots": "BAÚS ATIVOS",
+      "shop":  "LOJA DE BAÚS"
+    },
+    "type": {
+      "wood":   "Madeira",
+      "silver": "Prata",
+      "gold":   "Ouro"
+    },
+    "slot": {
+      "open": "Abrir!"
+    },
+    "shop": {
+      "buy":     "Comprar",
+      "full":    "Cheio",
+      "noFunds": "Sem coroas"
+    },
+    "modal": {
+      "title":              "Baú Aberto!",
+      "rare":               "✨ RARO!",
+      "common":             "RECOMPENSA",
+      "lifeBonus_one":      "+1 vida imediata",
+      "lifeBonus_other":    "+{{count}} vidas imediatas",
+      "streakFreeze_one":   "1 proteção de sequência",
+      "streakFreeze_other": "{{count}} proteções de sequência",
+      "close":              "Incrível!"
     }
   },
   "notification": {

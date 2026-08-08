@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/stores/useUserStore';
 import { useReinoStore } from '@/stores/useReinoStore';
 import { HALLS } from '@/constants/reino';
-import type { HallId, HallProgressEntry } from '@/constants/reino';
+import type { HallId } from '@/constants/reino';
+import type { HallProgressEntry } from '@/stores/useReinoStore';
 
 // Fixed branded colors — card always looks the same regardless of app theme
 const CARD_BG      = '#0f172a';

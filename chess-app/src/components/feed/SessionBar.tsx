@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/stores/useUserStore';
 import { useReinoStore } from '@/stores/useReinoStore';
 import { usePuzzleStore } from '@/stores/usePuzzleStore';
@@ -7,6 +8,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { ELO_RANGES } from '@/constants';
 import { CROWN_COLORS } from '@/constants/reino';
 import { SessionProgressArc } from './SessionProgressArc';
+import * as a11y from '@/constants/a11y';
 
 function getPieceForElo(elo: number): string {
   const entries = Object.values(ELO_RANGES);
@@ -23,6 +25,7 @@ interface Props {
 
 export function SessionBar({ sessionGateOpen, onOpenSession }: Props) {
   const { colors, typography } = useTheme();
+  const { t } = useTranslation();
   const elo              = useUserStore((s) => s.elo);
   const streakDays       = useUserStore((s) => s.streakDays);
   const dayCompletedDate = useUserStore((s) => s.dayCompletedDate);
@@ -58,19 +61,38 @@ export function SessionBar({ sessionGateOpen, onOpenSession }: Props) {
     return () => loop.stop();
   }, [sessionGateOpen, pulseAnim]);
 
+  const arcLabel = isResumen
+    ? t('a11y.sessionBar.arcResumen')
+    : sessionGateOpen
+      ? t('a11y.sessionBar.arcGateOpen')
+      : t('a11y.sessionBar.arcCounting', { count });
+
   return (
     <View style={styles.row}>
-      <Text style={[styles.cell, { color: colors.text, fontSize: typography.size.md }]}>
+      <Text
+        accessible
+        accessibilityLabel={t('a11y.sessionBar.piece', { piece, elo })}
+        style={[styles.cell, { color: colors.text, fontSize: typography.size.md }]}
+      >
         {piece}
       </Text>
 
       {streakDays > 0 && (
-        <Text style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}>
+        <Text
+          accessible
+          accessibilityLabel={t('a11y.sessionBar.streak', { days: streakDays })}
+          style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}
+        >
           🔥{streakDays}
         </Text>
       )}
 
-      <View style={styles.crownsRow}>
+      {/* accessible View groups children — screen reader reads the label as a single unit */}
+      <View
+        accessible
+        accessibilityLabel={t('a11y.sessionBar.crowns', { gold: crowns.gold, silver: crowns.silver, bronze: crowns.bronze })}
+        style={styles.crownsRow}
+      >
         <Text style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}>♛</Text>
         {(['gold', 'silver', 'bronze'] as const).map((type) => (
           <View key={type} style={styles.crownPair}>
@@ -82,17 +104,33 @@ export function SessionBar({ sessionGateOpen, onOpenSession }: Props) {
         ))}
       </View>
 
-      <Text style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}>
+      <Text
+        accessible
+        accessibilityLabel={t('a11y.sessionBar.crystals', { count: crystals })}
+        style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}
+      >
         💎{crystals}
       </Text>
-      <Text style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}>
+      <Text
+        accessible
+        accessibilityLabel={t('a11y.sessionBar.speed', { count: speed })}
+        style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}
+      >
         ⚡{speed}
       </Text>
-      <Text style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}>
+      <Text
+        accessible
+        accessibilityLabel={t('a11y.sessionBar.lives', { count: lives.current })}
+        style={[styles.cell, { color: colors.text, fontSize: typography.size.xs }]}
+      >
         ❤️{lives.current}
       </Text>
 
-      <TouchableOpacity onPress={onOpenSession} hitSlop={8}>
+      <TouchableOpacity
+        onPress={onOpenSession}
+        hitSlop={8}
+        {...a11y.btn(arcLabel, t('a11y.sessionBar.arcHint'))}
+      >
         <View style={styles.dotWrapper}>
           {sessionGateOpen && (
             <Animated.View
