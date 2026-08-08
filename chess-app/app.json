@@ -100,6 +100,12 @@
     "experiments": {
       "typedRoutes": true
     },
+    "updates": {
+      "url": "https://u.expo.dev/56a137c9-3bd0-4626-aa7a-259eb27d3ac5"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "extra": {
       "router": {},
       "eas": {

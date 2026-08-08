@@ -2,9 +2,10 @@ import '@/i18n'; // inicializa i18next con los recursos bundleados
 import { SUPABASE_CONFIG_ERROR } from '@/services/supabase';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef } from 'react';
-import { AppState, Platform, useColorScheme, useWindowDimensions, View, type AppStateStatus, type ViewStyle } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, Linking, Platform, StyleSheet, Text, TouchableOpacity, useColorScheme, useWindowDimensions, View, type AppStateStatus, type ViewStyle } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { checkNativeVersion, checkOTAUpdate, type VersionCheckResult } from '@/services/appVersionCheck';
 
 import { GDPRConsentModal } from '@/components/ui/GDPRConsentModal';
 import { OnboardingModal } from '@/components/ui/OnboardingModal';
@@ -65,8 +66,62 @@ async function refreshNotifications(userId: string | undefined): Promise<void> {
   }
 }
 
+function ForceUpdateOverlay({ message, storeUrl }: { message: string; storeUrl: string }) {
+  return (
+    <View style={forceUpdateStyles.overlay}>
+      <Text style={forceUpdateStyles.title}>Actualización requerida</Text>
+      <Text style={forceUpdateStyles.body}>{message}</Text>
+      {storeUrl ? (
+        <TouchableOpacity
+          style={forceUpdateStyles.button}
+          onPress={() => Linking.openURL(storeUrl)}
+          accessibilityRole="button"
+          accessibilityLabel="Ir a la tienda para actualizar"
+        >
+          <Text style={forceUpdateStyles.buttonText}>Actualizar ahora</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
+const forceUpdateStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: '#0a0a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 16,
+  },
+  title: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  body: {
+    color: '#a0a0a0',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  button: {
+    marginTop: 8,
+    backgroundColor: '#4a90d9',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
 function AuthGuard() {
-  const { user, isGuest, isLoading, initAuth } = useAuthStore();
+  const { user, isGuest, isLoading, initAuth, isPasswordRecovery } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
   const appState = useRef<AppStateStatus>(AppState.currentState);
@@ -79,6 +134,7 @@ function AuthGuard() {
     fetchCalibrationConfig().then(({ low, high }) => {
       useUserStore.getState().setCalibrationBounds(low, high);
     }).catch(() => {});
+    checkOTAUpdate().catch(console.error);
     return unsubscribe;
   }, []);
 
@@ -125,16 +181,34 @@ function AuthGuard() {
 
   useEffect(() => {
     if (isLoading) return;
-
-    // No redirect from auth group — UI gates (e.g. subscription gate) already
-    // prevent authenticated users from reaching register/login screens.
-  }, [user, isGuest, isLoading, segments]);
+    if (isPasswordRecovery) {
+      router.replace('/auth/update-password');
+      return;
+    }
+    if (!isGuest && user && segments[0] === 'auth') {
+      router.replace('/(tabs)');
+    }
+  }, [user, isGuest, isLoading, segments, isPasswordRecovery]);
 
   return null;
 }
 
 function ThemedApp() {
   const { scheme } = useTheme();
+  const [versionCheck, setVersionCheck] = useState<VersionCheckResult | null>(null);
+
+  useEffect(() => {
+    checkNativeVersion().then(setVersionCheck).catch(() => setVersionCheck({ blocked: false }));
+  }, []);
+
+  if (versionCheck?.blocked) {
+    return (
+      <ForceUpdateOverlay
+        message={versionCheck.message}
+        storeUrl={versionCheck.storeUrl}
+      />
+    );
+  }
 
   return (
     <>
